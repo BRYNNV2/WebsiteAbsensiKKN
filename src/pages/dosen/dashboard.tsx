@@ -6,7 +6,20 @@ import {
   TrendingUp,
   Loader2,
   ShieldAlert,
+  UserPlus,
+  Clock,
+  Mail,
+  Calendar,
 } from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { supabase, type QrSession, type AttendanceRecord } from "@/lib/supabase";
 import { useDosenData } from "@/hooks/use-dosen-data";
@@ -22,6 +35,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import {
   Table,
   TableBody,
   TableCell,
@@ -29,10 +48,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { Link } from "react-router-dom";
+
+const chartConfig = {
+  hadir: { label: "Hadir", color: "var(--chart-2)" },
+  terlambat: { label: "Terlambat", color: "var(--chart-4)" },
+  total: { label: "Mahasiswa", color: "var(--chart-1)" },
+} satisfies ChartConfig;
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
@@ -42,6 +68,37 @@ function formatDateTime(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+function formatRelative(iso: string) {
+  const now = new Date();
+  const past = new Date(iso);
+  const diffMs = now.getTime() - past.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  if (diffMin < 1) return "Baru saja";
+  if (diffMin < 60) return `${diffMin} menit lalu`;
+  if (diffHour < 24) return `${diffHour} jam lalu`;
+  if (diffDay < 30) return `${diffDay} hari lalu`;
+  return past.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
+}
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((s) => s[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 }
 
 function StatCard({
@@ -94,8 +151,7 @@ export function DosenDashboardPage() {
           "id, group_id, title, meeting_date, starts_at, ends_at, location, token, created_by, created_at"
         )
         .eq("group_id", group.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
+        .order("starts_at", { ascending: true });
       const sessionList = (s as QrSession[]) ?? [];
       setSessions(sessionList);
 
@@ -110,8 +166,7 @@ export function DosenDashboardPage() {
             "session_id",
             sessionList.map((x) => x.id)
           )
-          .order("scanned_at", { ascending: false })
-          .limit(8);
+          .order("scanned_at", { ascending: false });
         recordList = (r as AttendanceRecord[]) ?? [];
       }
       setRecords(recordList);
@@ -141,6 +196,55 @@ export function DosenDashboardPage() {
     if (expected === 0) return 0;
     return Math.round((records.length / expected) * 100);
   }, [students, sessions, records]);
+
+  // Line chart: attendance per session (hadir vs terlambat)
+  const lineChartData = useMemo(() => {
+    return sessions.map((s) => {
+      const sessionRecords = records.filter((r) => r.session_id === s.id);
+      return {
+        name: s.title.length > 12 ? s.title.slice(0, 12) + "…" : s.title,
+        hadir: sessionRecords.filter((r) => r.status === "hadir").length,
+        terlambat: sessionRecords.filter((r) => r.status === "terlambat").length,
+      };
+    });
+  }, [sessions, records]);
+
+  // Area chart: cumulative student registration growth over time
+  const areaChartData = useMemo(() => {
+    const sortedStudents = [...students].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    let cumulative = 0;
+    const dataPoints = sortedStudents.map((s) => {
+      cumulative += 1;
+      return {
+        date: formatDateShort(s.created_at),
+        total: cumulative,
+      };
+    });
+    if (dataPoints.length === 0) return [];
+    if (dataPoints.length === 1) {
+      return [
+        { date: formatDateShort(new Date(Date.now() - 86400000).toISOString()), total: 0 },
+        ...dataPoints,
+      ];
+    }
+    return dataPoints;
+  }, [students]);
+
+  // Recent student registrations (sorted by newest first)
+  const recentStudents = useMemo(() => {
+    return [...students]
+      .sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+      .slice(0, 5);
+  }, [students]);
+
+  // Recent attendance records (limited to 6)
+  const recentRecords = useMemo(() => records.slice(0, 6), [records]);
+
+  const recentSessions = useMemo(() => sessions.slice(-5).reverse(), [sessions]);
 
   if (loading) {
     return (
@@ -195,6 +299,7 @@ export function DosenDashboardPage() {
         }
       />
 
+      {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Mahasiswa Terdaftar"
@@ -226,70 +331,176 @@ export function DosenDashboardPage() {
         />
       </div>
 
+      {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Sesi Absen Terbaru</CardTitle>
+            <CardTitle>Tren Kehadiran per Sesi</CardTitle>
             <CardDescription>
-              Lima sesi yang baru saja Anda buat.
+              Jumlah mahasiswa hadir dan terlambat untuk setiap sesi absen.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {dataLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : sessions.length === 0 ? (
+              <Skeleton className="h-[240px] w-full" />
+            ) : lineChartData.length === 0 ? (
               <Empty className="border-0 p-0">
                 <EmptyDescription>
-                  Belum ada sesi absen. Mulai buat sesi pertama Anda.
+                  Belum ada sesi absen. Grafik akan muncul setelah sesi pertama dibuat.
+                </EmptyDescription>
+              </Empty>
+            ) : (
+              <ChartContainer config={chartConfig} className="min-h-[240px] w-full">
+                <LineChart accessibilityLayer data={lineChartData} margin={{ left: 12, right: 12, top: 8 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                  />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} />
+                  <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+                  <Line
+                    dataKey="hadir"
+                    stroke="var(--color-hadir)"
+                    strokeWidth={2}
+                    dot={{ r: 4, fill: "var(--color-hadir)" }}
+                    activeDot={{ r: 5 }}
+                  />
+                  <Line
+                    dataKey="terlambat"
+                    stroke="var(--color-terlambat)"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    dot={{ r: 3, fill: "var(--color-terlambat)" }}
+                  />
+                </LineChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Pertumbuhan Mahasiswa Terdaftar</CardTitle>
+            <CardDescription>
+              Akumulasi jumlah mahasiswa yang didaftarkan dari waktu ke waktu.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-[240px] w-full" />
+            ) : areaChartData.length === 0 ? (
+              <Empty className="border-0 p-0">
+                <EmptyDescription>
+                  Belum ada mahasiswa terdaftar. Grafik akan muncul setelah
+                  mahasiswa pertama ditambahkan.
+                </EmptyDescription>
+              </Empty>
+            ) : (
+              <ChartContainer config={chartConfig} className="min-h-[240px] w-full">
+                <AreaChart accessibilityLayer data={areaChartData} margin={{ left: 12, right: 12, top: 8 }}>
+                  <defs>
+                    <linearGradient id="fillTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-total)" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="var(--color-total)" stopOpacity={0.1} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                  />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} />
+                  <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
+                  <Area
+                    dataKey="total"
+                    stroke="var(--color-total)"
+                    strokeWidth={2}
+                    fill="url(#fillTotal)"
+                    type="monotone"
+                  />
+                </AreaChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent registrations + attendance activity */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Mahasiswa Terdaftar Terbaru</CardTitle>
+                <CardDescription>
+                  Mahasiswa yang baru saja ditambahkan ke kelompok.
+                </CardDescription>
+              </div>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/students">
+                  <Users className="size-4" />
+                  Lihat Semua
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : recentStudents.length === 0 ? (
+              <Empty className="border-0 p-0">
+                <EmptyDescription>
+                  Belum ada mahasiswa terdaftar. Tambahkan mahasiswa binaan
+                  Anda dari menu Mahasiswa.
                 </EmptyDescription>
               </Empty>
             ) : (
               <div className="space-y-3">
-                {sessions.map((s) => {
-                  const now = new Date();
-                  const isActive =
-                    new Date(s.starts_at) <= now &&
-                    new Date(s.ends_at) >= now;
-                  const isPast = new Date(s.ends_at) < now;
-                  return (
-                    <div
-                      key={s.id}
-                      className="flex items-center justify-between gap-3 rounded-md border px-3 py-2.5"
-                    >
-                      <div className="flex min-w-0 flex-col">
-                        <span className="truncate text-sm font-medium">
-                          {s.title}
+                {recentStudents.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center gap-3 rounded-lg border p-3"
+                  >
+                    <Avatar size="sm">
+                      <AvatarFallback>{initials(s.full_name)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate text-sm font-medium">
+                        {s.full_name}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1">
+                          <Mail className="size-3" />
+                          <span className="truncate">{s.email}</span>
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDateTime(s.starts_at)} -{" "}
-                          {new Date(s.ends_at).toLocaleTimeString("id-ID", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
+                        {s.student_id && (
+                          <span className="inline-flex items-center gap-1">
+                            <UserPlus className="size-3" />
+                            {s.student_id}
+                          </span>
+                        )}
                       </div>
-                      <Badge
-                        variant={
-                          isActive
-                            ? "default"
-                            : isPast
-                              ? "secondary"
-                              : "outline"
-                        }
-                      >
-                        {isActive
-                          ? "Aktif"
-                          : isPast
-                            ? "Selesai"
-                            : "Terjadwal"}
-                      </Badge>
                     </div>
-                  );
-                })}
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <Badge variant="outline" className="font-mono">
+                        {s.student_id ?? "—"}
+                      </Badge>
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="size-3" />
+                        {formatRelative(s.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
@@ -299,7 +510,7 @@ export function DosenDashboardPage() {
           <CardHeader>
             <CardTitle>Aktivitas Absen Terkini</CardTitle>
             <CardDescription>
-              Scan terbaru dari mahasiswa kelompok Anda.
+              Scan QR terbaru dari mahasiswa kelompok Anda.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -309,7 +520,7 @@ export function DosenDashboardPage() {
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
-            ) : records.length === 0 ? (
+            ) : recentRecords.length === 0 ? (
               <Empty className="border-0 p-0">
                 <EmptyDescription>
                   Belum ada aktivitas absen dari mahasiswa.
@@ -320,17 +531,22 @@ export function DosenDashboardPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Mahasiswa</TableHead>
+                    <TableHead>Sesi</TableHead>
                     <TableHead>Waktu</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {records.map((r) => {
+                  {recentRecords.map((r) => {
                     const student = students.find((s) => s.id === r.student_id);
+                    const session = sessions.find((s) => s.id === r.session_id);
                     return (
                       <TableRow key={r.id}>
                         <TableCell className="font-medium">
                           {student?.full_name ?? "Mahasiswa"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {session?.title ?? "Sesi"}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {formatDateTime(r.scanned_at)}
@@ -365,6 +581,98 @@ export function DosenDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Recent sessions */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Sesi Absen Terbaru</CardTitle>
+              <CardDescription>
+                Sesi yang baru saja dibuat atau sedang berlangsung.
+              </CardDescription>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/sessions">
+                <QrCode className="size-4" />
+                Kelola Sesi
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {dataLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : recentSessions.length === 0 ? (
+            <Empty className="border-0 p-0">
+              <EmptyDescription>
+                Belum ada sesi absen. Mulai buat sesi pertama Anda.
+              </EmptyDescription>
+            </Empty>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {recentSessions.map((s) => {
+                const now = new Date();
+                const isActive =
+                  new Date(s.starts_at) <= now && new Date(s.ends_at) >= now;
+                const isPast = new Date(s.ends_at) < now;
+                const sessionRecs = records.filter((r) => r.session_id === s.id);
+                const presentCount = sessionRecs.filter((r) => r.status === "hadir" || r.status === "terlambat").length;
+                return (
+                  <div
+                    key={s.id}
+                    className="flex flex-col gap-2 rounded-lg border p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="truncate text-sm font-medium">
+                        {s.title}
+                      </span>
+                      <Badge
+                        variant={
+                          isActive
+                            ? "default"
+                            : isPast
+                              ? "secondary"
+                              : "outline"
+                        }
+                        className={cn(
+                          isActive &&
+                            "bg-emerald-600 text-white dark:bg-emerald-600/80"
+                        )}
+                      >
+                        {isActive ? "Aktif" : isPast ? "Selesai" : "Terjadwal"}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Calendar className="size-3.5" />
+                        {formatDateShort(s.starts_at)} •{" "}
+                        {new Date(s.starts_at).toLocaleTimeString("id-ID", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      {s.location && (
+                        <span className="truncate">{s.location}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between border-t pt-2 text-xs">
+                      <span className="text-muted-foreground">Kehadiran</span>
+                      <span className="font-medium tabular-nums">
+                        {presentCount} / {students.length}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
