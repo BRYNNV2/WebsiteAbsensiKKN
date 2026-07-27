@@ -130,9 +130,11 @@ export function AppShell() {
         <SidebarHeader className="p-3 space-y-2">
           {/* Header Brand */}
           <div className="flex items-center gap-2.5 px-1 py-1">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-xs">
-              <ShieldCheck className="size-4" />
-            </div>
+            <img
+              src="/logokkn.png"
+              alt="Logo KKN"
+              className="size-8 object-contain shrink-0"
+            />
             <div className="flex flex-col group-data-[collapsible=icon]:hidden">
               <span className="text-sm font-bold tracking-tight text-foreground">
                 AbsensiKKN

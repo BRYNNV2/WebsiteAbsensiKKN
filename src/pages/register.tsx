@@ -159,9 +159,9 @@ export function RegisterPage() {
               <ArrowLeft className="size-3.5" />
               Kembali ke halaman login
             </Link>
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="size-5 text-primary" />
-              <span className="text-base font-semibold tracking-tight">
+            <div className="flex items-center gap-2.5 mt-1">
+              <img src="/logokkn.png" alt="Logo KKN" className="size-8 object-contain shrink-0" />
+              <span className="text-base font-bold tracking-tight text-foreground">
                 AbsensiKKN
               </span>
             </div>
