@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, ShieldAlert, Download, Filter, UserCheck, CheckCircle2, Clock, FileText, Stethoscope, XCircle, ChevronDown } from "lucide-react";
+import { Loader2, ShieldAlert, Download, Filter, UserCheck, CheckCircle2, Clock, FileText, Stethoscope, XCircle, ChevronDown, Search, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
 
 import jsPDF from "jspdf";
@@ -140,6 +140,8 @@ export function DosenRecapPage() {
 
   const filteredSessions = useMemo(() => {
     if (selectedSession === "all") return sessions;
+    if (selectedSession === "latest30") return sessions.slice(0, 30);
+    if (selectedSession === "latest15") return sessions.slice(0, 15);
     if (selectedSession === "latest10") return sessions.slice(0, 10);
     if (selectedSession === "latest7") return sessions.slice(0, 7);
     return sessions.filter((s) => s.id === selectedSession);
@@ -172,6 +174,32 @@ export function DosenRecapPage() {
       return row;
     });
   }, [students, filteredSessions, records]);
+
+  // Search & Pagination State for Recap Matrix Table
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const RECAP_PER_PAGE = 8;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedSession]);
+
+  const filteredMatrix = useMemo(() => {
+    if (!searchQuery.trim()) return matrix;
+    const q = searchQuery.toLowerCase().trim();
+    return matrix.filter(
+      (m) =>
+        m.student.full_name.toLowerCase().includes(q) ||
+        (m.student.student_id && m.student.student_id.toLowerCase().includes(q))
+    );
+  }, [matrix, searchQuery]);
+
+  const totalPages = Math.ceil(filteredMatrix.length / RECAP_PER_PAGE) || 1;
+
+  const paginatedMatrix = useMemo(() => {
+    const start = (currentPage - 1) * RECAP_PER_PAGE;
+    return filteredMatrix.slice(start, start + RECAP_PER_PAGE);
+  }, [filteredMatrix, currentPage]);
 
   async function handleSetStatus(sessionId: string, studentId: string, newStatus: AttendanceStatus) {
     const cellKey = `${sessionId}_${studentId}`;
@@ -439,32 +467,38 @@ export function DosenRecapPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardHeader className="flex flex-col gap-4 pb-4 border-b">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <CardTitle>Matrix Kehadiran</CardTitle>
-              <CardDescription>
-                {students.length} mahasiswa - {filteredSessions.length} sesi (Klik status untuk mengubah manual)
+              <CardTitle className="text-base font-bold">Matrix Rekapitulasi Presensi</CardTitle>
+              <CardDescription className="text-xs mt-0.5">
+                {students.length} mahasiswa • {filteredSessions.length} sesi ditampilkan (Klik status untuk ubah manual)
               </CardDescription>
             </div>
+
+            {/* Filter Sesi Dropdown */}
             <div className="flex items-center gap-2">
-              <Filter className="size-4 text-muted-foreground" />
-              <Select
-                value={selectedSession}
-                onValueChange={setSelectedSession}
-              >
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder="Pilih sesi" />
+              <Filter className="size-3.5 text-muted-foreground" />
+              <Select value={selectedSession} onValueChange={setSelectedSession}>
+                <SelectTrigger className="w-[230px] text-xs h-9">
+                  <SelectValue placeholder="Pilih rentang sesi" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Semua Sesi ({sessions.length})</SelectItem>
-                  {sessions.length > 7 && (
-                    <SelectItem value="latest7">7 Sesi Terbaru (1 Minggu)</SelectItem>
+                  <SelectItem value="all" className="text-xs">Semua Sesi ({sessions.length})</SelectItem>
+                  {sessions.length > 30 && (
+                    <SelectItem value="latest30" className="text-xs">30 Sesi Terbaru (1 Bulan)</SelectItem>
+                  )}
+                  {sessions.length > 15 && (
+                    <SelectItem value="latest15" className="text-xs">15 Sesi Terbaru (2 Minggu)</SelectItem>
                   )}
                   {sessions.length > 10 && (
-                    <SelectItem value="latest10">10 Sesi Terbaru</SelectItem>
+                    <SelectItem value="latest10" className="text-xs">10 Sesi Terbaru</SelectItem>
+                  )}
+                  {sessions.length > 7 && (
+                    <SelectItem value="latest7" className="text-xs">7 Sesi Terbaru (1 Minggu)</SelectItem>
                   )}
                   {sessions.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
+                    <SelectItem key={s.id} value={s.id} className="text-xs">
                       {s.title}
                     </SelectItem>
                   ))}
@@ -472,8 +506,28 @@ export function DosenRecapPage() {
               </Select>
             </div>
           </div>
+
+          {/* Search Mahasiswa Bar */}
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari nama atau NIM mahasiswa..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-8 text-xs h-9 bg-background/80"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
         </CardHeader>
-        <CardContent>
+
+        <CardContent className="pt-6">
           {dataLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -484,131 +538,214 @@ export function DosenRecapPage() {
             <Empty className="border">
               <EmptyTitle>Belum ada data rekap</EmptyTitle>
               <EmptyDescription>
-                Tambahkan mahasiswa dan buat sesi absen untuk melihat
-                rekapitulasi kehadiran di sini.
+                Tambahkan mahasiswa dan buat sesi absen untuk melihat rekapitulasi kehadiran di sini.
               </EmptyDescription>
             </Empty>
+          ) : filteredMatrix.length === 0 ? (
+            <div className="text-center py-10 text-xs text-muted-foreground space-y-2">
+              <Search className="size-8 mx-auto text-muted-foreground/50" />
+              <p className="font-semibold text-foreground">Tidak ditemukan hasil pencarian</p>
+              <p>Tidak ada mahasiswa yang cocok dengan kata kunci "{searchQuery}".</p>
+              <Button size="sm" variant="outline" onClick={() => setSearchQuery("")} className="mt-2 text-xs">
+                Bersihkan Pencarian
+              </Button>
+            </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="sticky left-0 bg-background">
-                      Mahasiswa
-                    </TableHead>
-                    {filteredSessions.map((s) => (
-                      <TableHead key={s.id} className="text-center min-w-[120px]">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-medium">{s.title}</span>
-                          <span className="text-xs font-normal text-muted-foreground">
-                            {formatDate(s.starts_at)}
-                          </span>
-                        </div>
+            <div className="space-y-4">
+              {/* Responsive Horizontal Scroll Container with Solid Borders */}
+              <div className="overflow-x-auto relative rounded-lg border border-border/80 shadow-2xs bg-background">
+                <Table className="w-full border-collapse text-xs">
+                  <TableHeader className="bg-muted/40">
+                    <TableRow>
+                      {/* Sticky Left Column Header */}
+                      <TableHead className="sticky left-0 z-30 bg-background/95 backdrop-blur-xs min-w-[220px] max-w-[220px] border-r border-border/80 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)] py-3">
+                        Nama Mahasiswa &amp; NIM
                       </TableHead>
-                    ))}
-                    <TableHead className="text-center font-bold">Hadir</TableHead>
-                    <TableHead className="text-center font-bold">Telat</TableHead>
-                    <TableHead className="text-center font-bold text-blue-600 dark:text-blue-400">Izin</TableHead>
-                    <TableHead className="text-center font-bold text-amber-600 dark:text-amber-400">Sakit</TableHead>
-                    <TableHead className="text-center font-bold text-rose-600 dark:text-rose-400">Alpha</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {matrix.map((row) => (
-                    <TableRow key={row.student.id}>
-                      <TableCell className="sticky left-0 bg-background">
-                        <div className="flex flex-col">
-                          <span className="font-medium">
-                            {row.student.full_name}
-                          </span>
-                          <span className="text-xs text-muted-foreground font-mono">
-                            {row.student.student_id}
-                          </span>
-                        </div>
-                      </TableCell>
-                      {row.attendances.map((a) => {
-                        const currentStatus: AttendanceStatus = a.record?.status ?? "absen";
-                        const cellKey = `${a.session.id}_${row.student.id}`;
-                        const isUpdating = updatingCell === cellKey;
-                        const badgeInfo = statusBadges[currentStatus];
 
-                        return (
-                          <TableCell key={a.session.id} className="text-center p-2">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button
-                                  type="button"
-                                  disabled={isUpdating}
-                                  className={cn(
-                                    "inline-flex items-center justify-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold shadow-xs transition-all hover:scale-105 cursor-pointer disabled:opacity-50 mx-auto",
-                                    badgeInfo.className
-                                  )}
-                                >
-                                  {isUpdating ? (
-                                    <Loader2 className="size-3 animate-spin" />
-                                  ) : (
-                                    <>
-                                      <span>{badgeInfo.label}</span>
-                                      <ChevronDown className="size-3 opacity-80" />
-                                    </>
-                                  )}
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="center" className="w-[180px]">
-                                <DropdownMenuItem
-                                  className="cursor-pointer font-medium text-emerald-600 dark:text-emerald-400"
-                                  onClick={() => handleSetStatus(a.session.id, row.student.id, "hadir")}
-                                >
-                                  Hadir (Tepat Waktu)
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="cursor-pointer font-medium text-purple-600 dark:text-purple-400"
-                                  onClick={() => handleSetStatus(a.session.id, row.student.id, "terlambat")}
-                                >
-                                  Terlambat
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="cursor-pointer font-medium text-blue-600 dark:text-blue-400"
-                                  onClick={() => handleSetStatus(a.session.id, row.student.id, "izin")}
-                                >
-                                  Izin
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="cursor-pointer font-medium text-amber-600 dark:text-amber-400"
-                                  onClick={() => handleSetStatus(a.session.id, row.student.id, "sakit")}
-                                >
-                                  Sakit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="cursor-pointer font-medium text-rose-600 dark:text-rose-400"
-                                  onClick={() => handleSetStatus(a.session.id, row.student.id, "absen")}
-                                >
-                                  Alpha
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell className="text-center tabular-nums font-bold text-emerald-600">
-                        {row.present}
-                      </TableCell>
-                      <TableCell className="text-center tabular-nums font-bold text-purple-600">
-                        {row.late}
-                      </TableCell>
-                      <TableCell className="text-center tabular-nums font-bold text-blue-600">
-                        {row.permission}
-                      </TableCell>
-                      <TableCell className="text-center tabular-nums font-bold text-amber-600">
-                        {row.sick}
-                      </TableCell>
-                      <TableCell className="text-center tabular-nums font-bold text-rose-600 dark:text-rose-400">
-                        {row.absent}
-                      </TableCell>
+                      {/* Session Headers */}
+                      {filteredSessions.map((s) => (
+                        <TableHead
+                          key={s.id}
+                          className="text-center min-w-[130px] max-w-[130px] px-3 py-2.5 border-r border-border/40"
+                        >
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="font-semibold text-foreground truncate" title={s.title}>
+                              {s.title}
+                            </span>
+                            <span className="text-[10px] font-normal text-muted-foreground">
+                              {formatDate(s.starts_at)}
+                            </span>
+                          </div>
+                        </TableHead>
+                      ))}
+
+                      {/* Total Summary Headers */}
+                      <TableHead className="text-center font-bold min-w-[65px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-r border-border/40">
+                        Hadir
+                      </TableHead>
+                      <TableHead className="text-center font-bold min-w-[65px] bg-purple-500/10 text-purple-600 dark:text-purple-400 border-r border-border/40">
+                        Telat
+                      </TableHead>
+                      <TableHead className="text-center font-bold min-w-[65px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border-r border-border/40">
+                        Izin
+                      </TableHead>
+                      <TableHead className="text-center font-bold min-w-[65px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border-r border-border/40">
+                        Sakit
+                      </TableHead>
+                      <TableHead className="text-center font-bold min-w-[65px] bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                        Alpha
+                      </TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+
+                  <TableBody>
+                    {paginatedMatrix.map((row) => (
+                      <TableRow key={row.student.id} className="group hover:bg-muted/40 transition-colors">
+                        {/* Sticky Left Column Body Cell */}
+                        <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 transition-colors min-w-[220px] max-w-[220px] border-r border-border/80 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)] py-2.5">
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-semibold text-foreground truncate">
+                              {row.student.full_name}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground font-mono font-medium">
+                              {row.student.student_id ?? "—"}
+                            </span>
+                          </div>
+                        </TableCell>
+
+                        {/* Interactive Session Cells */}
+                        {row.attendances.map((a) => {
+                          const currentStatus: AttendanceStatus = a.record?.status ?? "absen";
+                          const cellKey = `${a.session.id}_${row.student.id}`;
+                          const isUpdating = updatingCell === cellKey;
+                          const badgeInfo = statusBadges[currentStatus];
+
+                          return (
+                            <TableCell key={a.session.id} className="text-center min-w-[130px] max-w-[130px] p-2 border-r border-border/40">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    type="button"
+                                    disabled={isUpdating}
+                                    className={cn(
+                                      "inline-flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-2xs transition-all hover:scale-105 cursor-pointer disabled:opacity-50 mx-auto",
+                                      badgeInfo.className
+                                    )}
+                                  >
+                                    {isUpdating ? (
+                                      <Loader2 className="size-3 animate-spin" />
+                                    ) : (
+                                      <>
+                                        <span>{badgeInfo.label}</span>
+                                        <ChevronDown className="size-3 opacity-80" />
+                                      </>
+                                    )}
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="center" className="w-[180px]">
+                                  <DropdownMenuItem
+                                    className="cursor-pointer font-medium text-emerald-600 dark:text-emerald-400"
+                                    onClick={() => handleSetStatus(a.session.id, row.student.id, "hadir")}
+                                  >
+                                    Hadir (Tepat Waktu)
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="cursor-pointer font-medium text-purple-600 dark:text-purple-400"
+                                    onClick={() => handleSetStatus(a.session.id, row.student.id, "terlambat")}
+                                  >
+                                    Terlambat
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="cursor-pointer font-medium text-blue-600 dark:text-blue-400"
+                                    onClick={() => handleSetStatus(a.session.id, row.student.id, "izin")}
+                                  >
+                                    Izin
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="cursor-pointer font-medium text-amber-600 dark:text-amber-400"
+                                    onClick={() => handleSetStatus(a.session.id, row.student.id, "sakit")}
+                                  >
+                                    Sakit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="cursor-pointer font-medium text-rose-600 dark:text-rose-400"
+                                    onClick={() => handleSetStatus(a.session.id, row.student.id, "absen")}
+                                  >
+                                    Alpha
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          );
+                        })}
+
+                        {/* Totals */}
+                        <TableCell className="text-center tabular-nums font-bold text-emerald-600 dark:text-emerald-400 min-w-[65px] bg-muted/10 border-r border-border/40">
+                          {row.present}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums font-bold text-purple-600 dark:text-purple-400 min-w-[65px] bg-muted/10 border-r border-border/40">
+                          {row.late}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums font-bold text-blue-600 dark:text-blue-400 min-w-[65px] bg-muted/10 border-r border-border/40">
+                          {row.permission}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums font-bold text-amber-600 dark:text-amber-400 min-w-[65px] bg-muted/10 border-r border-border/40">
+                          {row.sick}
+                        </TableCell>
+                        <TableCell className="text-center tabular-nums font-bold text-rose-600 dark:text-rose-400 min-w-[65px] bg-muted/10">
+                          {row.absent}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination Controls */}
+              {filteredMatrix.length > RECAP_PER_PAGE && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4 text-xs">
+                  <div className="text-muted-foreground font-medium">
+                    Menampilkan{" "}
+                    <span className="font-bold text-foreground">
+                      {(currentPage - 1) * RECAP_PER_PAGE + 1}
+                    </span>{" "}
+                    -{" "}
+                    <span className="font-bold text-foreground">
+                      {Math.min(currentPage * RECAP_PER_PAGE, filteredMatrix.length)}
+                    </span>{" "}
+                    dari <span className="font-bold text-foreground">{filteredMatrix.length}</span> Mahasiswa
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 gap-1 text-xs cursor-pointer"
+                    >
+                      <ChevronLeft className="size-3.5" />
+                      <span>Sebelumnya</span>
+                    </Button>
+
+                    <div className="flex items-center gap-1 px-2 font-medium text-xs text-muted-foreground">
+                      Halaman <span className="font-bold text-foreground">{currentPage}</span> dari{" "}
+                      <span className="font-bold text-foreground">{totalPages}</span>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 gap-1 text-xs cursor-pointer"
+                    >
+                      <span>Selanjutnya</span>
+                      <ChevronRight className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
