@@ -468,22 +468,46 @@ export function DosenRecapPage() {
 
       <Card>
         <CardHeader className="flex flex-col gap-4 pb-4 border-b">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="text-base font-bold">Matrix Rekapitulasi Presensi</CardTitle>
-              <CardDescription className="text-xs mt-0.5">
-                {students.length} mahasiswa • {filteredSessions.length} sesi ditampilkan (Klik status untuk ubah manual)
-              </CardDescription>
+          {/* Header Title */}
+          <div>
+            <CardTitle className="text-base font-bold">Matrix Rekapitulasi Presensi</CardTitle>
+            <CardDescription className="text-xs mt-0.5">
+              {students.length} mahasiswa • {filteredSessions.length} sesi ditampilkan (Klik status untuk ubah manual)
+            </CardDescription>
+          </div>
+
+          {/* Toolbar Rata Kanan-Kiri: Search (Kiri) & Filter Sesi (Kanan) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            {/* Search Input (Sisi Kiri) */}
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Cari nama atau NIM mahasiswa..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-8 text-xs h-9 bg-background/80"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="size-4" />
+                </button>
+              )}
             </div>
 
-            {/* Filter Sesi Dropdown */}
-            <div className="flex items-center gap-2">
-              <Filter className="size-3.5 text-muted-foreground" />
+            {/* Filter Sesi Dropdown (Sisi Kanan) */}
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+              <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                <Filter className="size-3.5" />
+                <span>Tampilkan Sesi:</span>
+              </span>
               <Select value={selectedSession} onValueChange={setSelectedSession}>
-                <SelectTrigger className="w-[230px] text-xs h-9">
+                <SelectTrigger className="w-full sm:w-[220px] text-xs h-9">
                   <SelectValue placeholder="Pilih rentang sesi" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent align="end">
                   <SelectItem value="all" className="text-xs">Semua Sesi ({sessions.length})</SelectItem>
                   {sessions.length > 30 && (
                     <SelectItem value="latest30" className="text-xs">30 Sesi Terbaru (1 Bulan)</SelectItem>
@@ -505,25 +529,6 @@ export function DosenRecapPage() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          {/* Search Mahasiswa Bar */}
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Cari nama atau NIM mahasiswa..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-8 text-xs h-9 bg-background/80"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <X className="size-4" />
-              </button>
-            )}
           </div>
         </CardHeader>
 
