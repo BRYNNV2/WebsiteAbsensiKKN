@@ -325,7 +325,8 @@ export function DosenDashboardPage() {
 
       if (statusFilter === "high") return item.rate >= 90;
       if (statusFilter === "warning") return item.rate < 75;
-    return list;
+      return true;
+    });
   }, [studentsPerformance, tableSearch, statusFilter]);
 
   // Table Pagination State (6 mahasiswa per halaman)
@@ -386,7 +387,7 @@ export function DosenDashboardPage() {
             </h1>
           </div>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            Berikut ringkasan statistik & aktivitas kehadiran mahasiswa <span className="font-semibold text-foreground">{group.name}</span> ({group.location ?? "Lokasi KKN"}).
+            Berikut ringkasan statistik & aktivitas kehadiran mahasiswa <span className="font-semibold text-foreground">{group?.name}</span> ({group?.location ?? "Lokasi KKN"}).
           </p>
         </div>
 
@@ -768,7 +769,7 @@ export function DosenDashboardPage() {
               Monitoring Kehadiran Mahasiswa
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Pantau performa absensi & tingkat kehadiran seluruh mahasiswa kelompok {group.name}.
+              Pantau performa absensi & tingkat kehadiran seluruh mahasiswa kelompok {group?.name}.
             </p>
           </div>
 
