@@ -6,9 +6,11 @@ import { toast } from "sonner";
 import {
   Loader2,
   QrCode,
+  Plus,
   Trash2,
   Eye,
   CalendarClock,
+  ShieldAlert,
   Search,
   ArrowUpDown,
   X,
