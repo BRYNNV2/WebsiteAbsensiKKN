@@ -265,6 +265,19 @@ export function DosenRecapPage() {
       return;
     }
 
+    const filterText =
+      selectedSession === "latest7"
+        ? "7 Sesi Terbaru (1 Minggu)"
+        : selectedSession === "latest10"
+          ? "10 Sesi Terbaru"
+          : selectedSession === "latest15"
+            ? "15 Sesi Terbaru (2 Minggu)"
+            : selectedSession === "latest30"
+              ? "30 Sesi Terbaru (1 Bulan)"
+              : selectedSession !== "all"
+                ? `Sesi: ${sessions.find((s) => s.id === selectedSession)?.title ?? "Spesifik"}`
+                : "Seluruh Sesi KKN";
+
     const filterSuffix =
       selectedSession === "latest7"
         ? "-1minggu"
@@ -278,62 +291,123 @@ export function DosenRecapPage() {
                 ? "-sesi-spesifik"
                 : "-semua-sesi";
 
-    const headers = [
-      "No",
-      "Nama Mahasiswa",
-      "NIM (ID)",
-      "Email Terdaftar",
-      ...filteredSessions.map((s) => s.title),
-      "Total Hadir",
-      "Total Telat",
-      "Total Izin",
-      "Total Sakit",
-      "Total Alpha",
-    ];
+    const printedDate = new Date().toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
-    const statusLabelMap: Record<string, string> = {
-      hadir: "Hadir",
-      terlambat: "Telat",
-      izin: "Izin",
-      sakit: "Sakit",
-      absen: "Alpha",
+    const statusStyleMap: Record<string, { label: string; bg: string; color: string }> = {
+      hadir: { label: "Hadir", bg: "#D1FAE5", color: "#065F46" },
+      terlambat: { label: "Telat", bg: "#F3E8FF", color: "#6B21A8" },
+      izin: { label: "Izin", bg: "#DBEAFE", color: "#1E40AF" },
+      sakit: { label: "Sakit", bg: "#FEF3C7", color: "#92400E" },
+      absen: { label: "Alpha", bg: "#FFE4E6", color: "#991B1B" },
     };
 
-    const rows = matrix.map((r, idx) => [
-      idx + 1,
-      r.student.full_name,
-      r.student.student_id ?? "—",
-      r.student.email,
-      ...r.attendances.map((a) => statusLabelMap[a.record?.status ?? "absen"] || "Alpha"),
-      r.present,
-      r.late,
-      r.permission,
-      r.sick,
-      r.absent,
-    ]);
+    const totalCols = 4 + filteredSessions.length + 5;
 
-    // Create Worksheet with SheetJS
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    // Generate Rich HTML Spreadsheet Document for Microsoft Excel
+    let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<!--[if gte mso 9]>
+<xml>
+ <x:ExcelWorkbook>
+  <x:ExcelWorksheets>
+   <x:ExcelWorksheet>
+    <x:Name>Rekap Presensi KKN</x:Name>
+    <x:WorksheetOptions>
+     <x:DisplayGridlines/>
+    </x:WorksheetOptions>
+   </x:ExcelWorksheet>
+  </x:ExcelWorksheets>
+ </x:ExcelWorkbook>
+</xml>
+<![endif]-->
+<style>
+  table { border-collapse: collapse; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
+  th, td { border: 1px solid #CBD5E1; padding: 6px 10px; text-align: center; vertical-align: middle; }
+</style>
+</head>
+<body>
+<table>
+  <tr>
+    <td colspan="${totalCols}" style="background-color: #0F172A; color: #FFFFFF; font-size: 14pt; font-weight: bold; padding: 12px; text-align: left;">
+      LAPORAN REKAPITULASI KEHADIRAN MAHASISWA KKN
+    </td>
+  </tr>
+  <tr>
+    <td colspan="${totalCols}" style="background-color: #F8FAFC; color: #475569; font-size: 10pt; padding: 8px; text-align: left;">
+      <b>Kelompok:</b> ${group?.name ?? "-"} | <b>Rentang:</b> ${filterText} | <b>Lokasi:</b> ${group?.location ?? "-"} | <b>Dicetak pada:</b> ${printedDate}
+    </td>
+  </tr>
+  <tr><td colspan="${totalCols}" style="border:none; height: 10px;"></td></tr>
+  <tr style="height: 32px;">
+    <th style="background-color: #0F172A; color: #FFFFFF; font-weight: bold; border: 1px solid #334155;">No</th>
+    <th style="background-color: #0F172A; color: #FFFFFF; font-weight: bold; text-align: left; border: 1px solid #334155;">Nama Mahasiswa</th>
+    <th style="background-color: #0F172A; color: #FFFFFF; font-weight: bold; border: 1px solid #334155;">NIM (ID)</th>
+    <th style="background-color: #0F172A; color: #FFFFFF; font-weight: bold; border: 1px solid #334155;">Email Terdaftar</th>
+`;
 
-    // Calculate auto column widths
-    const colWidths = headers.map((h, colIdx) => {
-      let maxLen = h.length;
-      rows.forEach((row) => {
-        const cellValue = String(row[colIdx] ?? "");
-        if (cellValue.length > maxLen) maxLen = cellValue.length;
-      });
-      return { wch: Math.min(maxLen + 4, 45) };
+    // Add Session Column Headers
+    filteredSessions.forEach((s) => {
+      html += `    <th style="background-color: #0F172A; color: #FFFFFF; font-weight: bold; border: 1px solid #334155;">${s.title}</th>\n`;
     });
-    worksheet["!cols"] = colWidths;
 
-    // Create Workbook
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Presensi KKN");
+    // Add Summary Column Headers
+    html += `    <th style="background-color: #065F46; color: #FFFFFF; font-weight: bold; border: 1px solid #047857;">Total Hadir</th>
+    <th style="background-color: #6B21A8; color: #FFFFFF; font-weight: bold; border: 1px solid #7E22CE;">Total Telat</th>
+    <th style="background-color: #1E40AF; color: #FFFFFF; font-weight: bold; border: 1px solid #1D4ED8;">Total Izin</th>
+    <th style="background-color: #92400E; color: #FFFFFF; font-weight: bold; border: 1px solid #B45309;">Total Sakit</th>
+    <th style="background-color: #991B1B; color: #FFFFFF; font-weight: bold; border: 1px solid #B91C1C;">Total Alpha</th>
+  </tr>
+`;
 
-    // Export File .xlsx
-    const fileName = `rekap-absensi-${group?.name ?? "kkn"}${filterSuffix}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
-    toast.success("File Excel (.xlsx) rapi berhasil diunduh.");
+    // Add Student Rows with Zebra striping
+    matrix.forEach((r, idx) => {
+      const isOdd = idx % 2 !== 0;
+      const rowBg = isOdd ? "#F8FAFC" : "#FFFFFF";
+
+      html += `  <tr style="background-color: ${rowBg};">
+    <td style="text-align: center; border: 1px solid #CBD5E1;">${idx + 1}</td>
+    <td style="text-align: left; font-weight: bold; color: #0F172A; border: 1px solid #CBD5E1;">${r.student.full_name}</td>
+    <td style="text-align: center; font-family: Consolas, monospace; border: 1px solid #CBD5E1;">${r.student.student_id ?? "—"}</td>
+    <td style="text-align: left; font-family: Consolas, monospace; color: #475569; border: 1px solid #CBD5E1;">${r.student.email}</td>
+`;
+
+      // Add Attendance Session Cells with Colors
+      r.attendances.forEach((a) => {
+        const stKey = a.record?.status ?? "absen";
+        const stInfo = statusStyleMap[stKey] || statusStyleMap.absen;
+        html += `    <td style="background-color: ${stInfo.bg}; color: ${stInfo.color}; font-weight: bold; text-align: center; border: 1px solid #CBD5E1;">${stInfo.label}</td>\n`;
+      });
+
+      // Add Totals
+      html += `    <td style="font-weight: bold; background-color: #F1F5F9; color: #065F46; text-align: center; border: 1px solid #CBD5E1;">${r.present}</td>
+    <td style="font-weight: bold; background-color: #F1F5F9; color: #6B21A8; text-align: center; border: 1px solid #CBD5E1;">${r.late}</td>
+    <td style="font-weight: bold; background-color: #F1F5F9; color: #1E40AF; text-align: center; border: 1px solid #CBD5E1;">${r.permission}</td>
+    <td style="font-weight: bold; background-color: #F1F5F9; color: #92400E; text-align: center; border: 1px solid #CBD5E1;">${r.sick}</td>
+    <td style="font-weight: bold; background-color: #F1F5F9; color: #991B1B; text-align: center; border: 1px solid #CBD5E1;">${r.absent}</td>
+  </tr>
+`;
+    });
+
+    html += `</table>
+</body>
+</html>`;
+
+    // Download File .xls for Excel
+    const blob = new Blob(["\uFEFF" + html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rekap-absensi-${group?.name ?? "kkn"}${filterSuffix}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("File Excel (.xls) berwarna & ber-header rapi berhasil diunduh.");
   }
 
   function handleExportCsv() {
