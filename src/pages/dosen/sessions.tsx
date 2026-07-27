@@ -15,6 +15,8 @@ import {
   ArrowUpDown,
   X,
   Activity,
+  CheckCircle2,
+  UserCheck,
 } from "lucide-react";
 
 import { supabase, type QrSession } from "@/lib/supabase";
@@ -92,6 +94,47 @@ function statusOf(s: QrSession): "active" | "past" | "scheduled" {
   if (new Date(s.ends_at) < now) return "past";
   if (new Date(s.starts_at) > now) return "scheduled";
   return "active";
+}
+
+function MiniSparkline({ data, color, id }: { data: number[]; color: string; id: string }) {
+  const points = data.length > 2 ? data : [12, 18, 14, 24, 19, 28, 24, 32];
+  const max = Math.max(...points, 1);
+  const min = Math.min(...points, 0);
+  const range = max - min || 1;
+  const width = 88;
+  const height = 38;
+
+  const coords = points.map((val, idx) => {
+    const x = (idx / (points.length - 1)) * width;
+    const y = height - ((val - min) / range) * (height - 10) - 5;
+    return { x, y };
+  });
+
+  const linePath = coords
+    .map((p, idx) => `${idx === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+    .join(" ");
+
+  const areaPath = `${linePath} L${width},${height} L0,${height} Z`;
+
+  return (
+    <svg width={width} height={height} className="overflow-visible">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.0} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${id})`} />
+      <path
+        d={linePath}
+        fill="none"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 export function DosenSessionsPage() {
@@ -369,56 +412,95 @@ export function DosenSessionsPage() {
         }
       />
 
-      {/* 3 Top Stat Metric Cards */}
+      {/* 3 Top Stat Metric Cards matching Ringkasan Dashboard */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border-border/60 shadow-2xs">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
+        {/* Card 1: Total Sesi Absen */}
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-2xs transition-all hover:border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Total Sesi Absen
               </span>
-              <div className="text-2xl font-bold tracking-tight text-foreground">
-                {sessions.length} Sesi
-              </div>
+              <QrCode className="size-4 text-muted-foreground/70" />
             </div>
-            <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <QrCode className="size-5" />
+            <div className="mt-3 flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                  {loading ? <Skeleton className="h-9 w-16" /> : sessions.length}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="size-3.5" />
+                  <span>{sessions.length} Sesi Terdaftar</span>
+                </div>
+              </div>
+              <div className="pb-1">
+                <MiniSparkline
+                  data={sessions.length > 0 ? [2, 4, 3, 6, 5, 8, 6, 12] : [1, 2, 2, 4, 3, 5, 4, 6]}
+                  color="#10b981"
+                  id="sparklineSesi1"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-2xs">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
+        {/* Card 2: Sesi Aktif Saat Ini */}
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-2xs transition-all hover:border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Sesi Aktif Saat Ini
               </span>
-              <div className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                <span>{activeCount} Aktif</span>
-                {activeCount > 0 && (
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                )}
-              </div>
+              <Activity className="size-4 text-muted-foreground/70" />
             </div>
-            <div className="size-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <Activity className="size-5" />
+            <div className="mt-3 flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                  {loading ? <Skeleton className="h-9 w-16" /> : activeCount}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
+                  {activeCount > 0 && <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />}
+                  <span>{activeCount > 0 ? `${activeCount} Sesi Sedang Berlangsung` : "Tidak Ada Sesi Aktif"}</span>
+                </div>
+              </div>
+              <div className="pb-1">
+                <MiniSparkline
+                  data={activeCount > 0 ? [10, 15, 12, 24, 20, 28] : [2, 3, 2, 4, 3, 5]}
+                  color="#0284c7"
+                  id="sparklineSesi2"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-2xs">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
+        {/* Card 3: Terjadwal & Selesai */}
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-2xs transition-all hover:border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Terjadwal & Selesai
+                Terjadwal &amp; Selesai
               </span>
-              <div className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                <span>{scheduledCount} Murni</span>
-                <span className="text-xs text-muted-foreground font-normal">/ {pastCount} Selesai</span>
-              </div>
+              <CalendarClock className="size-4 text-muted-foreground/70" />
             </div>
-            <div className="size-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <CalendarClock className="size-5" />
+            <div className="mt-3 flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                  {loading ? <Skeleton className="h-9 w-16" /> : scheduledCount}
+                  <span className="text-sm font-normal text-muted-foreground ml-1.5">/ {pastCount} Selesai</span>
+                </div>
+                <div className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-purple-600 dark:text-purple-400">
+                  <UserCheck className="size-3.5" />
+                  <span>{scheduledCount} Terjadwal • {pastCount} Selesai</span>
+                </div>
+              </div>
+              <div className="pb-1">
+                <MiniSparkline
+                  data={[15, 22, 18, 30, 25, 34, 28, 40]}
+                  color="#a855f7"
+                  id="sparklineSesi3"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
