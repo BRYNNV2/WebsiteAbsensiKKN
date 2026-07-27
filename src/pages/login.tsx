@@ -238,42 +238,40 @@ export function LoginPage() {
                     data-invalid={form.formState.errors.identifier ? true : undefined}
                     className="relative"
                   >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <FieldLabel htmlFor="identifier">NIM atau Email</FieldLabel>
-                      {loginHistory.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setShowHistoryPopover((prev) => !prev)}
-                          className="text-[11px] text-primary hover:underline font-medium flex items-center gap-1 cursor-pointer"
-                        >
-                          <History className="size-3" />
-                          <span>{loginHistory.length} Riwayat Login</span>
-                        </button>
-                      )}
-                    </div>
+                    <FieldLabel htmlFor="identifier">NIM atau Email</FieldLabel>
 
-                    <div className="relative">
-                      <Input
-                        id="identifier"
-                        type="text"
-                        autoComplete="username"
-                        placeholder="Masukkan NIM atau email"
-                        onFocus={() => setShowHistoryPopover(true)}
-                        onBlur={() => setTimeout(() => setShowHistoryPopover(false), 200)}
-                        aria-invalid={form.formState.errors.identifier ? true : undefined}
-                        {...form.register("identifier")}
-                      />
+                    <div className="relative mt-1.5">
+                      {(() => {
+                        const reg = form.register("identifier");
+                        return (
+                          <Input
+                            id="identifier"
+                            type="text"
+                            autoComplete="username"
+                            placeholder="Masukkan NIM atau email"
+                            onFocus={() => setShowHistoryPopover(true)}
+                            aria-invalid={form.formState.errors.identifier ? true : undefined}
+                            {...reg}
+                            onBlur={(e) => {
+                              reg.onBlur(e);
+                              setTimeout(() => setShowHistoryPopover(false), 200);
+                            }}
+                          />
+                        );
+                      })()}
 
-                      {/* Floating Account History Popover */}
-                      {showHistoryPopover && loginHistory.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 z-50 mt-1.5 rounded-xl border border-border/80 bg-background/95 p-2 shadow-2xl backdrop-blur-md space-y-1 text-xs animate-in fade-in-50 zoom-in-95">
-                          <div className="flex items-center justify-between px-2 py-1 border-b pb-1.5 text-[11px] font-semibold text-muted-foreground">
-                            <div className="flex items-center gap-1.5">
-                              <History className="size-3.5 text-primary" />
-                              <span>Akun Pernah Login</span>
+                      {/* Floating Account History Popover - Hanya muncul saat input KOSONG */}
+                      {showHistoryPopover &&
+                        loginHistory.length > 0 &&
+                        !form.watch("identifier") && (
+                          <div className="absolute top-full left-0 right-0 z-50 mt-1.5 rounded-xl border border-border/80 bg-background/95 p-2 shadow-2xl backdrop-blur-md space-y-1 text-xs animate-in fade-in-50 zoom-in-95">
+                            <div className="flex items-center justify-between px-2 py-1 border-b pb-1.5 text-[11px] font-semibold text-muted-foreground">
+                              <div className="flex items-center gap-1.5">
+                                <History className="size-3.5 text-primary" />
+                                <span>Akun Pernah Login</span>
+                              </div>
+                              <span className="text-[10px] text-muted-foreground/70">Klik untuk isi otomatis</span>
                             </div>
-                            <span className="text-[10px] text-muted-foreground/70">Klik untuk isi otomatis</span>
-                          </div>
                           <div className="max-h-44 overflow-y-auto space-y-0.5 pt-1">
                             {loginHistory.map((item) => (
                               <div
