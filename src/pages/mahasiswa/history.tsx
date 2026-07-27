@@ -146,6 +146,7 @@ export function MahasiswaHistoryPage() {
                 absen.
               </EmptyDescription>
             </Empty>
+          ) : (
             <div className="overflow-x-auto">
               <Table>
               <TableHeader>
