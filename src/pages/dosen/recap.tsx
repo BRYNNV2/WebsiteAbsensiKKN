@@ -4,7 +4,6 @@ import { toast } from "sonner";
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
 
 import { supabase, type QrSession, type AttendanceRecord, type AttendanceStatus } from "@/lib/supabase";
 import { useDosenData } from "@/hooks/use-dosen-data";
