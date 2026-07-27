@@ -616,28 +616,61 @@ export function DosenRecapPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full overflow-x-hidden">
       <PageHeader
         title="Rekap Kehadiran"
         description="Rekapitulasi dan pengisian absensi manual (Hadir, Izin, Sakit, Terlambat, Absen)."
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => setManualDialogOpen(true)}>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setManualDialogOpen(true)} className="gap-1.5">
               <UserCheck className="size-4" />
-              Absen Manual
+              <span>Absen Manual</span>
             </Button>
-            <Button variant="outline" onClick={handleExportExcel} className="font-semibold border-emerald-500/40 hover:bg-emerald-500/10">
-              <FileSpreadsheet className="size-4 text-emerald-600 dark:text-emerald-400" />
-              Ekspor Excel (.xlsx)
-            </Button>
-            <Button variant="outline" onClick={handleExportCsv}>
-              <Download className="size-4 text-emerald-600 dark:text-emerald-400" />
-              Ekspor CSV
-            </Button>
-            <Button variant="outline" onClick={handleExportPdf}>
-              <FileText className="size-4 text-rose-600 dark:text-rose-400" />
-              Ekspor PDF
-            </Button>
+
+            {/* Dropdown Menu Ekspor Laporan */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2 cursor-pointer font-semibold border-emerald-500/40 hover:bg-emerald-500/10">
+                  <Download className="size-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>Ekspor Laporan</span>
+                  <ChevronDown className="size-3.5 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 p-1.5 space-y-1 shadow-xl rounded-xl">
+                <DropdownMenuItem
+                  onClick={handleExportExcel}
+                  className="cursor-pointer text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-emerald-500/10 dark:hover:bg-emerald-500/20"
+                >
+                  <FileSpreadsheet className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold">Ekspor Excel (.xlsx / .xls)</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">Tabel, warna &amp; header rapi</span>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleExportCsv}
+                  className="cursor-pointer text-xs font-medium flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-muted"
+                >
+                  <Download className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <div className="flex flex-col min-w-0">
+                    <span>Ekspor CSV (.csv)</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">Format teks terpisah titik koma</span>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleExportPdf}
+                  className="cursor-pointer text-xs font-medium text-rose-600 dark:text-rose-400 flex items-center gap-2.5 py-2 px-2.5 rounded-lg hover:bg-rose-500/10 dark:hover:bg-rose-500/20"
+                >
+                  <FileText className="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold">Ekspor PDF (.pdf)</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">Dokumen resmi lanskap A4</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         }
       />
