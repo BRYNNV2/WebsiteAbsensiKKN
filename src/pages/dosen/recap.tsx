@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, ShieldAlert, Download, Filter, UserCheck, CheckCircle2, Clock, FileText, Stethoscope, XCircle, ChevronDown, Search, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Loader2, ShieldAlert, Download, Filter, UserCheck, CheckCircle2, Clock, FileText, Stethoscope, XCircle, ChevronDown, Search, ChevronLeft, ChevronRight, X, Check } from "lucide-react";
 import { toast } from "sonner";
 
 import jsPDF from "jspdf";
@@ -69,27 +69,27 @@ const statusBadges: Record<AttendanceStatus, { label: string; icon: typeof Check
   hadir: {
     label: "Hadir",
     icon: CheckCircle2,
-    className: "bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600/80",
+    className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20",
   },
   terlambat: {
     label: "Telat",
     icon: Clock,
-    className: "bg-purple-600 text-white hover:bg-purple-700 dark:bg-purple-600/80",
+    className: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 hover:bg-purple-500/20",
   },
   izin: {
     label: "Izin",
     icon: FileText,
-    className: "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600/80",
+    className: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 hover:bg-blue-500/20",
   },
   sakit: {
     label: "Sakit",
     icon: Stethoscope,
-    className: "bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-600/80",
+    className: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 hover:bg-amber-500/20",
   },
   absen: {
     label: "Alpha",
     icon: XCircle,
-    className: "bg-rose-500 text-white hover:bg-rose-600 dark:bg-rose-600/80",
+    className: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20 hover:bg-rose-500/20",
   },
 };
 
@@ -619,6 +619,7 @@ export function DosenRecapPage() {
                           const cellKey = `${a.session.id}_${row.student.id}`;
                           const isUpdating = updatingCell === cellKey;
                           const badgeInfo = statusBadges[currentStatus];
+                          const StatusIcon = badgeInfo.icon;
 
                           return (
                             <TableCell key={a.session.id} className="text-center min-w-[130px] max-w-[130px] p-2 border-r border-border/40">
@@ -628,7 +629,7 @@ export function DosenRecapPage() {
                                     type="button"
                                     disabled={isUpdating}
                                     className={cn(
-                                      "inline-flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-2xs transition-all hover:scale-105 cursor-pointer disabled:opacity-50 mx-auto",
+                                      "inline-flex items-center justify-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-2xs transition-all hover:scale-105 cursor-pointer disabled:opacity-50 mx-auto",
                                       badgeInfo.className
                                     )}
                                   >
@@ -636,42 +637,77 @@ export function DosenRecapPage() {
                                       <Loader2 className="size-3 animate-spin" />
                                     ) : (
                                       <>
+                                        <StatusIcon className="size-3 shrink-0" />
                                         <span>{badgeInfo.label}</span>
-                                        <ChevronDown className="size-3 opacity-80" />
+                                        <ChevronDown className="size-3 opacity-60 ml-0.5" />
                                       </>
                                     )}
                                   </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="center" className="w-[180px]">
+                                <DropdownMenuContent align="center" className="w-[195px] p-1.5 space-y-0.5">
                                   <DropdownMenuItem
-                                    className="cursor-pointer font-medium text-emerald-600 dark:text-emerald-400"
+                                    className="cursor-pointer text-xs font-medium text-foreground flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-emerald-500/10 dark:hover:bg-emerald-500/20 focus:bg-emerald-500/10"
                                     onClick={() => handleSetStatus(a.session.id, row.student.id, "hadir")}
                                   >
-                                    Hadir (Tepat Waktu)
+                                    <div className="flex items-center gap-2">
+                                      <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+                                      <span>Hadir (Tepat Waktu)</span>
+                                    </div>
+                                    {currentStatus === "hadir" && (
+                                      <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                                    )}
                                   </DropdownMenuItem>
+
                                   <DropdownMenuItem
-                                    className="cursor-pointer font-medium text-purple-600 dark:text-purple-400"
+                                    className="cursor-pointer text-xs font-medium text-foreground flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-purple-500/10 dark:hover:bg-purple-500/20 focus:bg-purple-500/10"
                                     onClick={() => handleSetStatus(a.session.id, row.student.id, "terlambat")}
                                   >
-                                    Terlambat
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="size-4 text-purple-600 dark:text-purple-400" />
+                                      <span>Terlambat</span>
+                                    </div>
+                                    {currentStatus === "terlambat" && (
+                                      <Check className="size-3.5 text-purple-600 dark:text-purple-400" />
+                                    )}
                                   </DropdownMenuItem>
+
                                   <DropdownMenuItem
-                                    className="cursor-pointer font-medium text-blue-600 dark:text-blue-400"
+                                    className="cursor-pointer text-xs font-medium text-foreground flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-blue-500/10 dark:hover:bg-blue-500/20 focus:bg-blue-500/10"
                                     onClick={() => handleSetStatus(a.session.id, row.student.id, "izin")}
                                   >
-                                    Izin
+                                    <div className="flex items-center gap-2">
+                                      <FileText className="size-4 text-blue-600 dark:text-blue-400" />
+                                      <span>Izin</span>
+                                    </div>
+                                    {currentStatus === "izin" && (
+                                      <Check className="size-3.5 text-blue-600 dark:text-blue-400" />
+                                    )}
                                   </DropdownMenuItem>
+
                                   <DropdownMenuItem
-                                    className="cursor-pointer font-medium text-amber-600 dark:text-amber-400"
+                                    className="cursor-pointer text-xs font-medium text-foreground flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-amber-500/10 dark:hover:bg-amber-500/20 focus:bg-amber-500/10"
                                     onClick={() => handleSetStatus(a.session.id, row.student.id, "sakit")}
                                   >
-                                    Sakit
+                                    <div className="flex items-center gap-2">
+                                      <Stethoscope className="size-4 text-amber-600 dark:text-amber-400" />
+                                      <span>Sakit</span>
+                                    </div>
+                                    {currentStatus === "sakit" && (
+                                      <Check className="size-3.5 text-amber-600 dark:text-amber-400" />
+                                    )}
                                   </DropdownMenuItem>
+
                                   <DropdownMenuItem
-                                    className="cursor-pointer font-medium text-rose-600 dark:text-rose-400"
+                                    className="cursor-pointer text-xs font-medium text-foreground flex items-center justify-between py-1.5 px-2.5 rounded-md hover:bg-rose-500/10 dark:hover:bg-rose-500/20 focus:bg-rose-500/10"
                                     onClick={() => handleSetStatus(a.session.id, row.student.id, "absen")}
                                   >
-                                    Alpha
+                                    <div className="flex items-center gap-2">
+                                      <XCircle className="size-4 text-rose-600 dark:text-rose-400" />
+                                      <span>Alpha</span>
+                                    </div>
+                                    {currentStatus === "absen" && (
+                                      <Check className="size-3.5 text-rose-600 dark:text-rose-400" />
+                                    )}
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
