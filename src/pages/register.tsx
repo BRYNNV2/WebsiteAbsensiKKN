@@ -160,7 +160,9 @@ export function RegisterPage() {
               Kembali ke halaman login
             </Link>
             <div className="flex items-center gap-2.5 mt-1">
-              <img src="/logokkn.png" alt="Logo KKN" className="size-8 object-contain shrink-0" />
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white p-0.5 shadow-2xs ring-1 ring-border/40">
+                <img src="/logokkn.png" alt="Logo KKN" className="size-full object-contain" />
+              </div>
               <span className="text-base font-bold tracking-tight text-foreground">
                 AbsensiKKN
               </span>

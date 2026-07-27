@@ -129,11 +129,13 @@ export function AppShell() {
         <SidebarHeader className="p-3 space-y-2">
           {/* Header Brand */}
           <div className="flex items-center gap-2.5 px-1 py-1">
-            <img
-              src="/logokkn.png"
-              alt="Logo KKN"
-              className="size-8 object-contain shrink-0"
-            />
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white p-0.5 shadow-2xs ring-1 ring-border/50">
+              <img
+                src="/logokkn.png"
+                alt="Logo KKN"
+                className="size-full object-contain"
+              />
+            </div>
             <div className="flex flex-col group-data-[collapsible=icon]:hidden">
               <span className="text-sm font-bold tracking-tight text-foreground">
                 AbsensiKKN

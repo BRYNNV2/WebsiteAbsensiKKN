@@ -123,7 +123,9 @@ export function LoginPage() {
         <div className="relative hidden flex-col justify-between overflow-hidden bg-primary p-10 text-primary-foreground lg:flex">
           <div className="absolute inset-0 opacity-10 [background-image:radial-gradient(circle_at_1px_1px,_currentColor_1px,_transparent_0)] [background-size:32px_32px]" />
           <div className="relative flex items-center gap-3 text-lg font-bold tracking-tight">
-            <img src="/logokkn.png" alt="Logo KKN" className="size-10 object-contain drop-shadow-md" />
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-sm ring-1 ring-white/20">
+              <img src="/logokkn.png" alt="Logo KKN" className="size-full object-contain" />
+            </div>
             <span>AbsensiKKN</span>
           </div>
           <div className="relative space-y-4">
@@ -153,7 +155,9 @@ export function LoginPage() {
           <div className="w-full max-w-sm">
             <div className="mb-8 flex flex-col gap-1">
               <div className="flex items-center gap-3 mb-2">
-                <img src="/logokkn.png" alt="Logo KKN" className="size-10 object-contain shrink-0" />
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-2xs ring-1 ring-border/40">
+                  <img src="/logokkn.png" alt="Logo KKN" className="size-full object-contain" />
+                </div>
                 <div className="flex flex-col">
                   <span className="text-base font-bold tracking-tight text-foreground">
                     AbsensiKKN
