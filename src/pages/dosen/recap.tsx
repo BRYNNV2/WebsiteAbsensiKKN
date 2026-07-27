@@ -48,7 +48,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Empty,
@@ -141,6 +140,8 @@ export function DosenRecapPage() {
 
   const filteredSessions = useMemo(() => {
     if (selectedSession === "all") return sessions;
+    if (selectedSession === "latest10") return sessions.slice(0, 10);
+    if (selectedSession === "latest7") return sessions.slice(0, 7);
     return sessions.filter((s) => s.id === selectedSession);
   }, [sessions, selectedSession]);
 
@@ -233,6 +234,15 @@ export function DosenRecapPage() {
       toast.error("Tidak ada data untuk diekspor.");
       return;
     }
+    const filterSuffix =
+      selectedSession === "latest7"
+        ? "-1minggu"
+        : selectedSession === "latest10"
+          ? "-10sesi"
+          : selectedSession !== "all"
+            ? "-sesi-spesifik"
+            : "-semua-sesi";
+
     const headers = [
       "Nama Mahasiswa",
       "NIM",
@@ -242,7 +252,7 @@ export function DosenRecapPage() {
       "Terlambat",
       "Izin",
       "Sakit",
-      "Absen",
+      "Alpha",
     ];
     const rows = matrix.map((r) => [
       r.student.full_name,
@@ -262,10 +272,10 @@ export function DosenRecapPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `rekap-absensi-${group?.name ?? "kkn"}.csv`;
+    a.download = `rekap-absensi-${group?.name ?? "kkn"}${filterSuffix}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Rekap berhasil diunduh sebagai CSV.");
+    toast.success("Rekap CSV berhasil diunduh.");
   }
 
   function handleExportPdf() {
@@ -273,6 +283,24 @@ export function DosenRecapPage() {
       toast.error("Tidak ada data untuk diekspor.");
       return;
     }
+
+    const filterText =
+      selectedSession === "latest7"
+        ? "Laporan 1 Minggu (7 Sesi Terbaru)"
+        : selectedSession === "latest10"
+          ? "Laporan 10 Sesi Terbaru"
+          : selectedSession !== "all"
+            ? `Sesi: ${sessions.find((s) => s.id === selectedSession)?.title ?? "Spesifik"}`
+            : "Seluruh Sesi KKN";
+
+    const filterSuffix =
+      selectedSession === "latest7"
+        ? "-1minggu"
+        : selectedSession === "latest10"
+          ? "-10sesi"
+          : selectedSession !== "all"
+            ? "-sesi-spesifik"
+            : "-semua-sesi";
 
     try {
       const doc = new jsPDF({
@@ -290,7 +318,7 @@ export function DosenRecapPage() {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(71, 85, 105);
-      doc.text(`Kelompok: ${group?.name ?? "-"} | Lokasi: ${group?.location ?? "-"}`, 14, 21);
+      doc.text(`Kelompok: ${group?.name ?? "-"} | ${filterText} | Lokasi: ${group?.location ?? "-"}`, 14, 21);
       doc.text(`Dicetak pada: ${new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}`, 14, 26);
 
       const tableHeaders = [
@@ -351,7 +379,7 @@ export function DosenRecapPage() {
         },
       });
 
-      doc.save(`rekap-absensi-${group?.name ?? "kkn"}.pdf`);
+      doc.save(`rekap-absensi-${group?.name ?? "kkn"}${filterSuffix}.pdf`);
       toast.success("Laporan Rekap PDF berhasil diunduh.");
     } catch (err) {
       toast.error("Gagal mengunduh PDF: " + (err as Error).message);
@@ -398,11 +426,11 @@ export function DosenRecapPage() {
               Absen Manual
             </Button>
             <Button variant="outline" onClick={handleExportPdf}>
-              <FileText className="size-4 text-rose-600" />
+              <FileText className="size-4 text-rose-600 dark:text-rose-400" />
               Ekspor PDF
             </Button>
             <Button variant="outline" onClick={handleExportCsv}>
-              <Download className="size-4" />
+              <Download className="size-4 text-emerald-600 dark:text-emerald-400" />
               Ekspor CSV
             </Button>
           </div>
@@ -428,7 +456,13 @@ export function DosenRecapPage() {
                   <SelectValue placeholder="Pilih sesi" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Semua Sesi</SelectItem>
+                  <SelectItem value="all">Semua Sesi ({sessions.length})</SelectItem>
+                  {sessions.length > 7 && (
+                    <SelectItem value="latest7">7 Sesi Terbaru (1 Minggu)</SelectItem>
+                  )}
+                  {sessions.length > 10 && (
+                    <SelectItem value="latest10">10 Sesi Terbaru</SelectItem>
+                  )}
                   {sessions.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.title}

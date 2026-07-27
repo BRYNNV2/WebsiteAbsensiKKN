@@ -14,9 +14,11 @@ import {
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -35,12 +37,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
-import {
   Table,
   TableBody,
   TableCell,
@@ -53,12 +49,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { Link } from "react-router-dom";
-
-const chartConfig = {
-  hadir: { label: "Hadir", color: "var(--chart-2)" },
-  terlambat: { label: "Terlambat", color: "var(--chart-4)" },
-  total: { label: "Mahasiswa", color: "var(--chart-1)" },
-} satisfies ChartConfig;
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
@@ -197,17 +187,69 @@ export function DosenDashboardPage() {
     return Math.round((records.length / expected) * 100);
   }, [students, sessions, records]);
 
-  // Line chart: attendance per session (hadir vs terlambat)
-  const lineChartData = useMemo(() => {
+  // Stacked Bar chart: status kehadiran per sesi (hadir, terlambat, izin, sakit, alpha)
+  const barChartData = useMemo(() => {
     return sessions.map((s) => {
       const sessionRecords = records.filter((r) => r.session_id === s.id);
+      const hadirCount = sessionRecords.filter((r) => r.status === "hadir").length;
+      const terlambatCount = sessionRecords.filter((r) => r.status === "terlambat").length;
+      const izinCount = sessionRecords.filter((r) => r.status === "izin").length;
+      const sakitCount = sessionRecords.filter((r) => r.status === "sakit").length;
+      const recordedTotal = hadirCount + terlambatCount + izinCount + sakitCount;
+      const alphaCount = students.length > 0 ? Math.max(0, students.length - recordedTotal) : 0;
+
       return {
         name: s.title.length > 12 ? s.title.slice(0, 12) + "…" : s.title,
-        hadir: sessionRecords.filter((r) => r.status === "hadir").length,
-        terlambat: sessionRecords.filter((r) => r.status === "terlambat").length,
+        fullTitle: s.title,
+        hadir: hadirCount,
+        terlambat: terlambatCount,
+        izin: izinCount,
+        sakit: sakitCount,
+        absen: alphaCount,
       };
     });
-  }, [sessions, records]);
+  }, [sessions, records, students]);
+
+  function CustomBarTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+    if (!active || !payload || !payload.length) return null;
+    const sessionTitle = payload[0]?.payload?.fullTitle || label;
+
+    const labelsMap: Record<string, { name: string; color: string }> = {
+      hadir: { name: "Hadir", color: "#10b981" },
+      terlambat: { name: "Terlambat", color: "#a855f7" },
+      izin: { name: "Izin", color: "#3b82f6" },
+      sakit: { name: "Sakit", color: "#f59e0b" },
+      absen: { name: "Alpha", color: "#f43f5e" },
+    };
+
+    return (
+      <div className="rounded-lg border border-border bg-background p-3 shadow-xl min-w-[180px] z-50 text-xs">
+        <p className="font-bold text-foreground border-b pb-1.5 mb-2 text-sm">{sessionTitle}</p>
+        <div className="space-y-1.5">
+          {payload.map((entry: any) => {
+            const key = entry.dataKey as string;
+            const info = labelsMap[key] || { name: key, color: entry.fill };
+            const val = entry.value ?? 0;
+
+            return (
+              <div key={key} className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="size-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: info.color }}
+                  />
+                  <span className="text-muted-foreground font-medium">{info.name}</span>
+                </div>
+                <span className="font-mono font-bold text-foreground tabular-nums">
+                  {val} mhs
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   // Area chart: cumulative student registration growth over time
   const areaChartData = useMemo(() => {
@@ -335,48 +377,70 @@ export function DosenDashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Tren Kehadiran per Sesi</CardTitle>
-            <CardDescription>
-              Jumlah mahasiswa hadir dan terlambat untuk setiap sesi absen.
-            </CardDescription>
+            <div className="flex flex-col gap-1">
+              <CardTitle>Distribusi Kehadiran per Sesi</CardTitle>
+              <CardDescription>
+                Rincian mahasiswa Hadir, Terlambat, Izin, Sakit, dan Alpha tiap sesi.
+              </CardDescription>
+            </div>
           </CardHeader>
           <CardContent>
             {dataLoading ? (
-              <Skeleton className="h-[240px] w-full" />
-            ) : lineChartData.length === 0 ? (
+              <Skeleton className="h-[260px] w-full" />
+            ) : barChartData.length === 0 ? (
               <Empty className="border-0 p-0">
                 <EmptyDescription>
                   Belum ada sesi absen. Grafik akan muncul setelah sesi pertama dibuat.
                 </EmptyDescription>
               </Empty>
             ) : (
-              <ChartContainer config={chartConfig} className="min-h-[240px] w-full">
-                <LineChart accessibilityLayer data={lineChartData} margin={{ left: 12, right: 12, top: 8 }}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="name"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                  />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} />
-                  <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                  <Line
-                    dataKey="hadir"
-                    stroke="var(--color-hadir)"
-                    strokeWidth={2}
-                    dot={{ r: 4, fill: "var(--color-hadir)" }}
-                    activeDot={{ r: 5 }}
-                  />
-                  <Line
-                    dataKey="terlambat"
-                    stroke="var(--color-terlambat)"
-                    strokeWidth={2}
-                    strokeDasharray="4 4"
-                    dot={{ r: 3, fill: "var(--color-terlambat)" }}
-                  />
-                </LineChart>
-              </ChartContainer>
+              <div className="h-[280px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barChartData} margin={{ left: 10, right: 10, top: 12, bottom: 4 }}>
+                    <defs>
+                      <linearGradient id="barHadir" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#059669" stopOpacity={0.7} />
+                      </linearGradient>
+                      <linearGradient id="barTelat" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#a855f7" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#7e22ce" stopOpacity={0.7} />
+                      </linearGradient>
+                      <linearGradient id="barIzin" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.7} />
+                      </linearGradient>
+                      <linearGradient id="barSakit" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#b45309" stopOpacity={0.7} />
+                      </linearGradient>
+                      <linearGradient id="barAbsen" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#be123c" stopOpacity={0.7} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis
+                      dataKey="name"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      className="text-xs font-medium"
+                    />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} className="text-xs" />
+                    <Tooltip
+                      wrapperStyle={{ zIndex: 1000, pointerEvents: "none" }}
+                      cursor={{ fill: "rgba(0, 0, 0, 0.06)" }}
+                      content={<CustomBarTooltip />}
+                    />
+                    <Bar dataKey="hadir" stackId="a" fill="url(#barHadir)" />
+                    <Bar dataKey="terlambat" stackId="a" fill="url(#barTelat)" />
+                    <Bar dataKey="izin" stackId="a" fill="url(#barIzin)" />
+                    <Bar dataKey="sakit" stackId="a" fill="url(#barSakit)" />
+                    <Bar dataKey="absen" stackId="a" fill="url(#barAbsen)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -390,7 +454,7 @@ export function DosenDashboardPage() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <Skeleton className="h-[240px] w-full" />
+              <Skeleton className="h-[260px] w-full" />
             ) : areaChartData.length === 0 ? (
               <Empty className="border-0 p-0">
                 <EmptyDescription>
@@ -399,32 +463,39 @@ export function DosenDashboardPage() {
                 </EmptyDescription>
               </Empty>
             ) : (
-              <ChartContainer config={chartConfig} className="min-h-[240px] w-full">
-                <AreaChart accessibilityLayer data={areaChartData} margin={{ left: 12, right: 12, top: 8 }}>
-                  <defs>
-                    <linearGradient id="fillTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-total)" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="var(--color-total)" stopOpacity={0.1} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                  />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} />
-                  <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
-                  <Area
-                    dataKey="total"
-                    stroke="var(--color-total)"
-                    strokeWidth={2}
-                    fill="url(#fillTotal)"
-                    type="monotone"
-                  />
-                </AreaChart>
-              </ChartContainer>
+              <div className="h-[280px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={areaChartData} margin={{ left: 12, right: 12, top: 12, bottom: 4 }}>
+                    <defs>
+                      <linearGradient id="fillTotal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0284c7" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#0284c7" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      className="text-xs font-medium"
+                    />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} className="text-xs" />
+                    <Tooltip
+                      wrapperStyle={{ zIndex: 1000, pointerEvents: "none" }}
+                      cursor={{ stroke: "#0284c7", strokeWidth: 1 }}
+                    />
+                    <Area
+                      dataKey="total"
+                      name="Mahasiswa"
+                      stroke="#0284c7"
+                      strokeWidth={2.5}
+                      fill="url(#fillTotal)"
+                      type="monotone"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </CardContent>
         </Card>
