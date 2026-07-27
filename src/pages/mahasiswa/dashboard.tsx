@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CampusEmailModal } from "@/components/campus-email-modal";
 import {
   Empty,
   EmptyDescription,
@@ -151,6 +152,7 @@ export function MahasiswaDashboardPage() {
 
   return (
     <div className="space-y-6">
+      <CampusEmailModal />
       <PageHeader
         title="Ringkasan"
         description="Pantau kehadiran KKN Anda dalam satu tempat."

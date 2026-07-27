@@ -88,6 +88,21 @@ export function RegisterPage() {
       return;
     }
 
+    // Jika session belum aktif (misal auto-confirm aktif di Supabase), coba signIn langsung
+    if (!data.session) {
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
+      });
+      if (signInErr) {
+        setSubmitting(false);
+        setServerError(
+          "Akun dibuat. Harap matikan 'Confirm Email' di Supabase Dashboard -> Authentication -> Providers -> Email, lalu silakan Login."
+        );
+        return;
+      }
+    }
+
     // Wait for the trigger to create the profile row (up to 5 seconds)
     let profileReady = false;
     for (let i = 0; i < 10; i++) {
@@ -101,7 +116,9 @@ export function RegisterPage() {
     }
     if (!profileReady) {
       setSubmitting(false);
-      setServerError("Akun dibuat namun profil belum tersedia. Silakan tunggu dan coba lagi.");
+      setServerError(
+        "Profil belum tercipta. Pastikan Anda sudah menjalankan Script SQL Migration di Supabase SQL Editor."
+      );
       return;
     }
 

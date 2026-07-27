@@ -89,10 +89,8 @@ export function MahasiswaScanPage() {
         return;
       }
 
-      // Determine status based on lateness tolerance (e.g. 15 min after start)
-      const lateThreshold = new Date(start.getTime() + 15 * 60 * 1000);
-      const status: "hadir" | "terlambat" =
-        now > lateThreshold ? "terlambat" : "hadir";
+      // Selama scan dilakukan dalam jendela waktu sesi aktif (sebelum ends_at), catat sebagai Hadir
+      const status: "hadir" | "terlambat" = "hadir";
 
       const { error: insertErr } = await supabase
         .from("attendance_records")
@@ -119,11 +117,7 @@ export function MahasiswaScanPage() {
       }
 
       setResult({ kind: "success", session: session as QrSession });
-      toast.success(
-        status === "terlambat"
-          ? "Absen tercatat sebagai terlambat."
-          : "Absen berhasil tercatat."
-      );
+      toast.success("Absen berhasil tercatat.");
     } catch {
       setResult({
         kind: "error",

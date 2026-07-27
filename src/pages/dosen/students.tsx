@@ -3,11 +3,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, UserPlus, Mail, Trash2 } from "lucide-react";
+import { Loader2, UserPlus, Mail, Trash2, Pencil, Eye, KeyRound, Copy } from "lucide-react";
 
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+import { supabase, type Profile } from "@/lib/supabase";
 import { useDosenData } from "@/hooks/use-dosen-data";
-import { useAuth } from "@/lib/auth";
 
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -53,9 +53,19 @@ import {
 
 const studentSchema = z.object({
   full_name: z.string().min(3, "Nama lengkap minimal 3 karakter"),
-  email: z.string().email("Alamat email tidak valid"),
   student_id: z.string().min(3, "NIM minimal 3 karakter"),
-  password: z.string().min(8, "Kata sandi minimal 8 karakter"),
+  email: z
+    .string()
+    .refine((val) => val === "" || z.string().email().safeParse(val).success, {
+      message: "Format email tidak valid",
+    })
+    .optional(),
+  password: z
+    .string()
+    .refine((val) => val === "" || val.length >= 6, {
+      message: "Kata sandi minimal 6 karakter jika diisi",
+    })
+    .optional(),
 });
 
 type StudentForm = z.infer<typeof studentSchema>;
@@ -72,46 +82,135 @@ function initials(name: string) {
 
 export function DosenStudentsPage() {
   const { group, students, loading, reload } = useDosenData();
-  const { session } = useAuth();
-  const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editStudent, setEditStudent] = useState<Profile | null>(null);
+  const [viewStudent, setViewStudent] = useState<Profile | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  const form = useForm<StudentForm>({
+  const createForm = useForm<StudentForm>({
     resolver: zodResolver(studentSchema),
     defaultValues: { full_name: "", email: "", student_id: "", password: "" },
     mode: "onBlur",
   });
 
-  async function onSubmit(values: StudentForm) {
-    if (!group || !session?.access_token) return;
+  const editForm = useForm<StudentForm>({
+    resolver: zodResolver(studentSchema),
+    defaultValues: { full_name: "", email: "", student_id: "", password: "" },
+    mode: "onBlur",
+  });
+
+  async function onCreateSubmit(values: StudentForm) {
+    if (!group) return;
     setSubmitting(true);
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/register-student`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({
-            email: values.email,
-            password: values.password,
+      const targetEmail = values.email?.trim()
+        ? values.email.trim()
+        : `${values.student_id.trim().toLowerCase()}@student.kkn`;
+      const targetPassword = values.password?.trim()
+        ? values.password.trim()
+        : values.student_id.trim();
+
+      // Gunakan Native Supabase Auth Client tanpa persistSession agar akun ter-hash sempurna oleh Supabase Auth GoTrue
+      const tempSupabase = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY,
+        { auth: { persistSession: false } }
+      );
+
+      const { data: signUpData, error: signUpErr } = await tempSupabase.auth.signUp({
+        email: targetEmail,
+        password: targetPassword,
+        options: {
+          data: {
             full_name: values.full_name,
+            role: "mahasiswa",
             student_id: values.student_id,
             group_id: group.id,
-          }),
+          },
+        },
+      });
+
+      if (signUpErr) {
+        // Fallback ke RPC
+        const { error: rpcErr } = await supabase.rpc("create_student_user", {
+          p_full_name: values.full_name,
+          p_student_id: values.student_id,
+          p_group_id: group.id,
+          p_password: targetPassword,
+          p_email: targetEmail,
+        });
+        if (rpcErr) throw new Error(signUpErr.message || rpcErr.message);
+      } else if (signUpData.user?.id) {
+        // Hubungkan mahasiswa ke kelompok dosen via RPC assign_student_to_group atau update langsung
+        const { error: assignErr } = await supabase.rpc("assign_student_to_group", {
+          p_student_id: signUpData.user.id,
+          p_group_id: group.id,
+        });
+
+        if (assignErr) {
+          await supabase
+            .from("profiles")
+            .update({
+              group_id: group.id,
+              full_name: values.full_name,
+              student_id: values.student_id,
+              email: targetEmail,
+            })
+            .eq("id", signUpData.user.id);
         }
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error ?? "Gagal mendaftarkan mahasiswa");
       }
-      toast.success(`Mahasiswa ${values.full_name} berhasil didaftarkan.`);
-      form.reset();
-      setOpen(false);
+
+      toast.success(
+        `Mahasiswa ${values.full_name} (NIM: ${values.student_id}) berhasil didaftarkan.`
+      );
+      createForm.reset();
+      setCreateOpen(false);
+      reload();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleOpenEdit(student: Profile) {
+    setEditStudent(student);
+    editForm.reset({
+      full_name: student.full_name,
+      student_id: student.student_id ?? "",
+      email: student.email,
+      password: "",
+    });
+  }
+
+  async function onEditSubmit(values: StudentForm) {
+    if (!editStudent) return;
+    setSubmitting(true);
+    try {
+      const { error: rpcErr } = await supabase.rpc("admin_update_student", {
+        p_student_uuid: editStudent.id,
+        p_full_name: values.full_name,
+        p_student_id: values.student_id,
+        p_new_email: values.email || null,
+        p_new_password: values.password || null,
+      });
+
+      if (rpcErr) {
+        if (
+          rpcErr.message?.includes("function") ||
+          rpcErr.code === "PGRST202" ||
+          rpcErr.message?.includes("Could not find")
+        ) {
+          throw new Error(
+            "Fungsi database 'admin_update_student' belum dibuat di Supabase SQL Editor."
+          );
+        }
+        throw new Error(rpcErr.message);
+      }
+
+      toast.success(`Data mahasiswa ${values.full_name} berhasil diperbarui.`);
+      setEditStudent(null);
       reload();
     } catch (err) {
       toast.error((err as Error).message);
@@ -121,19 +220,29 @@ export function DosenStudentsPage() {
   }
 
   async function handleRemove(id: string, name: string) {
-    if (!confirm(`Hapus mahasiswa ${name} dari kelompok ini?`)) return;
+    if (!confirm(`Hapus mahasiswa ${name} secara permanen?`)) return;
     setRemovingId(id);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ group_id: null })
-      .eq("id", id);
-    setRemovingId(null);
-    if (error) {
-      toast.error("Gagal menghapus mahasiswa dari kelompok.");
-      return;
+    try {
+      const { error: rpcErr } = await supabase.rpc("admin_delete_student", {
+        p_student_uuid: id,
+      });
+
+      if (rpcErr) {
+        // Fallback jika RPC admin_delete_student belum ada
+        const { error: updateErr } = await supabase
+          .from("profiles")
+          .update({ group_id: null })
+          .eq("id", id);
+        if (updateErr) throw updateErr;
+      }
+
+      toast.success(`Mahasiswa ${name} berhasil dihapus.`);
+      reload();
+    } catch (err) {
+      toast.error((err as Error).message ?? "Gagal menghapus mahasiswa");
+    } finally {
+      setRemovingId(null);
     }
-    toast.success("Mahasiswa dikeluarkan dari kelompok.");
-    reload();
   }
 
   return (
@@ -142,7 +251,7 @@ export function DosenStudentsPage() {
         title="Mahasiswa"
         description="Daftar mahasiswa binaan dalam kelompok KKN Anda."
         action={
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button disabled={!group}>
                 <UserPlus className="size-4" />
@@ -153,76 +262,75 @@ export function DosenStudentsPage() {
               <DialogHeader>
                 <DialogTitle>Tambah Mahasiswa Baru</DialogTitle>
                 <DialogDescription>
-                  Akun akan dibuatkan otomatis. Mahasiswa dapat langsung
-                  masuk dengan email dan kata sandi di bawah ini.
+                  Mahasiswa dapat login menggunakan <strong>NIM</strong> &amp; <strong>Password</strong> (default sama dengan NIM jika dikosongkan).
                 </DialogDescription>
               </DialogHeader>
               <form
-                onSubmit={form.handleSubmit(onSubmit)}
+                onSubmit={createForm.handleSubmit(onCreateSubmit)}
                 className="flex flex-col gap-4"
                 noValidate
               >
                 <Field
-                  data-invalid={form.formState.errors.full_name ? true : undefined}
+                  data-invalid={createForm.formState.errors.full_name ? true : undefined}
                 >
-                  <FieldLabel htmlFor="st_full_name">Nama Lengkap</FieldLabel>
+                  <FieldLabel htmlFor="st_full_name">Nama Lengkap *</FieldLabel>
                   <Input
                     id="st_full_name"
                     placeholder="Nama mahasiswa"
-                    aria-invalid={form.formState.errors.full_name ? true : undefined}
-                    {...form.register("full_name")}
+                    aria-invalid={createForm.formState.errors.full_name ? true : undefined}
+                    {...createForm.register("full_name")}
                   />
-                  {form.formState.errors.full_name && (
-                    <FieldError errors={[form.formState.errors.full_name]} />
+                  {createForm.formState.errors.full_name && (
+                    <FieldError errors={[createForm.formState.errors.full_name]} />
                   )}
                 </Field>
 
                 <Field
-                  data-invalid={form.formState.errors.student_id ? true : undefined}
+                  data-invalid={createForm.formState.errors.student_id ? true : undefined}
                 >
-                  <FieldLabel htmlFor="st_student_id">NIM</FieldLabel>
+                  <FieldLabel htmlFor="st_student_id">NIM (ID Login) *</FieldLabel>
                   <Input
                     id="st_student_id"
                     placeholder="Nomor Induk Mahasiswa"
-                    aria-invalid={form.formState.errors.student_id ? true : undefined}
-                    {...form.register("student_id")}
+                    aria-invalid={createForm.formState.errors.student_id ? true : undefined}
+                    {...createForm.register("student_id")}
                   />
-                  {form.formState.errors.student_id && (
-                    <FieldError errors={[form.formState.errors.student_id]} />
+                  {createForm.formState.errors.student_id && (
+                    <FieldError errors={[createForm.formState.errors.student_id]} />
                   )}
                 </Field>
 
                 <Field
-                  data-invalid={form.formState.errors.email ? true : undefined}
+                  data-invalid={createForm.formState.errors.email ? true : undefined}
                 >
-                  <FieldLabel htmlFor="st_email">Email</FieldLabel>
+                  <FieldLabel htmlFor="st_email">Email Kampus (Opsional)</FieldLabel>
                   <Input
                     id="st_email"
                     type="email"
-                    placeholder="mahasiswa@kampus.ac.id"
-                    aria-invalid={form.formState.errors.email ? true : undefined}
-                    {...form.register("email")}
+                    placeholder="Biarkan kosong jika tidak tahu"
+                    aria-invalid={createForm.formState.errors.email ? true : undefined}
+                    {...createForm.register("email")}
                   />
-                  {form.formState.errors.email && (
-                    <FieldError errors={[form.formState.errors.email]} />
+                  {createForm.formState.errors.email && (
+                    <FieldError errors={[createForm.formState.errors.email]} />
                   )}
                 </Field>
 
                 <Field
-                  data-invalid={form.formState.errors.password ? true : undefined}
+                  data-invalid={createForm.formState.errors.password ? true : undefined}
                 >
                   <FieldLabel htmlFor="st_password">
-                    Kata Sandi Sementara
+                    Kata Sandi (Opsional)
                   </FieldLabel>
                   <Input
                     id="st_password"
                     type="password"
-                    placeholder="Minimal 8 karakter"
-                    aria-invalid={form.formState.errors.password ? true : undefined}
-                    {...form.register("password")}
+                    placeholder="Kosongkan untuk menggunakan NIM sebagai kata sandi"
+                    aria-invalid={createForm.formState.errors.password ? true : undefined}
+                    {...createForm.register("password")}
                   />
-                  {form.formState.errors.password && (
-                    <FieldError errors={[form.formState.errors.password]} />
+                  {createForm.formState.errors.password && (
+                    <FieldError errors={[createForm.formState.errors.password]} />
                   )}
                 </Field>
 
@@ -230,7 +338,7 @@ export function DosenStudentsPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setOpen(false)}
+                    onClick={() => setCreateOpen(false)}
                     disabled={submitting}
                   >
                     Batal
@@ -278,10 +386,10 @@ export function DosenStudentsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[60px]"></TableHead>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>NIM</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>Nama Mahasiswa</TableHead>
+                  <TableHead>NIM (Username Login)</TableHead>
+                  <TableHead>Email Terdaftar</TableHead>
+                  <TableHead className="text-right">Aksi &amp; Kredensial</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -296,27 +404,50 @@ export function DosenStudentsPage() {
                       {s.full_name}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="font-mono">
+                      <Badge variant="outline" className="font-mono text-xs">
                         {s.student_id ?? "-"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="text-muted-foreground text-xs font-mono">
                       {s.email}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => handleRemove(s.id, s.full_name)}
-                        disabled={removingId === s.id}
-                        aria-label="Keluarkan dari kelompok"
-                      >
-                        {removingId === s.id ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="size-4 text-destructive" />
-                        )}
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        {/* View Detail Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setViewStudent(s)}
+                          title="Lihat Detail & Kredensial Login"
+                        >
+                          <Eye className="size-4" />
+                        </Button>
+
+                        {/* Edit & Reset Password Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleOpenEdit(s)}
+                          title="Edit Data / Reset Password"
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+
+                        {/* Delete Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleRemove(s.id, s.full_name)}
+                          disabled={removingId === s.id}
+                          title="Keluarkan dari kelompok"
+                        >
+                          {removingId === s.id ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-4 text-destructive" />
+                          )}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -325,6 +456,165 @@ export function DosenStudentsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal View Detail & Kredensial */}
+      {viewStudent && (
+        <Dialog open={Boolean(viewStudent)} onOpenChange={() => setViewStudent(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <KeyRound className="size-5 text-primary" />
+                Detail Akun Mahasiswa
+              </DialogTitle>
+              <DialogDescription>
+                Informasi login mahasiswa untuk keperluan autentikasi.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 rounded-lg border p-4 bg-muted/20 text-sm">
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-muted-foreground">Nama Lengkap</span>
+                <span className="font-semibold">{viewStudent.full_name}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-muted-foreground">NIM (ID Login)</span>
+                <span className="font-mono font-bold text-primary">{viewStudent.student_id}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-muted-foreground">Email Terdaftar</span>
+                <span className="font-mono text-xs">{viewStudent.email}</span>
+              </div>
+              <div className="flex justify-between pt-1">
+                <span className="text-muted-foreground">Password Default</span>
+                <span className="font-mono font-semibold">{viewStudent.student_id}</span>
+              </div>
+            </div>
+
+            <DialogFooter className="flex flex-col gap-2 pt-2 sm:flex-col sm:space-x-0">
+              <Button
+                variant="outline"
+                className="w-full justify-center"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `NIM: ${viewStudent.student_id}\nPassword: ${viewStudent.student_id}`
+                  );
+                  toast.success("Info login disalin ke clipboard!");
+                }}
+              >
+                <Copy className="size-4" /> Salin Info Login
+              </Button>
+              <Button
+                onClick={() => {
+                  const st = viewStudent;
+                  setViewStudent(null);
+                  handleOpenEdit(st);
+                }}
+                className="w-full justify-center"
+              >
+                <Pencil className="size-4" /> Edit / Reset Password
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal Edit & Reset Password */}
+      {editStudent && (
+        <Dialog open={Boolean(editStudent)} onOpenChange={() => setEditStudent(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Data &amp; Reset Password</DialogTitle>
+              <DialogDescription>
+                Ubah informasi mahasiswa atau atur ulang password baru.
+              </DialogDescription>
+            </DialogHeader>
+            <form
+              onSubmit={editForm.handleSubmit(onEditSubmit)}
+              className="flex flex-col gap-4"
+              noValidate
+            >
+              <Field
+                data-invalid={editForm.formState.errors.full_name ? true : undefined}
+              >
+                <FieldLabel htmlFor="edit_full_name">Nama Lengkap *</FieldLabel>
+                <Input
+                  id="edit_full_name"
+                  placeholder="Nama mahasiswa"
+                  aria-invalid={editForm.formState.errors.full_name ? true : undefined}
+                  {...editForm.register("full_name")}
+                />
+                {editForm.formState.errors.full_name && (
+                  <FieldError errors={[editForm.formState.errors.full_name]} />
+                )}
+              </Field>
+
+              <Field
+                data-invalid={editForm.formState.errors.student_id ? true : undefined}
+              >
+                <FieldLabel htmlFor="edit_student_id">NIM (ID Login) *</FieldLabel>
+                <Input
+                  id="edit_student_id"
+                  placeholder="Nomor Induk Mahasiswa"
+                  aria-invalid={editForm.formState.errors.student_id ? true : undefined}
+                  {...editForm.register("student_id")}
+                />
+                {editForm.formState.errors.student_id && (
+                  <FieldError errors={[editForm.formState.errors.student_id]} />
+                )}
+              </Field>
+
+              <Field
+                data-invalid={editForm.formState.errors.email ? true : undefined}
+              >
+                <FieldLabel htmlFor="edit_email">Email Kampus / Terdaftar</FieldLabel>
+                <Input
+                  id="edit_email"
+                  type="email"
+                  placeholder="Email mahasiswa"
+                  aria-invalid={editForm.formState.errors.email ? true : undefined}
+                  {...editForm.register("email")}
+                />
+                {editForm.formState.errors.email && (
+                  <FieldError errors={[editForm.formState.errors.email]} />
+                )}
+              </Field>
+
+              <Field
+                data-invalid={editForm.formState.errors.password ? true : undefined}
+              >
+                <FieldLabel htmlFor="edit_password">
+                  Password Baru (Reset Password)
+                </FieldLabel>
+                <Input
+                  id="edit_password"
+                  type="password"
+                  placeholder="Kosongkan jika tidak ingin mengubah password"
+                  aria-invalid={editForm.formState.errors.password ? true : undefined}
+                  {...editForm.register("password")}
+                />
+                {editForm.formState.errors.password && (
+                  <FieldError errors={[editForm.formState.errors.password]} />
+                )}
+              </Field>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditStudent(null)}
+                  disabled={submitting}
+                >
+                  Batal
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting && <Loader2 className="size-4 animate-spin" />}
+                  Simpan Perubahan
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

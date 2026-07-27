@@ -33,8 +33,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
       .eq("id", userId)
       .maybeSingle();
-    if (error) {
+    if (error || !data) {
       setProfile(null);
+      setSession(null);
+      await supabase.auth.signOut();
       return;
     }
     setProfile(data as Profile | null);

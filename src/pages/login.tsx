@@ -26,8 +26,8 @@ import {
 import { ModeToggle } from "@/components/mode-toggle";
 
 const loginSchema = z.object({
-  email: z.string().email("Alamat email tidak valid"),
-  password: z.string().min(6, "Kata sandi minimal 6 karakter"),
+  identifier: z.string().min(3, "Masukkan NIM atau Email Anda"),
+  password: z.string().min(1, "Kata sandi wajib diisi"),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -44,21 +44,53 @@ export function LoginPage() {
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { identifier: "", password: "" },
     mode: "onBlur",
   });
 
   async function onSubmit(values: LoginForm) {
     setSubmitting(true);
     setServerError(null);
+
+    let loginEmail = values.identifier.trim();
+
+    // Jika input tidak mengandung '@', diasumsikan sebagai NIM
+    if (!loginEmail.includes("@")) {
+      const { data: fetchedEmail } = await supabase.rpc(
+        "get_email_by_student_id",
+        { p_student_id: loginEmail }
+      );
+
+      if (fetchedEmail) {
+        loginEmail = fetchedEmail;
+      } else {
+        // Fallback: Query langsung profiles
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("student_id", loginEmail)
+          .maybeSingle();
+
+        if (prof?.email) {
+          loginEmail = prof.email;
+        } else {
+          // Fallback default email buatan jika belum ada di database
+          loginEmail = `${loginEmail.toLowerCase()}@student.kkn`;
+        }
+      }
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
-      email: values.email,
+      email: loginEmail,
       password: values.password,
     });
+
     setSubmitting(false);
+
     if (error) {
+      console.warn("Login attempt failed:", { input: values.identifier, email: loginEmail, error: error.message });
       setServerError(
-        "Email atau kata sandi salah. Silakan periksa kembali akun Anda."
+        `NIM/Email (${loginEmail}) atau kata sandi salah. (${error.message})`
       );
       return;
     }
@@ -115,8 +147,7 @@ export function LoginPage() {
                 Masuk ke akun
               </h2>
               <p className="text-sm text-muted-foreground">
-                Gunakan email dan kata sandi yang diberikan oleh pembimbing
-                kelompok Anda.
+                Gunakan NIM (ID Mahasiswa) atau email dan kata sandi Anda.
               </p>
             </div>
 
@@ -134,19 +165,19 @@ export function LoginPage() {
                   noValidate
                 >
                   <Field
-                    data-invalid={form.formState.errors.email ? true : undefined}
+                    data-invalid={form.formState.errors.identifier ? true : undefined}
                   >
-                    <FieldLabel htmlFor="email">Email</FieldLabel>
+                    <FieldLabel htmlFor="identifier">NIM atau Email</FieldLabel>
                     <Input
-                      id="email"
-                      type="email"
-                      autoComplete="email"
-                      placeholder="nama@kampus.ac.id"
-                      aria-invalid={form.formState.errors.email ? true : undefined}
-                      {...form.register("email")}
+                      id="identifier"
+                      type="text"
+                      autoComplete="username"
+                      placeholder="Masukkan NIM atau email"
+                      aria-invalid={form.formState.errors.identifier ? true : undefined}
+                      {...form.register("identifier")}
                     />
-                    {form.formState.errors.email && (
-                      <FieldError errors={[form.formState.errors.email]} />
+                    {form.formState.errors.identifier && (
+                      <FieldError errors={[form.formState.errors.identifier]} />
                     )}
                   </Field>
 

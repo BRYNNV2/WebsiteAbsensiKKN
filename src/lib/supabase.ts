@@ -50,7 +50,7 @@ export type QrSession = {
   created_at: string
 }
 
-export type AttendanceStatus = "hadir" | "terlambat" | "absen"
+export type AttendanceStatus = "hadir" | "terlambat" | "izin" | "sakit" | "absen"
 
 export type AttendanceRecord = {
   id: string
