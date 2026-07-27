@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, GraduationCap, ShieldCheck } from "lucide-react";
+import { Loader2, GraduationCap, ShieldCheck, History, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { supabase } from "@/lib/supabase";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Card,
   CardContent,
@@ -34,11 +35,46 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
+function initials(name: string) {
+  return (
+    name
+      .split(" ")
+      .map((s) => s[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "ID"
+  );
+}
+
 export function LoginPage() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  // Riwayat Akun Login State
+  const [loginHistory, setLoginHistory] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("kkn_login_history");
+      let list = saved ? JSON.parse(saved) : [];
+      const remembered = localStorage.getItem("kkn_remembered_identifier");
+      if (remembered && Array.isArray(list) && !list.includes(remembered)) {
+        list.unshift(remembered);
+      }
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  });
+  const [showHistoryPopover, setShowHistoryPopover] = useState(false);
+
+  function handleRemoveHistory(e: React.MouseEvent, item: string) {
+    e.stopPropagation();
+    const updated = loginHistory.filter((h) => h !== item);
+    setLoginHistory(updated);
+    localStorage.setItem("kkn_login_history", JSON.stringify(updated));
+  }
 
   useEffect(() => {
     if (session) navigate("/", { replace: true });
@@ -101,8 +137,18 @@ export function LoginPage() {
       return;
     }
 
+    const currentId = values.identifier.trim();
+    if (currentId) {
+      const updatedHistory = [
+        currentId,
+        ...loginHistory.filter((h) => h.toLowerCase() !== currentId.toLowerCase()),
+      ].slice(0, 5);
+      setLoginHistory(updatedHistory);
+      localStorage.setItem("kkn_login_history", JSON.stringify(updatedHistory));
+    }
+
     if (values.rememberMe) {
-      localStorage.setItem("kkn_remembered_identifier", values.identifier.trim());
+      localStorage.setItem("kkn_remembered_identifier", currentId);
       localStorage.setItem("kkn_remember_me", "true");
     } else {
       localStorage.removeItem("kkn_remembered_identifier");
@@ -190,16 +236,84 @@ export function LoginPage() {
                 >
                   <Field
                     data-invalid={form.formState.errors.identifier ? true : undefined}
+                    className="relative"
                   >
-                    <FieldLabel htmlFor="identifier">NIM atau Email</FieldLabel>
-                    <Input
-                      id="identifier"
-                      type="text"
-                      autoComplete="username"
-                      placeholder="Masukkan NIM atau email"
-                      aria-invalid={form.formState.errors.identifier ? true : undefined}
-                      {...form.register("identifier")}
-                    />
+                    <div className="flex items-center justify-between mb-1.5">
+                      <FieldLabel htmlFor="identifier">NIM atau Email</FieldLabel>
+                      {loginHistory.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowHistoryPopover((prev) => !prev)}
+                          className="text-[11px] text-primary hover:underline font-medium flex items-center gap-1 cursor-pointer"
+                        >
+                          <History className="size-3" />
+                          <span>{loginHistory.length} Riwayat Login</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="relative">
+                      <Input
+                        id="identifier"
+                        type="text"
+                        autoComplete="username"
+                        placeholder="Masukkan NIM atau email"
+                        onFocus={() => setShowHistoryPopover(true)}
+                        onBlur={() => setTimeout(() => setShowHistoryPopover(false), 200)}
+                        aria-invalid={form.formState.errors.identifier ? true : undefined}
+                        {...form.register("identifier")}
+                      />
+
+                      {/* Floating Account History Popover */}
+                      {showHistoryPopover && loginHistory.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 z-50 mt-1.5 rounded-xl border border-border/80 bg-background/95 p-2 shadow-2xl backdrop-blur-md space-y-1 text-xs animate-in fade-in-50 zoom-in-95">
+                          <div className="flex items-center justify-between px-2 py-1 border-b pb-1.5 text-[11px] font-semibold text-muted-foreground">
+                            <div className="flex items-center gap-1.5">
+                              <History className="size-3.5 text-primary" />
+                              <span>Akun Pernah Login</span>
+                            </div>
+                            <span className="text-[10px] text-muted-foreground/70">Klik untuk isi otomatis</span>
+                          </div>
+                          <div className="max-h-44 overflow-y-auto space-y-0.5 pt-1">
+                            {loginHistory.map((item) => (
+                              <div
+                                key={item}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  form.setValue("identifier", item, { shouldValidate: true });
+                                  setShowHistoryPopover(false);
+                                }}
+                                className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/80 cursor-pointer transition-colors group"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Avatar className="size-6 shrink-0 bg-primary/10 text-primary">
+                                    <AvatarFallback className="text-[10px] font-bold">
+                                      {initials(item)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="font-semibold text-foreground truncate text-xs">
+                                    {item}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleRemoveHistory(e, item);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition-opacity cursor-pointer"
+                                  title="Hapus dari riwayat"
+                                >
+                                  <X className="size-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {form.formState.errors.identifier && (
                       <FieldError errors={[form.formState.errors.identifier]} />
                     )}
