@@ -18,9 +18,11 @@ import {
   MessageSquare,
   HelpCircle,
   ChevronsUpDown,
+  Calendar,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
+import { useNotifications } from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
 
 import { ModeToggle } from "@/components/mode-toggle";
@@ -86,6 +88,7 @@ function initials(name: string) {
 
 export function AppShell() {
   const { profile, signOut } = useAuth();
+  const { notifications, unreadCount, markAllAsRead, markAsRead } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarSearch, setSidebarSearch] = useState("");
@@ -329,37 +332,101 @@ export function AppShell() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="relative size-8 rounded-full text-muted-foreground hover:text-foreground"
+                  className="relative size-8 rounded-full text-muted-foreground hover:text-foreground cursor-pointer"
+                  title="Notifikasi Sistem"
                 >
                   <Bell className="size-4" />
-                  <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-rose-500 ring-2 ring-background animate-pulse" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 flex size-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full size-2.5 bg-rose-500 ring-2 ring-background"></span>
+                    </span>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 p-0 shadow-xl rounded-xl">
-                <div className="flex items-center justify-between border-b p-3">
+              <DropdownMenuContent align="end" className="w-80 sm:w-96 p-0 shadow-xl rounded-xl">
+                <div className="flex items-center justify-between border-b p-3 bg-muted/30">
                   <div className="flex items-center gap-2">
                     <Bell className="size-4 text-primary" />
-                    <span className="font-semibold text-xs text-foreground">Notifikasi Sistem</span>
+                    <span className="font-bold text-xs text-foreground">Notifikasi Sistem</span>
+                    {unreadCount > 0 && (
+                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 font-mono font-bold">
+                        {unreadCount} Baru
+                      </Badge>
+                    )}
                   </div>
-                  <Badge variant="secondary" className="text-[10px]">Terbaru</Badge>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllAsRead}
+                      className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+                    >
+                      Tandai dibaca
+                    </button>
+                  )}
                 </div>
-                <div className="p-2 space-y-1 text-xs max-h-64 overflow-y-auto">
-                  <div className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                    <CheckCircle2 className="size-4 text-emerald-500 shrink-0 mt-0.5" />
-                    <div className="space-y-0.5 min-w-0">
-                      <p className="font-semibold text-foreground text-xs">Aktivitas Scan Absensi</p>
-                      <p className="text-[11px] text-muted-foreground truncate">Mahasiswa baru saja mencatat absensi QR KKN.</p>
-                      <span className="text-[10px] text-muted-foreground font-mono">Baru saja</span>
+
+                <div className="p-1 space-y-1 text-xs max-h-80 overflow-y-auto divide-y divide-border/30">
+                  {notifications.length === 0 ? (
+                    <div className="text-center py-8 text-xs text-muted-foreground space-y-1">
+                      <Bell className="size-6 mx-auto text-muted-foreground/40" />
+                      <p className="font-semibold text-foreground">Belum Ada Notifikasi</p>
+                      <p className="text-[11px]">Notifikasi absensi &amp; sesi KKN akan muncul di sini.</p>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                    <UserCheck className="size-4 text-sky-500 shrink-0 mt-0.5" />
-                    <div className="space-y-0.5 min-w-0">
-                      <p className="font-semibold text-foreground text-xs">Sesi Absensi Aktif</p>
-                      <p className="text-[11px] text-muted-foreground truncate">Sesi KKN aktif siap dipindai oleh mahasiswa.</p>
-                      <span className="text-[10px] text-muted-foreground font-mono">10m lalu</span>
-                    </div>
-                  </div>
+                  ) : (
+                    notifications.map((item) => {
+                      const Icon =
+                        item.type === "session_scheduled"
+                          ? Calendar
+                          : item.type === "session_created"
+                            ? QrCode
+                            : item.type === "status_updated"
+                              ? CheckCircle2
+                              : UserCheck;
+
+                      const iconColor =
+                        item.type === "session_scheduled"
+                          ? "text-purple-500 bg-purple-500/10"
+                          : item.type === "session_created"
+                            ? "text-sky-500 bg-sky-500/10"
+                            : item.type === "status_updated"
+                              ? "text-emerald-500 bg-emerald-500/10"
+                              : "text-amber-500 bg-amber-500/10";
+
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => {
+                            markAsRead(item.id);
+                            if (item.link) navigate(item.link);
+                          }}
+                          className={cn(
+                            "flex items-start gap-3 p-2.5 rounded-lg transition-colors cursor-pointer group",
+                            !item.isRead ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/50"
+                          )}
+                        >
+                          <div className={cn("p-1.5 rounded-lg shrink-0 mt-0.5", iconColor)}>
+                            <Icon className="size-4" />
+                          </div>
+                          <div className="space-y-0.5 min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className={cn("text-xs truncate", !item.isRead ? "font-bold text-foreground" : "font-medium text-foreground/80")}>
+                                {item.title}
+                              </p>
+                              {!item.isRead && (
+                                <span className="size-1.5 rounded-full bg-primary shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                              {item.message}
+                            </p>
+                            <span className="text-[10px] text-muted-foreground font-mono inline-block mt-0.5">
+                              {item.timeAgo}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
