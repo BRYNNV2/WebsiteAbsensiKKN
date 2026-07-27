@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, ShieldAlert, Download, Filter, UserCheck, CheckCircle2, Clock, FileText, Stethoscope, XCircle, ChevronDown, Search, ChevronLeft, ChevronRight, X, Check } from "lucide-react";
+import { Loader2, ShieldAlert, Download, Filter, UserCheck, CheckCircle2, Clock, FileText, Stethoscope, XCircle, ChevronDown, Search, ChevronLeft, ChevronRight, X, Check, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 import { supabase, type QrSession, type AttendanceRecord, type AttendanceStatus } from "@/lib/supabase";
 import { useDosenData } from "@/hooks/use-dosen-data";
@@ -258,21 +259,104 @@ export function DosenRecapPage() {
     }
   }
 
-  function handleExportCsv() {
+  function handleExportExcel() {
     if (matrix.length === 0 || filteredSessions.length === 0) {
       toast.error("Tidak ada data untuk diekspor.");
       return;
     }
+
     const filterSuffix =
       selectedSession === "latest7"
         ? "-1minggu"
         : selectedSession === "latest10"
           ? "-10sesi"
-          : selectedSession !== "all"
-            ? "-sesi-spesifik"
-            : "-semua-sesi";
+          : selectedSession === "latest15"
+            ? "-15sesi"
+            : selectedSession === "latest30"
+              ? "-1bulan"
+              : selectedSession !== "all"
+                ? "-sesi-spesifik"
+                : "-semua-sesi";
 
     const headers = [
+      "No",
+      "Nama Mahasiswa",
+      "NIM (ID)",
+      "Email Terdaftar",
+      ...filteredSessions.map((s) => s.title),
+      "Total Hadir",
+      "Total Telat",
+      "Total Izin",
+      "Total Sakit",
+      "Total Alpha",
+    ];
+
+    const statusLabelMap: Record<string, string> = {
+      hadir: "Hadir",
+      terlambat: "Telat",
+      izin: "Izin",
+      sakit: "Sakit",
+      absen: "Alpha",
+    };
+
+    const rows = matrix.map((r, idx) => [
+      idx + 1,
+      r.student.full_name,
+      r.student.student_id ?? "—",
+      r.student.email,
+      ...r.attendances.map((a) => statusLabelMap[a.record?.status ?? "absen"] || "Alpha"),
+      r.present,
+      r.late,
+      r.permission,
+      r.sick,
+      r.absent,
+    ]);
+
+    // Create Worksheet with SheetJS
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+    // Calculate auto column widths
+    const colWidths = headers.map((h, colIdx) => {
+      let maxLen = h.length;
+      rows.forEach((row) => {
+        const cellValue = String(row[colIdx] ?? "");
+        if (cellValue.length > maxLen) maxLen = cellValue.length;
+      });
+      return { wch: Math.min(maxLen + 4, 45) };
+    });
+    worksheet["!cols"] = colWidths;
+
+    // Create Workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Presensi KKN");
+
+    // Export File .xlsx
+    const fileName = `rekap-absensi-${group?.name ?? "kkn"}${filterSuffix}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    toast.success("File Excel (.xlsx) rapi berhasil diunduh.");
+  }
+
+  function handleExportCsv() {
+    if (matrix.length === 0 || filteredSessions.length === 0) {
+      toast.error("Tidak ada data untuk diekspor.");
+      return;
+    }
+
+    const filterSuffix =
+      selectedSession === "latest7"
+        ? "-1minggu"
+        : selectedSession === "latest10"
+          ? "-10sesi"
+          : selectedSession === "latest15"
+            ? "-15sesi"
+            : selectedSession === "latest30"
+              ? "-1bulan"
+              : selectedSession !== "all"
+                ? "-sesi-spesifik"
+                : "-semua-sesi";
+
+    const headers = [
+      "No",
       "Nama Mahasiswa",
       "NIM",
       "Email",
@@ -283,28 +367,43 @@ export function DosenRecapPage() {
       "Sakit",
       "Alpha",
     ];
-    const rows = matrix.map((r) => [
+
+    const statusLabelMap: Record<string, string> = {
+      hadir: "Hadir",
+      terlambat: "Telat",
+      izin: "Izin",
+      sakit: "Sakit",
+      absen: "Alpha",
+    };
+
+    const rows = matrix.map((r, idx) => [
+      idx + 1,
       r.student.full_name,
-      r.student.student_id ?? "",
+      r.student.student_id ?? "-",
       r.student.email,
-      ...r.attendances.map((a) => a.record?.status ?? "absen"),
-      String(r.present),
-      String(r.late),
-      String(r.permission),
-      String(r.sick),
-      String(r.absent),
+      ...r.attendances.map((a) => statusLabelMap[a.record?.status ?? "absen"] || "Alpha"),
+      r.present,
+      r.late,
+      r.permission,
+      r.sick,
+      r.absent,
     ]);
-    const csv = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+
+    // Use sep=;\n line + Semicolon ';' delimiter + UTF-8 BOM '\uFEFF'
+    // This forces Microsoft Excel on Windows to split columns A, B, C, D, E... automatically without cramming!
+    const csvLines = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";"))
+      .join("\r\n");
+
+    const csvContent = "sep=;\r\n" + csvLines;
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `rekap-absensi-${group?.name ?? "kkn"}${filterSuffix}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Rekap CSV berhasil diunduh.");
+    toast.success("Rekap CSV rapi terpisah kolom berhasil diunduh.");
   }
 
   function handleExportPdf() {
@@ -454,13 +553,17 @@ export function DosenRecapPage() {
               <UserCheck className="size-4" />
               Absen Manual
             </Button>
-            <Button variant="outline" onClick={handleExportPdf}>
-              <FileText className="size-4 text-rose-600 dark:text-rose-400" />
-              Ekspor PDF
+            <Button variant="outline" onClick={handleExportExcel} className="font-semibold border-emerald-500/40 hover:bg-emerald-500/10">
+              <FileSpreadsheet className="size-4 text-emerald-600 dark:text-emerald-400" />
+              Ekspor Excel (.xlsx)
             </Button>
             <Button variant="outline" onClick={handleExportCsv}>
               <Download className="size-4 text-emerald-600 dark:text-emerald-400" />
               Ekspor CSV
+            </Button>
+            <Button variant="outline" onClick={handleExportPdf}>
+              <FileText className="size-4 text-rose-600 dark:text-rose-400" />
+              Ekspor PDF
             </Button>
           </div>
         }
