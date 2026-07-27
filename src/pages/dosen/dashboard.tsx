@@ -12,6 +12,8 @@ import {
   Activity,
   ArrowUpRight,
   UserCheck,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   Bar,
@@ -323,9 +325,23 @@ export function DosenDashboardPage() {
 
       if (statusFilter === "high") return item.rate >= 90;
       if (statusFilter === "warning") return item.rate < 75;
-      return true;
-    });
+    return list;
   }, [studentsPerformance, tableSearch, statusFilter]);
+
+  // Table Pagination State (6 mahasiswa per halaman)
+  const TABLE_ITEMS_PER_PAGE = 6;
+  const [tablePage, setTablePage] = useState(1);
+
+  useEffect(() => {
+    setTablePage(1);
+  }, [tableSearch, statusFilter]);
+
+  const tableTotalPages = Math.ceil(filteredStudents.length / TABLE_ITEMS_PER_PAGE) || 1;
+
+  const paginatedStudents = useMemo(() => {
+    const start = (tablePage - 1) * TABLE_ITEMS_PER_PAGE;
+    return filteredStudents.slice(start, start + TABLE_ITEMS_PER_PAGE);
+  }, [filteredStudents, tablePage]);
 
   if (loading) {
     return (
@@ -830,7 +846,7 @@ export function DosenDashboardPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredStudents.map((item) => {
+                paginatedStudents.map((item) => {
                   const { student: st, rate, lastRecord, lastSession } = item;
                   const statusLabel = lastRecord
                     ? lastRecord.status === "hadir"
@@ -923,6 +939,52 @@ export function DosenDashboardPage() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Table Pagination Controls */}
+        {filteredStudents.length > TABLE_ITEMS_PER_PAGE && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4 text-xs">
+            <div className="text-muted-foreground font-medium">
+              Menampilkan{" "}
+              <span className="font-bold text-foreground">
+                {(tablePage - 1) * TABLE_ITEMS_PER_PAGE + 1}
+              </span>{" "}
+              -{" "}
+              <span className="font-bold text-foreground">
+                {Math.min(tablePage * TABLE_ITEMS_PER_PAGE, filteredStudents.length)}
+              </span>{" "}
+              dari <span className="font-bold text-foreground">{filteredStudents.length}</span> Mahasiswa
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTablePage((p) => Math.max(1, p - 1))}
+                disabled={tablePage === 1}
+                className="h-8 gap-1 text-xs cursor-pointer"
+              >
+                <ChevronLeft className="size-3.5" />
+                <span>Sebelumnya</span>
+              </Button>
+
+              <div className="flex items-center gap-1 px-2 font-medium text-xs text-muted-foreground">
+                Halaman <span className="font-bold text-foreground">{tablePage}</span> dari{" "}
+                <span className="font-bold text-foreground">{tableTotalPages}</span>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTablePage((p) => Math.min(tableTotalPages, p + 1))}
+                disabled={tablePage === tableTotalPages}
+                className="h-8 gap-1 text-xs cursor-pointer"
+              >
+                <span>Selanjutnya</span>
+                <ChevronRight className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

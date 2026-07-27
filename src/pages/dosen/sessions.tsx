@@ -17,6 +17,8 @@ import {
   Activity,
   CheckCircle2,
   UserCheck,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { supabase, type QrSession } from "@/lib/supabase";
@@ -191,6 +193,22 @@ export function DosenSessionsPage() {
 
     return list;
   }, [sessions, statusFilter, searchQuery, sortOption]);
+
+  // Pagination State (6 sesi per halaman untuk performa cepat dan ringan)
+  const SESSIONS_PER_PAGE = 6;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset pagination ke halaman 1 saat pencarian, filter, atau sorting berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, sortOption]);
+
+  const totalPages = Math.ceil(processedSessions.length / SESSIONS_PER_PAGE) || 1;
+
+  const paginatedSessions = useMemo(() => {
+    const start = (currentPage - 1) * SESSIONS_PER_PAGE;
+    return processedSessions.slice(start, start + SESSIONS_PER_PAGE);
+  }, [processedSessions, currentPage]);
 
   const form = useForm<SessionForm>({
     resolver: zodResolver(sessionSchema),
@@ -616,77 +634,125 @@ export function DosenSessionsPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-3">
-              {processedSessions.map((s) => {
-                const status = statusOf(s);
-                return (
-                  <div
-                    key={s.id}
-                    className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="flex min-w-0 flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate font-medium">
-                          {s.title}
-                        </span>
-                        <Badge
-                          variant={
-                            status === "active"
-                              ? "default"
+            <div className="space-y-4">
+              <div className="grid gap-3">
+                {paginatedSessions.map((s) => {
+                  const status = statusOf(s);
+                  return (
+                    <div
+                      key={s.id}
+                      className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between hover:border-border transition-colors"
+                    >
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate font-medium">
+                            {s.title}
+                          </span>
+                          <Badge
+                            variant={
+                              status === "active"
+                                ? "default"
+                                : status === "past"
+                                  ? "secondary"
+                                  : "outline"
+                            }
+                            className={cn(
+                              status === "active" &&
+                                "bg-emerald-600 text-white dark:bg-emerald-600/80"
+                            )}
+                          >
+                            {status === "active"
+                              ? "Aktif"
                               : status === "past"
-                                ? "secondary"
-                                : "outline"
-                          }
-                          className={cn(
-                            status === "active" &&
-                              "bg-emerald-600 text-white dark:bg-emerald-600/80"
-                          )}
+                                ? "Selesai"
+                                : "Terjadwal"}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <CalendarClock className="size-3.5" />
+                            {formatDateTime(s.starts_at)} -{" "}
+                            {new Date(s.ends_at).toLocaleTimeString("id-ID", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                          {s.location && <span>{s.location}</span>}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPreviewSession(s)}
                         >
-                          {status === "active"
-                            ? "Aktif"
-                            : status === "past"
-                              ? "Selesai"
-                              : "Terjadwal"}
-                        </Badge>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1">
-                          <CalendarClock className="size-3.5" />
-                          {formatDateTime(s.starts_at)} -{" "}
-                          {new Date(s.ends_at).toLocaleTimeString("id-ID", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                        {s.location && <span>{s.location}</span>}
+                          <Eye className="size-4" />
+                          Lihat QR
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleRemove(s.id)}
+                          disabled={removingId === s.id}
+                          aria-label="Hapus sesi"
+                        >
+                          {removingId === s.id ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-4 text-destructive" />
+                          )}
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPreviewSession(s)}
-                      >
-                        <Eye className="size-4" />
-                        Lihat QR
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => handleRemove(s.id)}
-                        disabled={removingId === s.id}
-                        aria-label="Hapus sesi"
-                      >
-                        {removingId === s.id ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="size-4 text-destructive" />
-                        )}
-                      </Button>
-                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pagination Controls */}
+              {processedSessions.length > SESSIONS_PER_PAGE && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4 text-xs">
+                  <div className="text-muted-foreground font-medium">
+                    Menampilkan{" "}
+                    <span className="font-bold text-foreground">
+                      {(currentPage - 1) * SESSIONS_PER_PAGE + 1}
+                    </span>{" "}
+                    -{" "}
+                    <span className="font-bold text-foreground">
+                      {Math.min(currentPage * SESSIONS_PER_PAGE, processedSessions.length)}
+                    </span>{" "}
+                    dari <span className="font-bold text-foreground">{processedSessions.length}</span> Sesi Absen
                   </div>
-                );
-              })}
+
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 gap-1 text-xs cursor-pointer"
+                    >
+                      <ChevronLeft className="size-3.5" />
+                      <span>Sebelumnya</span>
+                    </Button>
+
+                    <div className="flex items-center gap-1 px-2 font-medium text-xs text-muted-foreground">
+                      Halaman <span className="font-bold text-foreground">{currentPage}</span> dari{" "}
+                      <span className="font-bold text-foreground">{totalPages}</span>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 gap-1 text-xs cursor-pointer"
+                    >
+                      <span>Selanjutnya</span>
+                      <ChevronRight className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

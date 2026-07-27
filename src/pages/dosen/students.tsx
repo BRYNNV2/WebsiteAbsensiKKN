@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, UserPlus, Mail, Trash2, Pencil, Eye, KeyRound, Copy, Search, ArrowUpDown, X } from "lucide-react";
+import { Loader2, UserPlus, Mail, Trash2, Pencil, Eye, KeyRound, Copy, Search, ArrowUpDown, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { createClient } from "@supabase/supabase-js";
 import { supabase, type Profile } from "@/lib/supabase";
@@ -135,6 +135,21 @@ export function DosenStudentsPage() {
 
     return list;
   }, [students, searchQuery, sortOption]);
+
+  // Pagination State (8 mahasiswa per halaman)
+  const STUDENTS_PER_PAGE = 8;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortOption]);
+
+  const totalPages = Math.ceil(processedStudents.length / STUDENTS_PER_PAGE) || 1;
+
+  const paginatedStudents = useMemo(() => {
+    const start = (currentPage - 1) * STUDENTS_PER_PAGE;
+    return processedStudents.slice(start, start + STUDENTS_PER_PAGE);
+  }, [processedStudents, currentPage]);
 
   const createForm = useForm<StudentForm>({
     resolver: zodResolver(studentSchema),
@@ -480,77 +495,125 @@ export function DosenStudentsPage() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]"></TableHead>
-                  <TableHead>Nama Mahasiswa</TableHead>
-                  <TableHead>NIM (Username Login)</TableHead>
-                  <TableHead>Email Terdaftar</TableHead>
-                  <TableHead className="text-right">Aksi &amp; Kredensial</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {processedStudents.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell>
-                      <Avatar size="sm">
-                        <AvatarFallback>{initials(s.full_name)}</AvatarFallback>
-                      </Avatar>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {s.full_name}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-mono text-xs">
-                        {s.student_id ?? "-"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs font-mono">
-                      {s.email}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {/* View Detail Button */}
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => setViewStudent(s)}
-                          title="Lihat Detail & Kredensial Login"
-                        >
-                          <Eye className="size-4" />
-                        </Button>
-
-                        {/* Edit & Reset Password Button */}
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleOpenEdit(s)}
-                          title="Edit Data / Reset Password"
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-
-                        {/* Delete Button */}
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleRemove(s.id, s.full_name)}
-                          disabled={removingId === s.id}
-                          title="Keluarkan dari kelompok"
-                        >
-                          {removingId === s.id ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="size-4 text-destructive" />
-                          )}
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[60px]"></TableHead>
+                    <TableHead>Nama Mahasiswa</TableHead>
+                    <TableHead>NIM (Username Login)</TableHead>
+                    <TableHead>Email Terdaftar</TableHead>
+                    <TableHead className="text-right">Aksi &amp; Kredensial</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedStudents.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell>
+                        <Avatar size="sm">
+                          <AvatarFallback>{initials(s.full_name)}</AvatarFallback>
+                        </Avatar>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {s.full_name}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {s.student_id ?? "-"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs font-mono">
+                        {s.email}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* View Detail Button */}
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => setViewStudent(s)}
+                            title="Lihat Detail & Kredensial Login"
+                          >
+                            <Eye className="size-4" />
+                          </Button>
+
+                          {/* Edit & Reset Password Button */}
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleOpenEdit(s)}
+                            title="Edit Data / Reset Password"
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+
+                          {/* Delete Button */}
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleRemove(s.id, s.full_name)}
+                            disabled={removingId === s.id}
+                            title="Hapus Mahasiswa"
+                          >
+                            {removingId === s.id ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="size-4 text-destructive" />
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Table Pagination Controls */}
+              {processedStudents.length > STUDENTS_PER_PAGE && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4 text-xs">
+                  <div className="text-muted-foreground font-medium">
+                    Menampilkan{" "}
+                    <span className="font-bold text-foreground">
+                      {(currentPage - 1) * STUDENTS_PER_PAGE + 1}
+                    </span>{" "}
+                    -{" "}
+                    <span className="font-bold text-foreground">
+                      {Math.min(currentPage * STUDENTS_PER_PAGE, processedStudents.length)}
+                    </span>{" "}
+                    dari <span className="font-bold text-foreground">{processedStudents.length}</span> Mahasiswa
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 gap-1 text-xs cursor-pointer"
+                    >
+                      <ChevronLeft className="size-3.5" />
+                      <span>Sebelumnya</span>
+                    </Button>
+
+                    <div className="flex items-center gap-1 px-2 font-medium text-xs text-muted-foreground">
+                      Halaman <span className="font-bold text-foreground">{currentPage}</span> dari{" "}
+                      <span className="font-bold text-foreground">{totalPages}</span>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 gap-1 text-xs cursor-pointer"
+                    >
+                      <span>Selanjutnya</span>
+                      <ChevronRight className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
