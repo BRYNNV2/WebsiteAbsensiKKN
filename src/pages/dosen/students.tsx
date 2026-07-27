@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, UserPlus, Mail, Trash2, Pencil, Eye, KeyRound, Copy } from "lucide-react";
+import { Loader2, UserPlus, Mail, Trash2, Pencil, Eye, KeyRound, Copy, Search, ArrowUpDown, X } from "lucide-react";
 
 import { createClient } from "@supabase/supabase-js";
 import { supabase, type Profile } from "@/lib/supabase";
@@ -33,6 +33,13 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -87,6 +94,47 @@ export function DosenStudentsPage() {
   const [viewStudent, setViewStudent] = useState<Profile | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  // Search & Sorting state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState<"terbaru" | "terlama" | "az" | "za" | "nim">("terbaru");
+
+  const processedStudents = useMemo(() => {
+    let list = [...students];
+
+    // 1. Search Filter (Nama, NIM, Email)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (s) =>
+          s.full_name.toLowerCase().includes(q) ||
+          (s.student_id && s.student_id.toLowerCase().includes(q)) ||
+          s.email.toLowerCase().includes(q)
+      );
+    }
+
+    // 2. Sort Logic
+    list.sort((a, b) => {
+      if (sortOption === "az") {
+        return a.full_name.localeCompare(b.full_name, "id");
+      }
+      if (sortOption === "za") {
+        return b.full_name.localeCompare(a.full_name, "id");
+      }
+      if (sortOption === "nim") {
+        const nimA = a.student_id || "";
+        const nimB = b.student_id || "";
+        return nimA.localeCompare(nimB, undefined, { numeric: true });
+      }
+      if (sortOption === "terlama") {
+        return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+      }
+      // "terbaru" (default)
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+
+    return list;
+  }, [students, searchQuery, sortOption]);
 
   const createForm = useForm<StudentForm>({
     resolver: zodResolver(studentSchema),
@@ -354,15 +402,57 @@ export function DosenStudentsPage() {
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Anggota Kelompok</CardTitle>
-          <CardDescription>
-            {group
-              ? `${group.name} - ${students.length} mahasiswa`
-              : "Kelompok belum siap."}
-          </CardDescription>
+      <Card className="border-border/60 shadow-2xs">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
+          <div>
+            <CardTitle>Anggota Kelompok</CardTitle>
+            <CardDescription>
+              {group
+                ? `${group.name} - ${students.length} Mahasiswa Binaan`
+                : "Kelompok belum siap."}
+            </CardDescription>
+          </div>
+
+          {/* Search & Sort Controls */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-64">
+              <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Cari nama, NIM, atau email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-8 text-xs h-9 bg-background/80"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="size-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Sort Select */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <ArrowUpDown className="size-3.5 text-muted-foreground" />
+              <Select value={sortOption} onValueChange={(val: any) => setSortOption(val)}>
+                <SelectTrigger className="w-[170px] text-xs h-9">
+                  <SelectValue placeholder="Urutkan Data" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="terbaru" className="text-xs">Terbaru Didaftarkan</SelectItem>
+                  <SelectItem value="terlama" className="text-xs">Terlama Didaftarkan</SelectItem>
+                  <SelectItem value="az" className="text-xs">Nama (A - Z)</SelectItem>
+                  <SelectItem value="za" className="text-xs">Nama (Z - A)</SelectItem>
+                  <SelectItem value="nim" className="text-xs">NIM (Urutan Angka)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
+
         <CardContent>
           {loading ? (
             <div className="space-y-2">
@@ -377,10 +467,18 @@ export function DosenStudentsPage() {
               </EmptyMedia>
               <EmptyTitle>Belum ada mahasiswa</EmptyTitle>
               <EmptyDescription>
-                Tambahkan mahasiswa binaan Anda agar mereka dapat memulai
-                absensi.
+                Tambahkan mahasiswa binaan Anda agar mereka dapat memulai absensi.
               </EmptyDescription>
             </Empty>
+          ) : processedStudents.length === 0 ? (
+            <div className="text-center py-10 text-xs text-muted-foreground space-y-2">
+              <Search className="size-8 mx-auto text-muted-foreground/50" />
+              <p className="font-semibold text-foreground">Tidak ditemukan hasil pencarian</p>
+              <p>Tidak ada mahasiswa yang cocok dengan pencarian "{searchQuery}".</p>
+              <Button size="sm" variant="outline" onClick={() => setSearchQuery("")} className="mt-2 text-xs">
+                Bersihkan Pencarian
+              </Button>
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -393,7 +491,7 @@ export function DosenStudentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {students.map((s) => (
+                {processedStudents.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell>
                       <Avatar size="sm">
