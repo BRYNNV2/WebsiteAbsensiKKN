@@ -8,7 +8,6 @@ import {
   ScanLine,
   History,
   LogOut,
-  ShieldCheck,
   Bell,
   Settings as SettingsIcon,
   Search,
