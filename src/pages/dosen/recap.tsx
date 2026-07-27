@@ -580,19 +580,19 @@ export function DosenRecapPage() {
                       ))}
 
                       {/* Total Summary Headers */}
-                      <TableHead className="text-center font-bold min-w-[65px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-r border-border/40">
+                      <TableHead className="text-center font-bold min-w-[65px] border-r border-border/40 text-foreground bg-muted/30">
                         Hadir
                       </TableHead>
-                      <TableHead className="text-center font-bold min-w-[65px] bg-purple-500/10 text-purple-600 dark:text-purple-400 border-r border-border/40">
+                      <TableHead className="text-center font-bold min-w-[65px] border-r border-border/40 text-foreground bg-muted/30">
                         Telat
                       </TableHead>
-                      <TableHead className="text-center font-bold min-w-[65px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border-r border-border/40">
+                      <TableHead className="text-center font-bold min-w-[65px] border-r border-border/40 text-foreground bg-muted/30">
                         Izin
                       </TableHead>
-                      <TableHead className="text-center font-bold min-w-[65px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border-r border-border/40">
+                      <TableHead className="text-center font-bold min-w-[65px] border-r border-border/40 text-foreground bg-muted/30">
                         Sakit
                       </TableHead>
-                      <TableHead className="text-center font-bold min-w-[65px] bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                      <TableHead className="text-center font-bold min-w-[65px] text-foreground bg-muted/30">
                         Alpha
                       </TableHead>
                     </TableRow>
@@ -680,19 +680,19 @@ export function DosenRecapPage() {
                         })}
 
                         {/* Totals */}
-                        <TableCell className="text-center tabular-nums font-bold text-emerald-600 dark:text-emerald-400 min-w-[65px] bg-muted/10 border-r border-border/40">
+                        <TableCell className="text-center tabular-nums font-bold font-mono text-foreground min-w-[65px] bg-muted/10 border-r border-border/40">
                           {row.present}
                         </TableCell>
-                        <TableCell className="text-center tabular-nums font-bold text-purple-600 dark:text-purple-400 min-w-[65px] bg-muted/10 border-r border-border/40">
+                        <TableCell className="text-center tabular-nums font-bold font-mono text-foreground min-w-[65px] bg-muted/10 border-r border-border/40">
                           {row.late}
                         </TableCell>
-                        <TableCell className="text-center tabular-nums font-bold text-blue-600 dark:text-blue-400 min-w-[65px] bg-muted/10 border-r border-border/40">
+                        <TableCell className="text-center tabular-nums font-bold font-mono text-foreground min-w-[65px] bg-muted/10 border-r border-border/40">
                           {row.permission}
                         </TableCell>
-                        <TableCell className="text-center tabular-nums font-bold text-amber-600 dark:text-amber-400 min-w-[65px] bg-muted/10 border-r border-border/40">
+                        <TableCell className="text-center tabular-nums font-bold font-mono text-foreground min-w-[65px] bg-muted/10 border-r border-border/40">
                           {row.sick}
                         </TableCell>
-                        <TableCell className="text-center tabular-nums font-bold text-rose-600 dark:text-rose-400 min-w-[65px] bg-muted/10">
+                        <TableCell className="text-center tabular-nums font-bold font-mono text-foreground min-w-[65px] bg-muted/10">
                           {row.absent}
                         </TableCell>
                       </TableRow>
