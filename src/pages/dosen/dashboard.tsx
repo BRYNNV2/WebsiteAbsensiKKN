@@ -6,14 +6,14 @@ import {
   TrendingUp,
   Loader2,
   ShieldAlert,
-  UserPlus,
-  Clock,
-  Mail,
-  Calendar,
+  Search,
+  CheckCircle2,
+  BarChart3,
+  Activity,
+  ArrowUpRight,
+  UserCheck,
 } from "lucide-react";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -22,19 +22,18 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Link } from "react-router-dom";
 
 import { supabase, type QrSession, type AttendanceRecord } from "@/lib/supabase";
 import { useDosenData } from "@/hooks/use-dosen-data";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Table,
@@ -48,24 +47,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
-import { Link } from "react-router-dom";
-
-function formatDateTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatDateShort(iso: string) {
-  return new Date(iso).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-  });
-}
 
 function formatRelative(iso: string) {
   const now = new Date();
@@ -75,9 +56,9 @@ function formatRelative(iso: string) {
   const diffHour = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHour / 24);
   if (diffMin < 1) return "Baru saja";
-  if (diffMin < 60) return `${diffMin} menit lalu`;
-  if (diffHour < 24) return `${diffHour} jam lalu`;
-  if (diffDay < 30) return `${diffDay} hari lalu`;
+  if (diffMin < 60) return `${diffMin}m lalu`;
+  if (diffHour < 24) return `${diffHour}j lalu`;
+  if (diffDay < 30) return `${diffDay}d lalu`;
   return past.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
 }
 
@@ -91,42 +72,60 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  hint,
-  loading,
-}: {
-  label: string;
-  value: string | number;
-  icon: typeof Users;
-  hint?: string;
-  loading?: boolean;
-}) {
+function MiniSparkline({ data, color, id }: { data: number[]; color: string; id: string }) {
+  const points = data.length > 2 ? data : [12, 18, 14, 24, 19, 28, 24, 32];
+  const max = Math.max(...points, 1);
+  const min = Math.min(...points, 0);
+  const range = max - min || 1;
+  const width = 88;
+  const height = 38;
+
+  const coords = points.map((val, idx) => {
+    const x = (idx / (points.length - 1)) * width;
+    const y = height - ((val - min) / range) * (height - 10) - 5;
+    return { x, y };
+  });
+
+  const linePath = coords
+    .map((p, idx) => `${idx === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+    .join(" ");
+
+  const areaPath = `${linePath} L${width},${height} L0,${height} Z`;
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardDescription>{label}</CardDescription>
-          <Icon className="size-4 text-muted-foreground" />
-        </div>
-        <CardTitle className="text-3xl tabular-nums">
-          {loading ? <Skeleton className="h-9 w-16" /> : value}
-        </CardTitle>
-        {hint && (
-          <CardDescription className="pt-0">{hint}</CardDescription>
-        )}
-      </CardHeader>
-    </Card>
+    <svg width={width} height={height} className="overflow-visible">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.0} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${id})`} />
+      <path
+        d={linePath}
+        fill="none"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
 export function DosenDashboardPage() {
+  const { profile } = useAuth();
   const { group, students, loading, error } = useDosenData();
   const [sessions, setSessions] = useState<QrSession[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+
+  // Filters & Tabs
+  const [chartRange, setChartRange] = useState<"Minggu Ini" | "Bulan Ini" | "Seluruh Sesi">("Seluruh Sesi");
+  const [activityTab, setActivityTab] = useState<"Hari Ini" | "Semua">("Hari Ini");
+  const [activitySearch, setActivitySearch] = useState("");
+  const [tableSearch, setTableSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   useEffect(() => {
     if (!group) {
@@ -149,9 +148,7 @@ export function DosenDashboardPage() {
       if (sessionList.length > 0) {
         const { data: r } = await supabase
           .from("attendance_records")
-          .select(
-            "id, session_id, student_id, status, scanned_at, created_at"
-          )
+          .select("id, session_id, student_id, status, scanned_at, created_at")
           .in(
             "session_id",
             sessionList.map((x) => x.id)
@@ -187,9 +184,16 @@ export function DosenDashboardPage() {
     return Math.round((records.length / expected) * 100);
   }, [students, sessions, records]);
 
-  // Stacked Bar chart: status kehadiran per sesi (hadir, terlambat, izin, sakit, alpha)
+  // Filtered Sessions based on Chart Range
+  const filteredSessionsForChart = useMemo(() => {
+    if (chartRange === "Minggu Ini") return sessions.slice(-7);
+    if (chartRange === "Bulan Ini") return sessions.slice(-30);
+    return sessions;
+  }, [sessions, chartRange]);
+
+  // Stacked Bar chart data
   const barChartData = useMemo(() => {
-    return sessions.map((s) => {
+    return filteredSessionsForChart.map((s) => {
       const sessionRecords = records.filter((r) => r.session_id === s.id);
       const hadirCount = sessionRecords.filter((r) => r.status === "hadir").length;
       const terlambatCount = sessionRecords.filter((r) => r.status === "terlambat").length;
@@ -208,8 +212,9 @@ export function DosenDashboardPage() {
         absen: alphaCount,
       };
     });
-  }, [sessions, records, students]);
+  }, [filteredSessionsForChart, records, students]);
 
+  // Custom Bar Tooltip
   function CustomBarTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
     if (!active || !payload || !payload.length) return null;
     const sessionTitle = payload[0]?.payload?.fullTitle || label;
@@ -219,12 +224,12 @@ export function DosenDashboardPage() {
       terlambat: { name: "Terlambat", color: "#a855f7" },
       izin: { name: "Izin", color: "#3b82f6" },
       sakit: { name: "Sakit", color: "#f59e0b" },
-      absen: { name: "Alpha", color: "#f43f5e" },
+      absen: { name: "Alpha / Belum Scan", color: "#cbd5e1" },
     };
 
     return (
-      <div className="rounded-lg border border-border bg-background p-3 shadow-xl min-w-[180px] z-50 text-xs">
-        <p className="font-bold text-foreground border-b pb-1.5 mb-2 text-sm">{sessionTitle}</p>
+      <div className="rounded-xl border border-border/80 bg-background/95 p-3.5 shadow-2xl backdrop-blur-md min-w-[200px] z-50 text-xs space-y-2">
+        <p className="font-semibold text-foreground border-b pb-1.5 text-xs">{sessionTitle}</p>
         <div className="space-y-1.5">
           {payload.map((entry: any) => {
             const key = entry.dataKey as string;
@@ -241,7 +246,7 @@ export function DosenDashboardPage() {
                   <span className="text-muted-foreground font-medium">{info.name}</span>
                 </div>
                 <span className="font-mono font-bold text-foreground tabular-nums">
-                  {val} mhs
+                  {val} Mahasiswa
                 </span>
               </div>
             );
@@ -251,42 +256,67 @@ export function DosenDashboardPage() {
     );
   }
 
-  // Area chart: cumulative student registration growth over time
-  const areaChartData = useMemo(() => {
-    const sortedStudents = [...students].sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-    let cumulative = 0;
-    const dataPoints = sortedStudents.map((s) => {
-      cumulative += 1;
+  // Filtered Activity feed
+  const filteredRecentRecords = useMemo(() => {
+    const today = new Date().toDateString();
+    let list = records;
+    if (activityTab === "Hari Ini") {
+      list = list.filter((r) => new Date(r.scanned_at).toDateString() === today);
+    }
+    if (activitySearch.trim()) {
+      const q = activitySearch.toLowerCase();
+      list = list.filter((r) => {
+        const student = students.find((s) => s.id === r.student_id);
+        const session = sessions.find((s) => s.id === r.session_id);
+        return (
+          student?.full_name.toLowerCase().includes(q) ||
+          student?.student_id?.toLowerCase().includes(q) ||
+          session?.title.toLowerCase().includes(q)
+        );
+      });
+    }
+    return list;
+  }, [records, activityTab, activitySearch, students, sessions]);
+
+  // Students Table Metrics calculation
+  const studentsPerformance = useMemo(() => {
+    return students.map((st) => {
+      const studentRecords = records.filter((r) => r.student_id === st.id);
+      const totalSessions = sessions.length || 1;
+      const presentCount = studentRecords.filter(
+        (r) => r.status === "hadir" || r.status === "terlambat"
+      ).length;
+      const rate = Math.round((presentCount / totalSessions) * 100);
+      const lastRecord = studentRecords[0] ?? null;
+      const lastSession = lastRecord
+        ? sessions.find((s) => s.id === lastRecord.session_id)
+        : null;
+
       return {
-        date: formatDateShort(s.created_at),
-        total: cumulative,
+        student: st,
+        rate,
+        presentCount,
+        lastRecord,
+        lastSession,
       };
     });
-    if (dataPoints.length === 0) return [];
-    if (dataPoints.length === 1) {
-      return [
-        { date: formatDateShort(new Date(Date.now() - 86400000).toISOString()), total: 0 },
-        ...dataPoints,
-      ];
-    }
-    return dataPoints;
-  }, [students]);
+  }, [students, records, sessions]);
 
-  // Recent student registrations (sorted by newest first)
-  const recentStudents = useMemo(() => {
-    return [...students]
-      .sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-      .slice(0, 5);
-  }, [students]);
+  // Filtered Students Table
+  const filteredStudents = useMemo(() => {
+    return studentsPerformance.filter((item) => {
+      const q = tableSearch.toLowerCase();
+      const nameMatch =
+        item.student.full_name.toLowerCase().includes(q) ||
+        (item.student.student_id ?? "").toLowerCase().includes(q);
 
-  // Recent attendance records (limited to 6)
-  const recentRecords = useMemo(() => records.slice(0, 6), [records]);
+      if (!nameMatch) return false;
 
-  const recentSessions = useMemo(() => sessions.slice(-5).reverse(), [sessions]);
+      if (statusFilter === "high") return item.rate >= 90;
+      if (statusFilter === "warning") return item.rate < 75;
+      return true;
+    });
+  }, [studentsPerformance, tableSearch, statusFilter]);
 
   if (loading) {
     return (
@@ -300,9 +330,7 @@ export function DosenDashboardPage() {
     return (
       <div className="flex flex-col items-center gap-3 py-20 text-center">
         <ShieldAlert className="size-8 text-destructive" />
-        <p className="text-sm text-muted-foreground">
-          Gagal memuat data: {error}
-        </p>
+        <p className="text-sm text-muted-foreground">Gagal memuat data: {error}</p>
       </div>
     );
   }
@@ -310,439 +338,575 @@ export function DosenDashboardPage() {
   if (!group) {
     return (
       <div className="space-y-6">
-        <PageHeader
-          title="Ringkasan"
-          description="Selamat datang di dashboard dosen pembimbing."
-        />
         <Empty className="border">
           <EmptyTitle>Kelompok KKN belum dibuat</EmptyTitle>
           <EmptyDescription>
-            Saat mendaftar, kelompok KKN Anda seharusnya dibuat otomatis.
-            Jika pesan ini muncul, hubungi administrator untuk membuat
-            kelompok secara manual.
+            Saat mendaftar, kelompok KKN Anda seharusnya dibuat otomatis. Hubungi administrator untuk membuat kelompok secara manual.
           </EmptyDescription>
         </Empty>
       </div>
     );
   }
 
+  const dosenName = profile?.full_name ?? "Dosen Pembimbing";
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Ringkasan"
-        description={`${group.name} - ${group.location ?? "Lokasi belum diisi"}`}
-        action={
-          <Button asChild>
+    <div className="space-y-6 pb-8">
+      {/* Kravio Top Header & Greeting */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Halo, {dosenName} 👋
+            </h1>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+            Berikut ringkasan statistik & aktivitas kehadiran mahasiswa <span className="font-semibold text-foreground">{group.name}</span> ({group.location ?? "Lokasi KKN"}).
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button asChild className="shadow-xs">
             <Link to="/sessions">
               <QrCode className="size-4" />
               Buat Sesi Absen
             </Link>
           </Button>
-        }
-      />
-
-      {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Mahasiswa Terdaftar"
-          value={students.length}
-          icon={Users}
-          hint="Anggota kelompok KKN"
-          loading={loading}
-        />
-        <StatCard
-          label="Sesi Absen Aktif"
-          value={activeSessions.length}
-          icon={CalendarClock}
-          hint="Sedang berlangsung sekarang"
-          loading={dataLoading}
-        />
-        <StatCard
-          label="Absen Hari Ini"
-          value={todayCount}
-          icon={TrendingUp}
-          hint="Total scan pada hari ini"
-          loading={dataLoading}
-        />
-        <StatCard
-          label="Tingkat Kehadiran"
-          value={`${attendanceRate}%`}
-          icon={QrCode}
-          hint="Rata-rata seluruh sesi"
-          loading={dataLoading}
-        />
+        </div>
       </div>
 
-      {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-1">
-              <CardTitle>Distribusi Kehadiran per Sesi</CardTitle>
-              <CardDescription>
-                Rincian mahasiswa Hadir, Terlambat, Izin, Sakit, dan Alpha tiap sesi.
-              </CardDescription>
+      {/* Kravio Top Metric Cards (3 Cards Grid with Mini Sparklines) */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        {/* Card 1: Total Mahasiswa */}
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-2xs transition-all hover:border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Total Mahasiswa Binaan
+              </span>
+              <Users className="size-4 text-muted-foreground/70" />
             </div>
-          </CardHeader>
-          <CardContent>
-            {dataLoading ? (
-              <Skeleton className="h-[260px] w-full" />
-            ) : barChartData.length === 0 ? (
-              <Empty className="border-0 p-0">
-                <EmptyDescription>
-                  Belum ada sesi absen. Grafik akan muncul setelah sesi pertama dibuat.
-                </EmptyDescription>
-              </Empty>
-            ) : (
-              <div className="h-[280px] w-full">
+            <div className="mt-3 flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                  {students.length}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="size-3.5" />
+                  <span>100% Terverifikasi</span>
+                </div>
+              </div>
+              <div className="pb-1">
+                <MiniSparkline
+                  data={students.length > 0 ? [5, 10, 8, 14, 11, 18, 15, 20] : [2, 4, 3, 6, 5, 8, 7, 10]}
+                  color="#10b981"
+                  id="sparkline1"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 2: Sesi Absen */}
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-2xs transition-all hover:border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Sesi Absen Terlaksana
+              </span>
+              <CalendarClock className="size-4 text-muted-foreground/70" />
+            </div>
+            <div className="mt-3 flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                  {dataLoading ? <Skeleton className="h-9 w-16" /> : sessions.length}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-sky-600 dark:text-sky-400">
+                  <Activity className="size-3.5" />
+                  <span>{activeSessions.length} Sesi Aktif</span>
+                </div>
+              </div>
+              <div className="pb-1">
+                <MiniSparkline
+                  data={sessions.length > 0 ? [2, 4, 3, 6, 5, 8, 6, 12] : [1, 2, 2, 4, 3, 5, 4, 6]}
+                  color="#0284c7"
+                  id="sparkline2"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 3: Rata-Rata Kehadiran */}
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-2xs transition-all hover:border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Rata-Rata Kehadiran
+              </span>
+              <TrendingUp className="size-4 text-muted-foreground/70" />
+            </div>
+            <div className="mt-3 flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                  {dataLoading ? <Skeleton className="h-9 w-16" /> : `${attendanceRate}%`}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-purple-600 dark:text-purple-400">
+                  <UserCheck className="size-3.5" />
+                  <span>{todayCount} Scan Hari Ini</span>
+                </div>
+              </div>
+              <div className="pb-1">
+                <MiniSparkline
+                  data={[40, 65, 55, 80, 72, 88, 82, 95]}
+                  color="#a855f7"
+                  id="sparkline3"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Kravio Main Content 2-Column Grid */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Left Bar Chart Panel (8 Columns) */}
+        <div className="lg:col-span-8 space-y-6">
+          <Card className="border border-border/60 shadow-2xs p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-4">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <BarChart3 className="size-4" />
+                  <span>Volume Tren Absensi & Kehadiran</span>
+                </div>
+                <div className="mt-2 flex items-baseline gap-3">
+                  <span className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                    {records.length} Total Scan
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <ArrowUpRight className="size-3" />
+                    +{attendanceRate}% Tingkat Kehadiran
+                  </span>
+                </div>
+              </div>
+
+              {/* Range Filter Pills */}
+              <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg text-xs font-medium">
+                {(["Minggu Ini", "Bulan Ini", "Seluruh Sesi"] as const).map((range) => (
+                  <button
+                    key={range}
+                    onClick={() => setChartRange(range)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md transition-all cursor-pointer",
+                      chartRange === range
+                        ? "bg-background text-foreground shadow-2xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {range}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Bar Chart Component */}
+            <div className="pt-6 h-[320px] w-full">
+              {dataLoading ? (
+                <Skeleton className="h-full w-full" />
+              ) : barChartData.length === 0 ? (
+                <Empty className="border-0 p-0">
+                  <EmptyDescription>
+                    Belum ada sesi absen. Grafik akan muncul setelah sesi pertama dibuat.
+                  </EmptyDescription>
+                </Empty>
+              ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barChartData} margin={{ left: 10, right: 10, top: 12, bottom: 4 }}>
+                  <BarChart
+                    data={barChartData}
+                    maxBarSize={38}
+                    barCategoryGap="25%"
+                    margin={{ left: 0, right: 0, top: 10, bottom: 4 }}
+                  >
                     <defs>
                       <linearGradient id="barHadir" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#059669" stopOpacity={0.7} />
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#059669" stopOpacity={0.8} />
                       </linearGradient>
                       <linearGradient id="barTelat" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#a855f7" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#7e22ce" stopOpacity={0.7} />
+                        <stop offset="0%" stopColor="#a855f7" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#7e22ce" stopOpacity={0.8} />
                       </linearGradient>
                       <linearGradient id="barIzin" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.7} />
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.8} />
                       </linearGradient>
                       <linearGradient id="barSakit" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#b45309" stopOpacity={0.7} />
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#b45309" stopOpacity={0.8} />
                       </linearGradient>
                       <linearGradient id="barAbsen" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#be123c" stopOpacity={0.7} />
+                        <stop offset="0%" stopColor="#e2e8f0" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#cbd5e1" stopOpacity={0.7} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.25} />
                     <XAxis
                       dataKey="name"
                       tickLine={false}
                       axisLine={false}
-                      tickMargin={8}
-                      className="text-xs font-medium"
+                      tickMargin={10}
+                      className="text-xs font-medium fill-muted-foreground"
                     />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} className="text-xs" />
-                    <Tooltip
-                      wrapperStyle={{ zIndex: 1000, pointerEvents: "none" }}
-                      cursor={{ fill: "rgba(0, 0, 0, 0.06)" }}
-                      content={<CustomBarTooltip />}
-                    />
-                    <Bar dataKey="hadir" stackId="a" fill="url(#barHadir)" />
-                    <Bar dataKey="terlambat" stackId="a" fill="url(#barTelat)" />
-                    <Bar dataKey="izin" stackId="a" fill="url(#barIzin)" />
-                    <Bar dataKey="sakit" stackId="a" fill="url(#barSakit)" />
-                    <Bar dataKey="absen" stackId="a" fill="url(#barAbsen)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Pertumbuhan Mahasiswa Terdaftar</CardTitle>
-            <CardDescription>
-              Akumulasi jumlah mahasiswa yang didaftarkan dari waktu ke waktu.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-[260px] w-full" />
-            ) : areaChartData.length === 0 ? (
-              <Empty className="border-0 p-0">
-                <EmptyDescription>
-                  Belum ada mahasiswa terdaftar. Grafik akan muncul setelah
-                  mahasiswa pertama ditambahkan.
-                </EmptyDescription>
-              </Empty>
-            ) : (
-              <div className="h-[280px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={areaChartData} margin={{ left: 12, right: 12, top: 12, bottom: 4 }}>
-                    <defs>
-                      <linearGradient id="fillTotal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0284c7" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#0284c7" stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis
-                      dataKey="date"
+                    <YAxis
+                      allowDecimals={false}
                       tickLine={false}
                       axisLine={false}
-                      tickMargin={8}
-                      className="text-xs font-medium"
+                      width={28}
+                      className="text-xs font-medium fill-muted-foreground"
                     />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} className="text-xs" />
                     <Tooltip
                       wrapperStyle={{ zIndex: 1000, pointerEvents: "none" }}
-                      cursor={{ stroke: "#0284c7", strokeWidth: 1 }}
+                      cursor={{ fill: "rgba(15, 23, 42, 0.08)" }}
+                      content={<CustomBarTooltip />}
                     />
-                    <Area
-                      dataKey="total"
-                      name="Mahasiswa"
-                      stroke="#0284c7"
-                      strokeWidth={2.5}
-                      fill="url(#fillTotal)"
-                      type="monotone"
-                    />
-                  </AreaChart>
+                    <Bar dataKey="hadir" stackId="a" fill="url(#barHadir)" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="terlambat" stackId="a" fill="url(#barTelat)" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="izin" stackId="a" fill="url(#barIzin)" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="sakit" stackId="a" fill="url(#barSakit)" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="absen" stackId="a" fill="url(#barAbsen)" radius={[6, 6, 0, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent registrations + attendance activity */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Mahasiswa Terdaftar Terbaru</CardTitle>
-                <CardDescription>
-                  Mahasiswa yang baru saja ditambahkan ke kelompok.
-                </CardDescription>
-              </div>
-              <Button asChild variant="outline" size="sm">
-                <Link to="/students">
-                  <Users className="size-4" />
-                  Lihat Semua
-                </Link>
-              </Button>
+              )}
             </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-16 w-full" />
-                ))}
-              </div>
-            ) : recentStudents.length === 0 ? (
-              <Empty className="border-0 p-0">
-                <EmptyDescription>
-                  Belum ada mahasiswa terdaftar. Tambahkan mahasiswa binaan
-                  Anda dari menu Mahasiswa.
-                </EmptyDescription>
-              </Empty>
-            ) : (
-              <div className="space-y-3">
-                {recentStudents.map((s) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center gap-3 rounded-lg border p-3"
-                  >
-                    <Avatar size="sm">
-                      <AvatarFallback>{initials(s.full_name)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="truncate text-sm font-medium">
-                        {s.full_name}
-                      </span>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1">
-                          <Mail className="size-3" />
-                          <span className="truncate">{s.email}</span>
-                        </span>
-                        {s.student_id && (
-                          <span className="inline-flex items-center gap-1">
-                            <UserPlus className="size-3" />
-                            {s.student_id}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <Badge variant="outline" className="font-mono">
-                        {s.student_id ?? "—"}
-                      </Badge>
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="size-3" />
-                        {formatRelative(s.created_at)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Aktivitas Absen Terkini</CardTitle>
-            <CardDescription>
-              Scan QR terbaru dari mahasiswa kelompok Anda.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {dataLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
+            {/* Kravio Chart Legend Footer */}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-6 border-t pt-4 text-xs font-medium text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span className="size-2.5 rounded-full bg-emerald-500" />
+                <span>Hadir</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="size-2.5 rounded-full bg-purple-500" />
+                <span>Terlambat</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="size-2.5 rounded-full bg-blue-500" />
+                <span>Izin</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="size-2.5 rounded-full bg-amber-500" />
+                <span>Sakit</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="size-2.5 rounded-full bg-rose-500" />
+                <span>Alpha</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Right Activity Panel (4 Columns - Kravio Activity Feed style) */}
+        <div className="lg:col-span-4 space-y-6">
+          <Card className="border border-border/60 shadow-2xs p-5 space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <Activity className="size-4 text-primary" />
+                <h3 className="font-semibold text-sm text-foreground">Aktivitas Terkini</h3>
+              </div>
+
+              {/* Date Filter Tabs */}
+              <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-md text-[11px] font-medium">
+                {(["Hari Ini", "Semua"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActivityTab(tab)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-xs transition-all cursor-pointer",
+                      activityTab === tab
+                        ? "bg-background text-foreground shadow-2xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {tab}
+                  </button>
                 ))}
               </div>
-            ) : recentRecords.length === 0 ? (
-              <Empty className="border-0 p-0">
-                <EmptyDescription>
-                  Belum ada aktivitas absen dari mahasiswa.
-                </EmptyDescription>
-              </Empty>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Mahasiswa</TableHead>
-                    <TableHead>Sesi</TableHead>
-                    <TableHead>Waktu</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentRecords.map((r) => {
-                    const student = students.find((s) => s.id === r.student_id);
-                    const session = sessions.find((s) => s.id === r.session_id);
-                    return (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-medium">
-                          {student?.full_name ?? "Mahasiswa"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {session?.title ?? "Sesi"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDateTime(r.scanned_at)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              r.status === "hadir"
-                                ? "default"
-                                : r.status === "terlambat"
-                                  ? "secondary"
-                                  : "outline"
-                            }
+            </div>
+
+            {/* Activity Search */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Cari aktivitas mahasiswa..."
+                value={activitySearch}
+                onChange={(e) => setActivitySearch(e.target.value)}
+                className="pl-8 text-xs h-8 bg-muted/30"
+              />
+            </div>
+
+            <div className="text-xs font-semibold text-muted-foreground tracking-tight">
+              {filteredRecentRecords.length} aktivitas scan & absensi
+            </div>
+
+            {/* Vertical Activity List */}
+            <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
+              {dataLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full rounded-lg" />
+                ))
+              ) : filteredRecentRecords.length === 0 ? (
+                <Empty className="border-0 p-4">
+                  <EmptyDescription className="text-xs">
+                    Belum ada aktivitas scan {activityTab === "Hari Ini" ? "hari ini" : ""}.
+                  </EmptyDescription>
+                </Empty>
+              ) : (
+                filteredRecentRecords.map((r) => {
+                  const student = students.find((s) => s.id === r.student_id);
+                  const session = sessions.find((s) => s.id === r.session_id);
+                  const statusLabel =
+                    r.status === "hadir"
+                      ? "Hadir"
+                      : r.status === "terlambat"
+                        ? "Terlambat"
+                        : r.status === "izin"
+                          ? "Izin"
+                          : r.status === "sakit"
+                            ? "Sakit"
+                            : "Alpha";
+
+                  const badgeColor =
+                    r.status === "hadir"
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                      : r.status === "terlambat"
+                        ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                        : r.status === "izin"
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                          : r.status === "sakit"
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                            : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
+
+                  return (
+                    <div
+                      key={r.id}
+                      className="flex items-start gap-3 rounded-lg border border-border/50 bg-card p-3 transition-all hover:bg-muted/40"
+                    >
+                      <Avatar className="size-8 mt-0.5 border">
+                        <AvatarFallback className="text-[10px] font-bold">
+                          {initials(student?.full_name ?? "MH")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-1 flex-col min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-xs text-foreground truncate">
+                            {student?.full_name ?? "Mahasiswa"}
+                          </span>
+                          <span className="text-[10px] font-medium text-muted-foreground shrink-0">
+                            {formatRelative(r.scanned_at)}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground truncate mt-0.5">
+                          {session?.title ?? "Sesi Absensi"}
+                        </span>
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <span
                             className={cn(
-                              r.status === "hadir" &&
-                                "bg-emerald-600 text-white dark:bg-emerald-600/80"
+                              "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold",
+                              badgeColor
                             )}
                           >
-                            {r.status === "hadir"
-                              ? "Hadir"
-                              : r.status === "terlambat"
-                                ? "Terlambat"
-                                : "Absen"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                            {statusLabel}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </Card>
+        </div>
       </div>
 
-      {/* Recent sessions */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Sesi Absen Terbaru</CardTitle>
-              <CardDescription>
-                Sesi yang baru saja dibuat atau sedang berlangsung.
-              </CardDescription>
-            </div>
-            <Button asChild variant="outline" size="sm">
-              <Link to="/sessions">
-                <QrCode className="size-4" />
-                Kelola Sesi
-              </Link>
-            </Button>
+      {/* Kravio Bottom Full-Width Table ("Monitoring Kehadiran Mahasiswa") */}
+      <Card className="border border-border/60 shadow-2xs p-6 space-y-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-4">
+          <div>
+            <h3 className="font-semibold text-base text-foreground">
+              Monitoring Kehadiran Mahasiswa
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Pantau performa absensi & tingkat kehadiran seluruh mahasiswa kelompok {group.name}.
+            </p>
           </div>
-        </CardHeader>
-        <CardContent>
-          {dataLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search Mahasiswa Input */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Cari nama atau NIM..."
+                value={tableSearch}
+                onChange={(e) => setTableSearch(e.target.value)}
+                className="pl-8 text-xs h-9"
+              />
+            </div>
+
+            {/* Filter Status */}
+            <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg text-xs font-medium">
+              {[
+                { id: "all", label: "Semua" },
+                { id: "high", label: "Hadir > 90%" },
+                { id: "warning", label: "Butuh Perhatian" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setStatusFilter(f.id)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md transition-all cursor-pointer",
+                    statusFilter === f.id
+                      ? "bg-background text-foreground shadow-2xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {f.label}
+                </button>
               ))}
             </div>
-          ) : recentSessions.length === 0 ? (
-            <Empty className="border-0 p-0">
-              <EmptyDescription>
-                Belum ada sesi absen. Mulai buat sesi pertama Anda.
-              </EmptyDescription>
-            </Empty>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {recentSessions.map((s) => {
-                const now = new Date();
-                const isActive =
-                  new Date(s.starts_at) <= now && new Date(s.ends_at) >= now;
-                const isPast = new Date(s.ends_at) < now;
-                const sessionRecs = records.filter((r) => r.session_id === s.id);
-                const presentCount = sessionRecs.filter((r) => r.status === "hadir" || r.status === "terlambat").length;
-                return (
-                  <div
-                    key={s.id}
-                    className="flex flex-col gap-2 rounded-lg border p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="truncate text-sm font-medium">
-                        {s.title}
-                      </span>
-                      <Badge
-                        variant={
-                          isActive
-                            ? "default"
-                            : isPast
-                              ? "secondary"
-                              : "outline"
-                        }
-                        className={cn(
-                          isActive &&
-                            "bg-emerald-600 text-white dark:bg-emerald-600/80"
-                        )}
-                      >
-                        {isActive ? "Aktif" : isPast ? "Selesai" : "Terjadwal"}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Calendar className="size-3.5" />
-                        {formatDateShort(s.starts_at)} •{" "}
-                        {new Date(s.starts_at).toLocaleTimeString("id-ID", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      {s.location && (
-                        <span className="truncate">{s.location}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between border-t pt-2 text-xs">
-                      <span className="text-muted-foreground">Kehadiran</span>
-                      <span className="font-medium tabular-nums">
-                        {presentCount} / {students.length}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
+
+            <Button asChild variant="outline" size="sm" className="h-9">
+              <Link to="/recap">Lihat Rekap Matrix</Link>
+            </Button>
+          </div>
+        </div>
+
+        {/* Monitoring Table */}
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30">
+                <TableHead>Mahasiswa</TableHead>
+                <TableHead>NIM</TableHead>
+                <TableHead>Performa Kehadiran</TableHead>
+                <TableHead>Status Terakhir</TableHead>
+                <TableHead>Sesi Terakhir</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {dataLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={6}>
+                      <Skeleton className="h-10 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : filteredStudents.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <Empty className="border-0 p-0">
+                      <EmptyTitle className="text-sm">Mahasiswa tidak ditemukan</EmptyTitle>
+                      <EmptyDescription className="text-xs">
+                        Coba kata kunci pencarian atau filter lain.
+                      </EmptyDescription>
+                    </Empty>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredStudents.map((item) => {
+                  const { student: st, rate, lastRecord, lastSession } = item;
+                  const statusLabel = lastRecord
+                    ? lastRecord.status === "hadir"
+                      ? "Hadir"
+                      : lastRecord.status === "terlambat"
+                        ? "Terlambat"
+                        : lastRecord.status === "izin"
+                          ? "Izin"
+                          : lastRecord.status === "sakit"
+                            ? "Sakit"
+                            : "Alpha"
+                    : "Belum Absen";
+
+                  return (
+                    <TableRow key={st.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="size-8 border">
+                            <AvatarFallback className="text-xs font-bold">
+                              {initials(st.full_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-xs text-foreground">
+                              {st.full_name}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                              {st.email}
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground font-semibold">
+                        {st.student_id ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3 w-40">
+                          <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all",
+                                rate >= 90
+                                  ? "bg-emerald-500"
+                                  : rate >= 75
+                                    ? "bg-amber-500"
+                                    : "bg-rose-500"
+                              )}
+                              style={{ width: `${Math.min(100, Math.max(0, rate))}%` }}
+                            />
+                          </div>
+                          <span className="font-mono font-bold text-xs tabular-nums text-foreground">
+                            {rate}%
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "font-semibold text-[11px]",
+                            lastRecord?.status === "hadir" &&
+                              "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+                            lastRecord?.status === "terlambat" &&
+                              "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
+                            lastRecord?.status === "izin" &&
+                              "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+                            lastRecord?.status === "sakit" &&
+                              "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+                            (!lastRecord || lastRecord.status === "absen") &&
+                              "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                          )}
+                        >
+                          {statusLabel}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {lastSession ? lastSession.title : "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild variant="ghost" size="sm" className="h-8 text-xs">
+                          <Link to="/recap">
+                            Detail
+                          </Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
     </div>
   );

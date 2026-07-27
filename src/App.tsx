@@ -13,6 +13,8 @@ import { DosenRecapPage } from "@/pages/dosen/recap";
 import { MahasiswaDashboardPage } from "@/pages/mahasiswa/dashboard";
 import { MahasiswaScanPage } from "@/pages/mahasiswa/scan";
 import { MahasiswaHistoryPage } from "@/pages/mahasiswa/history";
+import { SettingsPage } from "@/pages/settings";
+import { HelpSupportPage } from "@/pages/support";
 
 function FullScreenLoader() {
   return (
@@ -126,6 +128,8 @@ export function App() {
             </RoleRoute>
           }
         />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/support" element={<HelpSupportPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
