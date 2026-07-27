@@ -287,7 +287,7 @@ export function DosenSessionsPage() {
                   </FieldLabel>
                   <Input
                     id="s_location"
-                    placeholder="Balai Desa Sukamaju"
+                    placeholder="Pulau Parit/Selat Gelam Kabupaten Karimun"
                     {...form.register("location")}
                   />
                 </Field>
