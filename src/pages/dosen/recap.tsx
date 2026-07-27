@@ -809,13 +809,13 @@ export function DosenRecapPage() {
             <Field>
               <FieldLabel htmlFor="m_student">Pilih Mahasiswa *</FieldLabel>
               <Select value={manualStudentId} onValueChange={setManualStudentId}>
-                <SelectTrigger id="m_student">
+                <SelectTrigger id="m_student" className="w-full">
                   <SelectValue placeholder="Pilih nama mahasiswa" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" className="max-h-56 overflow-y-auto z-[100]">
                   {students.map((st) => (
-                    <SelectItem key={st.id} value={st.id}>
-                      {st.full_name} ({st.student_id})
+                    <SelectItem key={st.id} value={st.id} className="cursor-pointer text-xs">
+                      {st.full_name} ({st.student_id ?? "—"})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -825,12 +825,12 @@ export function DosenRecapPage() {
             <Field>
               <FieldLabel htmlFor="m_session">Pilih Sesi Pertemuan *</FieldLabel>
               <Select value={manualSessionId} onValueChange={setManualSessionId}>
-                <SelectTrigger id="m_session">
+                <SelectTrigger id="m_session" className="w-full">
                   <SelectValue placeholder="Pilih sesi absensi" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" className="max-h-56 overflow-y-auto z-[100]">
                   {sessions.map((se) => (
-                    <SelectItem key={se.id} value={se.id}>
+                    <SelectItem key={se.id} value={se.id} className="cursor-pointer text-xs">
                       {se.title} ({formatDate(se.starts_at)})
                     </SelectItem>
                   ))}
@@ -844,15 +844,15 @@ export function DosenRecapPage() {
                 value={manualStatus}
                 onValueChange={(val) => setManualStatus(val as AttendanceStatus)}
               >
-                <SelectTrigger id="m_status">
+                <SelectTrigger id="m_status" className="w-full">
                   <SelectValue placeholder="Pilih status" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hadir">Hadir (Tepat Waktu)</SelectItem>
-                  <SelectItem value="terlambat">Terlambat</SelectItem>
-                  <SelectItem value="izin">Izin (Ada Keterangan)</SelectItem>
-                  <SelectItem value="sakit">Sakit</SelectItem>
-                  <SelectItem value="absen">Alpha (Tidak Hadir)</SelectItem>
+                <SelectContent position="popper" className="max-h-56 overflow-y-auto z-[100]">
+                  <SelectItem value="hadir" className="cursor-pointer text-xs">Hadir (Tepat Waktu)</SelectItem>
+                  <SelectItem value="terlambat" className="cursor-pointer text-xs">Terlambat</SelectItem>
+                  <SelectItem value="izin" className="cursor-pointer text-xs">Izin (Ada Keterangan)</SelectItem>
+                  <SelectItem value="sakit" className="cursor-pointer text-xs">Sakit</SelectItem>
+                  <SelectItem value="absen" className="cursor-pointer text-xs">Alpha (Tidak Hadir)</SelectItem>
                 </SelectContent>
               </Select>
             </Field>
