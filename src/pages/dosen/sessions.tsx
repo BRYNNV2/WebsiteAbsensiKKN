@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -6,11 +6,13 @@ import { toast } from "sonner";
 import {
   Loader2,
   QrCode,
-  Plus,
   Trash2,
   Eye,
   CalendarClock,
-  ShieldAlert,
+  Search,
+  ArrowUpDown,
+  X,
+  Activity,
 } from "lucide-react";
 
 import { supabase, type QrSession } from "@/lib/supabase";
@@ -43,6 +45,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Empty,
   EmptyDescription,
@@ -91,6 +100,52 @@ export function DosenSessionsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [previewSession, setPreviewSession] = useState<QrSession | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  // Search, Filter, & Sorting State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "scheduled" | "past">("all");
+  const [sortOption, setSortOption] = useState<"terbaru" | "terlama" | "judul_az" | "judul_za">("terbaru");
+
+  const activeCount = useMemo(() => sessions.filter((s) => statusOf(s) === "active").length, [sessions]);
+  const scheduledCount = useMemo(() => sessions.filter((s) => statusOf(s) === "scheduled").length, [sessions]);
+  const pastCount = useMemo(() => sessions.filter((s) => statusOf(s) === "past").length, [sessions]);
+
+  const processedSessions = useMemo(() => {
+    let list = [...sessions];
+
+    // 1. Filter Status
+    if (statusFilter !== "all") {
+      list = list.filter((s) => statusOf(s) === statusFilter);
+    }
+
+    // 2. Search Filter (Judul, Lokasi, Waktu)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (s) =>
+          s.title.toLowerCase().includes(q) ||
+          (s.location && s.location.toLowerCase().includes(q)) ||
+          formatDateTime(s.starts_at).toLowerCase().includes(q)
+      );
+    }
+
+    // 3. Sorting Logic
+    list.sort((a, b) => {
+      if (sortOption === "judul_az") {
+        return a.title.localeCompare(b.title, "id");
+      }
+      if (sortOption === "judul_za") {
+        return b.title.localeCompare(a.title, "id");
+      }
+      if (sortOption === "terlama") {
+        return new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime();
+      }
+      // "terbaru" (default)
+      return new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime();
+    });
+
+    return list;
+  }, [sessions, statusFilter, searchQuery, sortOption]);
 
   const form = useForm<SessionForm>({
     resolver: zodResolver(sessionSchema),
@@ -312,13 +367,136 @@ export function DosenSessionsPage() {
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Daftar Sesi</CardTitle>
-          <CardDescription>
-            {sessions.length} sesi terdaftar untuk kelompok Anda.
-          </CardDescription>
+      {/* 3 Top Stat Metric Cards */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="border-border/60 shadow-2xs">
+          <CardContent className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Total Sesi Absen
+              </span>
+              <div className="text-2xl font-bold tracking-tight text-foreground">
+                {sessions.length} Sesi
+              </div>
+            </div>
+            <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <QrCode className="size-5" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/60 shadow-2xs">
+          <CardContent className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Sesi Aktif Saat Ini
+              </span>
+              <div className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                <span>{activeCount} Aktif</span>
+                {activeCount > 0 && (
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                )}
+              </div>
+            </div>
+            <div className="size-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <Activity className="size-5" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/60 shadow-2xs">
+          <CardContent className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Terjadwal & Selesai
+              </span>
+              <div className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                <span>{scheduledCount} Murni</span>
+                <span className="text-xs text-muted-foreground font-normal">/ {pastCount} Selesai</span>
+              </div>
+            </div>
+            <div className="size-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <CalendarClock className="size-5" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-border/60 shadow-2xs">
+        <CardHeader className="flex flex-col gap-4 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-base font-bold">Daftar Sesi Absensi</CardTitle>
+              <CardDescription className="text-xs">
+                {sessions.length} sesi terdaftar untuk kelompok Anda.
+              </CardDescription>
+            </div>
+
+            {/* Filter Status Pills */}
+            <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg text-xs font-medium self-start sm:self-auto">
+              {(
+                [
+                  { id: "all", label: "Semua" },
+                  { id: "active", label: "Aktif" },
+                  { id: "scheduled", label: "Terjadwal" },
+                  { id: "past", label: "Selesai" },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setStatusFilter(tab.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-md transition-all cursor-pointer",
+                    statusFilter === tab.id
+                      ? "bg-background text-foreground shadow-2xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Search & Sort Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t">
+            {/* Search Input */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Cari judul sesi, lokasi, atau tanggal..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-8 text-xs h-9 bg-background/80"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="size-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Sort Select */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <ArrowUpDown className="size-3.5 text-muted-foreground" />
+              <Select value={sortOption} onValueChange={(val: any) => setSortOption(val)}>
+                <SelectTrigger className="w-[170px] text-xs h-9">
+                  <SelectValue placeholder="Urutkan Sesi" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="terbaru" className="text-xs">Sesi Terbaru</SelectItem>
+                  <SelectItem value="terlama" className="text-xs">Sesi Terlama</SelectItem>
+                  <SelectItem value="judul_az" className="text-xs">Judul (A - Z)</SelectItem>
+                  <SelectItem value="judul_za" className="text-xs">Judul (Z - A)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
+
         <CardContent>
           {loading ? (
             <div className="space-y-2">
@@ -333,13 +511,29 @@ export function DosenSessionsPage() {
               </EmptyMedia>
               <EmptyTitle>Belum ada sesi absen</EmptyTitle>
               <EmptyDescription>
-                Buat sesi pertama untuk mulai mencatat kehadiran mahasiswa
-                Anda.
+                Buat sesi pertama untuk mulai mencatat kehadiran mahasiswa Anda.
               </EmptyDescription>
             </Empty>
+          ) : processedSessions.length === 0 ? (
+            <div className="text-center py-10 text-xs text-muted-foreground space-y-2">
+              <Search className="size-8 mx-auto text-muted-foreground/50" />
+              <p className="font-semibold text-foreground">Tidak ditemukan sesi absen</p>
+              <p>Tidak ada sesi yang cocok dengan kriteria pencarian dan filter Anda.</p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setSearchQuery("");
+                  setStatusFilter("all");
+                }}
+                className="mt-2 text-xs"
+              >
+                Reset Filter & Pencarian
+              </Button>
+            </div>
           ) : (
             <div className="grid gap-3">
-              {sessions.map((s) => {
+              {processedSessions.map((s) => {
                 const status = statusOf(s);
                 return (
                   <div
