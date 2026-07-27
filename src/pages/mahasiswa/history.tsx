@@ -146,8 +146,8 @@ export function MahasiswaHistoryPage() {
                 absen.
               </EmptyDescription>
             </Empty>
-          ) : (
-            <Table>
+            <div className="overflow-x-auto">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Sesi</TableHead>
@@ -202,6 +202,7 @@ export function MahasiswaHistoryPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
