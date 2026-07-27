@@ -235,7 +235,7 @@ export function DosenDashboardPage() {
 
   // Stacked Bar chart data
   const barChartData = useMemo(() => {
-    return filteredSessionsForChart.map((s) => {
+    return filteredSessionsForChart.map((s, idx) => {
       const sessionRecords = records.filter((r) => r.session_id === s.id);
       const hadirCount = sessionRecords.filter((r) => r.status === "hadir").length;
       const terlambatCount = sessionRecords.filter((r) => r.status === "terlambat").length;
@@ -244,8 +244,17 @@ export function DosenDashboardPage() {
       const recordedTotal = hadirCount + terlambatCount + izinCount + sakitCount;
       const alphaCount = students.length > 0 ? Math.max(0, students.length - recordedTotal) : 0;
 
+      // Pembersihan nama pendek XAxis (menghapus awalan berulang seperti "Absensi KKN62- ")
+      let cleanName = s.title.replace(/^(Absensi\s*(KKN\d*\s*[-_]?\s*)?)/i, "").trim();
+      if (!cleanName) {
+        cleanName = s.title;
+      }
+      const displayName = cleanName.length > 14 ? cleanName.slice(0, 14) + "…" : cleanName;
+
       return {
-        name: s.title.length > 12 ? s.title.slice(0, 12) + "…" : s.title,
+        // ID Unik Sesi sebagai Key Recharts
+        chartKey: s.id || `session-${idx}`,
+        name: displayName,
         fullTitle: s.title,
         hadir: hadirCount,
         terlambat: terlambatCount,
@@ -551,10 +560,14 @@ export function DosenDashboardPage() {
                     </defs>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.25} />
                     <XAxis
-                      dataKey="name"
+                      dataKey="chartKey"
                       tickLine={false}
                       axisLine={false}
                       tickMargin={10}
+                      tickFormatter={(val) => {
+                        const item = barChartData.find((b) => b.chartKey === val);
+                        return item ? item.name : val;
+                      }}
                       className="text-xs font-medium fill-muted-foreground"
                     />
                     <YAxis
