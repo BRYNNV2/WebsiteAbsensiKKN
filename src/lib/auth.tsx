@@ -55,8 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
       setSession(sess);
+      if (event === "TOKEN_REFRESHED") {
+        // Jangan re-fetch profil saat refresh token (seperti saat Alt-Tab kembali ke browser)
+        return;
+      }
       if (sess?.user) {
         (async () => {
           await loadProfile(sess.user.id);

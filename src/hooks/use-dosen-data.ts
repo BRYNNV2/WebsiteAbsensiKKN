@@ -22,7 +22,9 @@ export function useDosenData(): DosenData {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!group) {
+      setLoading(true);
+    }
     setError(null);
 
     const { data: groupData, error: groupErr } = await supabase
@@ -60,7 +62,7 @@ export function useDosenData(): DosenData {
       setStudents((studentData as Profile[]) ?? []);
     }
     setLoading(false);
-  }, [profile]);
+  }, [profile?.id]);
 
   useEffect(() => {
     reload();
