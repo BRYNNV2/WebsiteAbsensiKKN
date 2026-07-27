@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, ShieldAlert, Download, Filter, UserCheck, CheckCircle2, Clock, FileText, Stethoscope, XCircle, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
 import { supabase, type QrSession, type AttendanceRecord, type AttendanceStatus } from "@/lib/supabase";
 import { useDosenData } from "@/hooks/use-dosen-data";
 import { cn } from "@/lib/utils";
@@ -265,6 +268,96 @@ export function DosenRecapPage() {
     toast.success("Rekap berhasil diunduh sebagai CSV.");
   }
 
+  function handleExportPdf() {
+    if (matrix.length === 0 || filteredSessions.length === 0) {
+      toast.error("Tidak ada data untuk diekspor.");
+      return;
+    }
+
+    try {
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+
+      // Header Laporan Resmi
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(15, 23, 42); // Slate-900
+      doc.text("REKAPITULASI KEHADIRAN MAHASISWA KKN", 14, 15);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Kelompok: ${group?.name ?? "-"} | Lokasi: ${group?.location ?? "-"}`, 14, 21);
+      doc.text(`Dicetak pada: ${new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}`, 14, 26);
+
+      const tableHeaders = [
+        "No",
+        "Nama Mahasiswa",
+        "NIM",
+        ...filteredSessions.map((s) => s.title),
+        "Hadir",
+        "Telat",
+        "Izin",
+        "Sakit",
+        "Alpha",
+      ];
+
+      const statusMap: Record<string, string> = {
+        hadir: "Hadir",
+        terlambat: "Telat",
+        izin: "Izin",
+        sakit: "Sakit",
+        absen: "Alpha",
+      };
+
+      const tableData = matrix.map((r, idx) => [
+        String(idx + 1),
+        r.student.full_name,
+        r.student.student_id ?? "-",
+        ...r.attendances.map((a) => statusMap[a.record?.status ?? "absen"] || "Alpha"),
+        String(r.present),
+        String(r.late),
+        String(r.permission),
+        String(r.sick),
+        String(r.absent),
+      ]);
+
+      autoTable(doc, {
+        startY: 30,
+        head: [tableHeaders],
+        body: tableData,
+        theme: "grid",
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          fontSize: 8.5,
+          halign: "center",
+        },
+        bodyStyles: {
+          fontSize: 8,
+          textColor: [30, 41, 59],
+        },
+        columnStyles: {
+          0: { halign: "center", cellWidth: 10 },
+          1: { cellWidth: 45 },
+          2: { halign: "center", cellWidth: 28 },
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252],
+        },
+      });
+
+      doc.save(`rekap-absensi-${group?.name ?? "kkn"}.pdf`);
+      toast.success("Laporan Rekap PDF berhasil diunduh.");
+    } catch (err) {
+      toast.error("Gagal mengunduh PDF: " + (err as Error).message);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -299,10 +392,14 @@ export function DosenRecapPage() {
         title="Rekap Kehadiran"
         description="Rekapitulasi dan pengisian absensi manual (Hadir, Izin, Sakit, Terlambat, Absen)."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button onClick={() => setManualDialogOpen(true)}>
               <UserCheck className="size-4" />
               Absen Manual
+            </Button>
+            <Button variant="outline" onClick={handleExportPdf}>
+              <FileText className="size-4 text-rose-600" />
+              Ekspor PDF
             </Button>
             <Button variant="outline" onClick={handleExportCsv}>
               <Download className="size-4" />
