@@ -113,6 +113,48 @@ function MiniSparkline({ data, color, id }: { data: number[]; color: string; id:
   );
 }
 
+// Stable Custom Bar Tooltip Component for Recharts BarChart
+function CustomBarTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
+  if (!active || !payload || !payload.length) return null;
+  const sessionTitle = payload[0]?.payload?.fullTitle || label;
+
+  const labelsMap: Record<string, { name: string; color: string }> = {
+    hadir: { name: "Hadir", color: "#10b981" },
+    terlambat: { name: "Terlambat", color: "#a855f7" },
+    izin: { name: "Izin", color: "#3b82f6" },
+    sakit: { name: "Sakit", color: "#f59e0b" },
+    absen: { name: "Alpha / Belum Scan", color: "#94a3b8" },
+  };
+
+  return (
+    <div className="rounded-xl border border-border/80 bg-background/95 p-3.5 shadow-2xl backdrop-blur-md min-w-[210px] z-50 text-xs space-y-2 pointer-events-none animate-in fade-in-50 zoom-in-95">
+      <p className="font-bold text-foreground border-b pb-1.5 text-xs tracking-tight">{sessionTitle}</p>
+      <div className="space-y-1.5">
+        {payload.map((entry: any) => {
+          const key = entry.dataKey as string;
+          const info = labelsMap[key] || { name: key, color: entry.fill };
+          const val = entry.value ?? 0;
+
+          return (
+            <div key={key} className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span
+                  className="size-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: info.color }}
+                />
+                <span className="text-muted-foreground font-medium">{info.name}</span>
+              </div>
+              <span className="font-mono font-bold text-foreground tabular-nums">
+                {val} Mahasiswa
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function DosenDashboardPage() {
   const { profile } = useAuth();
   const { group, students, loading, error } = useDosenData();
@@ -213,48 +255,6 @@ export function DosenDashboardPage() {
       };
     });
   }, [filteredSessionsForChart, records, students]);
-
-  // Custom Bar Tooltip
-  function CustomBarTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
-    if (!active || !payload || !payload.length) return null;
-    const sessionTitle = payload[0]?.payload?.fullTitle || label;
-
-    const labelsMap: Record<string, { name: string; color: string }> = {
-      hadir: { name: "Hadir", color: "#10b981" },
-      terlambat: { name: "Terlambat", color: "#a855f7" },
-      izin: { name: "Izin", color: "#3b82f6" },
-      sakit: { name: "Sakit", color: "#f59e0b" },
-      absen: { name: "Alpha / Belum Scan", color: "#cbd5e1" },
-    };
-
-    return (
-      <div className="rounded-xl border border-border/80 bg-background/95 p-3.5 shadow-2xl backdrop-blur-md min-w-[200px] z-50 text-xs space-y-2">
-        <p className="font-semibold text-foreground border-b pb-1.5 text-xs">{sessionTitle}</p>
-        <div className="space-y-1.5">
-          {payload.map((entry: any) => {
-            const key = entry.dataKey as string;
-            const info = labelsMap[key] || { name: key, color: entry.fill };
-            const val = entry.value ?? 0;
-
-            return (
-              <div key={key} className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="size-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: info.color }}
-                  />
-                  <span className="text-muted-foreground font-medium">{info.name}</span>
-                </div>
-                <span className="font-mono font-bold text-foreground tabular-nums">
-                  {val} Mahasiswa
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
 
   // Filtered Activity feed
   const filteredRecentRecords = useMemo(() => {
@@ -566,8 +566,11 @@ export function DosenDashboardPage() {
                     />
                     <Tooltip
                       wrapperStyle={{ zIndex: 1000, pointerEvents: "none" }}
-                      cursor={{ fill: "rgba(15, 23, 42, 0.08)" }}
+                      cursor={{ fill: "rgba(15, 23, 42, 0.06)", radius: 6 }}
                       content={<CustomBarTooltip />}
+                      isAnimationActive={false}
+                      useTranslate3d={true}
+                      allowEscapeViewBox={{ x: true, y: true }}
                     />
                     <Bar dataKey="hadir" stackId="a" fill="url(#barHadir)" radius={[0, 0, 0, 0]} />
                     <Bar dataKey="terlambat" stackId="a" fill="url(#barTelat)" radius={[0, 0, 0, 0]} />
