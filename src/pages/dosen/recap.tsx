@@ -616,7 +616,7 @@ export function DosenRecapPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-full overflow-x-hidden">
+    <div className="space-y-6 min-w-0 max-w-full overflow-x-hidden">
       <PageHeader
         title="Rekap Kehadiran"
         description="Rekapitulasi dan pengisian absensi manual (Hadir, Izin, Sakit, Terlambat, Absen)."

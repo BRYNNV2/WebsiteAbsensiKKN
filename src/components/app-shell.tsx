@@ -309,7 +309,7 @@ export function AppShell() {
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset>
+      <SidebarInset className="min-w-0 max-w-full overflow-x-hidden">
         {/* Kravio Top Header Navigation matching exact screenshot */}
         <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           {/* Left Breadcrumb Navigation: [LayoutGrid Icon] Overview / Dashboard */}
@@ -461,7 +461,7 @@ export function AppShell() {
           </div>
         </header>
 
-        <div className="flex-1 p-4 sm:p-6 lg:p-8">
+        <div className="flex-1 min-w-0 max-w-full overflow-x-hidden p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
       </SidebarInset>
