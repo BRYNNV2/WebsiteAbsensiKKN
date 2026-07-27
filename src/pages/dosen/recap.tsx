@@ -40,6 +40,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -466,7 +467,6 @@ export function DosenRecapPage() {
       />
 
       <Card>
-        <CardHeader>
         <CardHeader className="flex flex-col gap-4 pb-4 border-b">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
