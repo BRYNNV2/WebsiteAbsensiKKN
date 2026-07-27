@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -28,6 +29,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 const loginSchema = z.object({
   identifier: z.string().min(3, "Masukkan NIM atau Email Anda"),
   password: z.string().min(1, "Kata sandi wajib diisi"),
+  rememberMe: z.boolean().optional(),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -44,7 +46,11 @@ export function LoginPage() {
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { identifier: "", password: "" },
+    defaultValues: {
+      identifier: localStorage.getItem("kkn_remembered_identifier") ?? "",
+      password: "",
+      rememberMe: localStorage.getItem("kkn_remember_me") === "true",
+    },
     mode: "onBlur",
   });
 
@@ -94,6 +100,15 @@ export function LoginPage() {
       );
       return;
     }
+
+    if (values.rememberMe) {
+      localStorage.setItem("kkn_remembered_identifier", values.identifier.trim());
+      localStorage.setItem("kkn_remember_me", "true");
+    } else {
+      localStorage.removeItem("kkn_remembered_identifier");
+      localStorage.removeItem("kkn_remember_me");
+    }
+
     navigate("/", { replace: true });
   }
 
@@ -197,6 +212,24 @@ export function LoginPage() {
                       <FieldError errors={[form.formState.errors.password]} />
                     )}
                   </Field>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="rememberMe"
+                        checked={form.watch("rememberMe")}
+                        onCheckedChange={(checked) => {
+                          form.setValue("rememberMe", !!checked, { shouldValidate: true });
+                        }}
+                      />
+                      <label
+                        htmlFor="rememberMe"
+                        className="text-sm font-medium leading-none select-none cursor-pointer text-muted-foreground hover:text-foreground"
+                      >
+                        Ingat saya
+                      </label>
+                    </div>
+                  </div>
 
                   {serverError && (
                     <div
