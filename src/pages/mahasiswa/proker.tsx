@@ -75,6 +75,61 @@ function MiniSparkline({ data, color, id }: { data: number[]; color: string; id:
   );
 }
 
+function getProkerStatus(p: WorkProgram) {
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0];
+
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const currentTimeStr = `${hours}:${minutes}`;
+
+  if (p.date < todayStr) {
+    return {
+      statusKey: "completed",
+      label: "Selesai",
+      isBlue: false,
+      badgeClass: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+      cardClass: "bg-card border-border/70 hover:border-border",
+    };
+  }
+  if (p.date > todayStr) {
+    return {
+      statusKey: "scheduled",
+      label: "Terjadwal",
+      isBlue: false,
+      badgeClass: "bg-muted text-muted-foreground border-border",
+      cardClass: "bg-card border-border/70 hover:border-border",
+    };
+  }
+
+  // Same day: check time slot!
+  if (currentTimeStr >= p.starts_at && currentTimeStr <= p.ends_at) {
+    return {
+      statusKey: "active",
+      label: "Sedang Berlangsung",
+      isBlue: true,
+      badgeClass: "bg-sky-500 text-white border-sky-600 font-bold",
+      cardClass: "bg-sky-50/80 border-sky-300 dark:bg-sky-950/50 dark:border-sky-800 shadow-xs",
+    };
+  } else if (currentTimeStr > p.ends_at) {
+    return {
+      statusKey: "completed",
+      label: "Selesai",
+      isBlue: false,
+      badgeClass: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+      cardClass: "bg-card border-border/70 hover:border-border",
+    };
+  } else {
+    return {
+      statusKey: "scheduled",
+      label: "Terjadwal (Hari Ini)",
+      isBlue: false,
+      badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+      cardClass: "bg-card border-border/70 hover:border-border",
+    };
+  }
+}
+
 export function MahasiswaProkerPage() {
   const { profile } = useAuth();
   const [programs, setPrograms] = useState<WorkProgram[]>([]);
@@ -365,14 +420,13 @@ export function MahasiswaProkerPage() {
                 ) : (
                   <div className="space-y-3">
                     {items.map((p) => {
+                      const status = getProkerStatus(p);
                       return (
                         <Card
                           key={p.id}
                           className={cn(
                             "relative transition-all duration-200 hover:shadow-md border",
-                            isToday
-                              ? "bg-sky-50/70 border-sky-300 dark:bg-sky-950/40 dark:border-sky-800 shadow-xs"
-                              : "bg-card border-border/70 hover:border-border"
+                            status.cardClass
                           )}
                         >
                           <CardContent className="p-4 space-y-3">
@@ -382,12 +436,10 @@ export function MahasiswaProkerPage() {
                                 <h4 className="font-bold text-sm text-foreground tracking-tight line-clamp-2">
                                   {p.title} - {p.code}
                                 </h4>
-                              </div>
-                              {isToday && (
-                                <Badge variant="outline" className="text-[10px] border-sky-400 text-sky-600 dark:text-sky-400 shrink-0">
-                                  Aktif
+                                <Badge className={cn("mt-1 text-[10px] px-2 py-0.5 border", status.badgeClass)}>
+                                  {status.label}
                                 </Badge>
-                              )}
+                              </div>
                             </div>
 
                             {/* Details matching reference screenshot */}
