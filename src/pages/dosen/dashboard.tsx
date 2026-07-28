@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LoadingLottie } from "@/components/loading-lottie";
 import {
   Card,
   CardContent,
@@ -344,10 +345,10 @@ export function DosenDashboardPage() {
     return filteredStudents.slice(start, start + TABLE_ITEMS_PER_PAGE);
   }, [filteredStudents, tablePage]);
 
-  if (loading) {
+  if (loading || dataLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center py-24">
+        <LoadingLottie text="Memuat dashboard &amp; data kelompok KKN..." />
       </div>
     );
   }

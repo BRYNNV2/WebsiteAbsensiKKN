@@ -121,6 +121,13 @@ export function AppShell() {
   }, [navItems, location.pathname]);
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isRouteChanging, setIsRouteChanging] = useState(false);
+
+  useEffect(() => {
+    setIsRouteChanging(true);
+    const timer = setTimeout(() => setIsRouteChanging(false), 300);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
 
   async function handleSignOut() {
     setIsLoggingOut(true);
@@ -473,8 +480,14 @@ export function AppShell() {
 
             {/* Dark Mode Toggle */}
             <ModeToggle />
-          </div>
         </header>
+
+        {/* Top Progress Line on Route Navigation */}
+        {isRouteChanging && (
+          <div className="h-0.5 w-full bg-primary/10 overflow-hidden relative">
+            <div className="h-full bg-primary animate-pulse w-3/4 rounded-r-full" />
+          </div>
+        )}
 
         <div className="flex-1 min-w-0 max-w-full overflow-x-hidden p-4 sm:p-6 lg:p-8">
           <Outlet />

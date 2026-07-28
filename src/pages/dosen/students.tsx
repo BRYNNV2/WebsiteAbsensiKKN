@@ -11,6 +11,7 @@ import { useDosenData } from "@/hooks/use-dosen-data";
 
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { LoadingLottie } from "@/components/loading-lottie";
 import {
   Card,
   CardContent,
@@ -470,10 +471,8 @@ export function DosenStudentsPage() {
 
         <CardContent>
           {loading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full" />
-              ))}
+            <div className="py-12 flex justify-center items-center">
+              <LoadingLottie text="Memuat data mahasiswa binaan KKN..." />
             </div>
           ) : students.length === 0 ? (
             <Empty className="border">

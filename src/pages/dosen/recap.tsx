@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { LoadingLottie } from "@/components/loading-lottie";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -589,8 +590,8 @@ export function DosenRecapPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center py-24">
+        <LoadingLottie text="Memuat rekapitulasi absensi mahasiswa..." />
       </div>
     );
   }

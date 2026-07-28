@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LoadingLottie } from "@/components/loading-lottie";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
@@ -603,10 +604,8 @@ export function DosenProkerPage() {
 
       {/* Schedule Grid by Days (Matching Sample Screenshot) */}
       {loading ? (
-        <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-64 w-full rounded-xl" />
-          ))}
+        <div className="py-16 flex justify-center items-center">
+          <LoadingLottie text="Memuat daftar agenda &amp; program kerja KKN..." />
         </div>
       ) : programs.length === 0 ? (
         <Card className="border border-border/60">
