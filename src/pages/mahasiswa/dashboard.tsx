@@ -209,21 +209,35 @@ export function MahasiswaDashboardPage() {
     );
   }
 
+  const studentName = profile?.full_name ?? "Mahasiswa";
+  const studentNIM = profile?.student_id;
+
   return (
     <div className="space-y-6">
       <CampusEmailModal />
-      <PageHeader
-        title="Ringkasan"
-        description="Pantau kehadiran KKN Anda dalam satu tempat."
-        action={
-          <Button asChild>
+
+      {/* Kravio Top Header & Greeting for Mahasiswa */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Halo, {studentName} 👋
+            </h1>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+            Berikut ringkasan statistik &amp; riwayat presensi Anda {studentNIM ? `(NIM: ${studentNIM})` : ""}. Pantau kehadiran KKN Anda dalam satu tempat.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button asChild className="shadow-xs">
             <Link to="/scan">
               <ScanLine className="size-4" />
-              Pindai QR
+              Pindai QR Absen
             </Link>
           </Button>
-        }
-      />
+        </div>
+      </div>
 
       {/* 3 Stat Cards with Sparkline Graphics */}
       <div className="grid gap-4 sm:grid-cols-3">
