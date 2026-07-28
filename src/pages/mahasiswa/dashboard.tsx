@@ -10,11 +10,15 @@ import {
   BarChart3,
   Activity,
   UserCheck,
+  PieChart as PieChartIcon,
 } from "lucide-react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -234,7 +238,27 @@ export function MahasiswaDashboardPage() {
         absen: status === "absen" ? 1 : 0,
       };
     });
-  }, [sessions, records]);
+  const donutData = useMemo(() => {
+    const total = sessions.length || 1;
+    const hadir = presentCount;
+    const terlambat = lateCount;
+    const izin = records.filter((r) => r.status === "izin").length;
+    const sakit = records.filter((r) => r.status === "sakit").length;
+    const recordedCount = records.length;
+    const belumAbsen = Math.max(0, total - recordedCount);
+
+    if (sessions.length === 0) {
+      return [{ name: "Belum Ada Sesi", value: 1, color: "#94a3b8" }];
+    }
+
+    return [
+      { name: "Hadir Tepat Waktu", value: hadir, color: "#10B981" },
+      { name: "Terlambat", value: terlambat, color: "#A855F7" },
+      { name: "Izin", value: izin, color: "#3B82F6" },
+      { name: "Sakit", value: sakit, color: "#F59E0B" },
+      { name: "Belum Absen / Alpha", value: belumAbsen, color: "#F43F5E" },
+    ].filter((item) => item.value > 0);
+  }, [sessions, records, presentCount, lateCount]);
 
   const upcomingSessions = useMemo(() => {
     const now = new Date();
@@ -390,85 +414,216 @@ export function MahasiswaDashboardPage() {
         </Card>
       </div>
 
-      {/* Grafik Recharts Riwayat Kehadiran Mahasiswa */}
-      <Card className="border border-border/60 shadow-2xs">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b">
-          <div>
+      {/* 2-Column Grid: Left 70% BarChart, Right 30% Donut & Breakdown Card */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Left 70% (lg:col-span-2): Grafik Presensi Sesi KKN Saya */}
+        <Card className="border border-border/60 shadow-2xs lg:col-span-2 flex flex-col justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b">
+            <div>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <BarChart3 className="size-4 text-primary" />
+                <span>Grafik Presensi Sesi KKN Saya</span>
+              </CardTitle>
+              <CardDescription className="text-xs mt-0.5">
+                Visualisasi tren dan status kehadiran Anda pada tiap sesi kegiatan KKN.
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs font-medium">
+              <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                <span className="size-2.5 rounded-full bg-emerald-500" />
+                Hadir
+              </span>
+              <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
+                <span className="size-2.5 rounded-full bg-purple-500" />
+                Terlambat
+              </span>
+              <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                <span className="size-2.5 rounded-full bg-rose-500" />
+                Alpha / Belum
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4 flex-1 flex flex-col justify-center">
+            {loading ? (
+              <div className="h-[280px] flex items-center justify-center">
+                <Skeleton className="h-full w-full rounded-lg" />
+              </div>
+            ) : chartData.length === 0 ? (
+              <Empty className="py-12 border-0">
+                <EmptyMedia variant="icon">
+                  <BarChart3 />
+                </EmptyMedia>
+                <EmptyTitle>Belum Ada Data Grafik</EmptyTitle>
+                <EmptyDescription>
+                  Grafik kehadiran akan muncul setelah dosen pembimbing membuat sesi KKN.
+                </EmptyDescription>
+              </Empty>
+            ) : (
+              <div className="h-[280px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/40" />
+                    <XAxis
+                      dataKey="name"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 11, fill: "currentColor" }}
+                      className="text-muted-foreground"
+                      interval={0}
+                      angle={-15}
+                      textAnchor="end"
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      domain={[0, 1]}
+                      ticks={[0, 1]}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(val) => (val === 1 ? "Hadir" : "Belum")}
+                      tick={{ fontSize: 11, fill: "currentColor" }}
+                      className="text-muted-foreground"
+                    />
+                    <Tooltip content={<CustomMahasiswaTooltip />} />
+                    <Bar dataKey="hadir" stackId="a" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                    <Bar dataKey="terlambat" stackId="a" fill="#A855F7" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                    <Bar dataKey="izin" stackId="a" fill="#3B82F6" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                    <Bar dataKey="sakit" stackId="a" fill="#F59E0B" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                    <Bar dataKey="absen" stackId="a" fill="#F43F5E" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Right 30% (lg:col-span-1): Ringkasan Komposisi Presensi & Donut Chart */}
+        <Card className="border border-border/60 shadow-2xs lg:col-span-1 flex flex-col justify-between">
+          <CardHeader className="pb-2 border-b">
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <BarChart3 className="size-4 text-primary" />
-              <span>Grafik Presensi Sesi KKN Saya</span>
+              <PieChartIcon className="size-4 text-primary" />
+              <span>Komposisi Presensi</span>
             </CardTitle>
-            <CardDescription className="text-xs mt-0.5">
-              Visualisasi tren dan status kehadiran Anda pada tiap sesi kegiatan KKN.
+            <CardDescription className="text-xs">
+              Ringkasan rasio persentase kehadiran Anda
             </CardDescription>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs font-medium">
-            <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-              <span className="size-2.5 rounded-full bg-emerald-500" />
-              Hadir Tepat Waktu
-            </span>
-            <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
-              <span className="size-2.5 rounded-full bg-purple-500" />
-              Terlambat
-            </span>
-            <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
-              <span className="size-2.5 rounded-full bg-rose-500" />
-              Belum Absen / Alpha
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
-          {loading ? (
-            <div className="h-[280px] flex items-center justify-center">
-              <Skeleton className="h-full w-full rounded-lg" />
+          </CardHeader>
+          <CardContent className="pt-4 flex-1 flex flex-col justify-between gap-4">
+            {/* Donut Chart */}
+            <div className="h-[170px] w-full flex items-center justify-center relative my-auto">
+              {loading ? (
+                <Skeleton className="size-36 rounded-full" />
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={donutData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={48}
+                        outerRadius={68}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {donutData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0];
+                            return (
+                              <div className="rounded-lg border bg-popover p-2.5 shadow-xl text-xs space-y-1 z-50">
+                                <p className="font-bold text-popover-foreground">{data.name}</p>
+                                <p className="text-muted-foreground font-mono">
+                                  {data.value} Sesi ({sessions.length > 0 ? Math.round(((data.value as number) / sessions.length) * 100) : 0}%)
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Center Stat inside Donut */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-2xl font-extrabold tracking-tight tabular-nums text-foreground">
+                      {attendanceRate}%
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+                      Kehadiran
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
-          ) : chartData.length === 0 ? (
-            <Empty className="py-12 border-0">
-              <EmptyMedia variant="icon">
-                <BarChart3 />
-              </EmptyMedia>
-              <EmptyTitle>Belum Ada Data Grafik</EmptyTitle>
-              <EmptyDescription>
-                Grafik kehadiran akan muncul setelah dosen pembimbing membuat sesi KKN.
-              </EmptyDescription>
-            </Empty>
-          ) : (
-            <div className="h-[280px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/40" />
-                  <XAxis
-                    dataKey="name"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 11, fill: "currentColor" }}
-                    className="text-muted-foreground"
-                    interval={0}
-                    angle={-15}
-                    textAnchor="end"
+
+            {/* Status Breakdown Bar Lists */}
+            <div className="space-y-2.5 pt-3 border-t text-xs">
+              {/* Item 1: Hadir Tepat Waktu */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between font-medium">
+                  <span className="flex items-center gap-1.5 text-foreground">
+                    <span className="size-2 rounded-full bg-emerald-500" />
+                    Hadir Tepat Waktu
+                  </span>
+                  <span className="font-mono text-muted-foreground font-bold">
+                    {presentCount} / {sessions.length}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                    style={{ width: `${sessions.length > 0 ? (presentCount / sessions.length) * 100 : 0}%` }}
                   />
-                  <YAxis
-                    allowDecimals={false}
-                    domain={[0, 1]}
-                    ticks={[0, 1]}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(val) => (val === 1 ? "Hadir" : "Belum")}
-                    tick={{ fontSize: 11, fill: "currentColor" }}
-                    className="text-muted-foreground"
+                </div>
+              </div>
+
+              {/* Item 2: Terlambat */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between font-medium">
+                  <span className="flex items-center gap-1.5 text-foreground">
+                    <span className="size-2 rounded-full bg-purple-500" />
+                    Terlambat
+                  </span>
+                  <span className="font-mono text-muted-foreground font-bold">
+                    {lateCount} / {sessions.length}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-purple-500 rounded-full transition-all duration-500"
+                    style={{ width: `${sessions.length > 0 ? (lateCount / sessions.length) * 100 : 0}%` }}
                   />
-                  <Tooltip content={<CustomMahasiswaTooltip />} />
-                  <Bar dataKey="hadir" stackId="a" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={36} />
-                  <Bar dataKey="terlambat" stackId="a" fill="#A855F7" radius={[4, 4, 0, 0]} maxBarSize={36} />
-                  <Bar dataKey="izin" stackId="a" fill="#3B82F6" radius={[4, 4, 0, 0]} maxBarSize={36} />
-                  <Bar dataKey="sakit" stackId="a" fill="#F59E0B" radius={[4, 4, 0, 0]} maxBarSize={36} />
-                  <Bar dataKey="absen" stackId="a" fill="#F43F5E" radius={[4, 4, 0, 0]} maxBarSize={36} />
-                </BarChart>
-              </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Item 3: Belum Absen / Alpha */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between font-medium">
+                  <span className="flex items-center gap-1.5 text-foreground">
+                    <span className="size-2 rounded-full bg-rose-500" />
+                    Belum Absen / Alpha
+                  </span>
+                  <span className="font-mono text-muted-foreground font-bold">
+                    {Math.max(0, sessions.length - records.length)} / {sessions.length}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-rose-500 rounded-full transition-all duration-500"
+                    style={{
+                      width: `${sessions.length > 0 ? (Math.max(0, sessions.length - records.length) / sessions.length) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
