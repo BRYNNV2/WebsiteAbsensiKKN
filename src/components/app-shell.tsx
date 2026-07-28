@@ -63,9 +63,12 @@ type NavItem = {
   icon: typeof LayoutDashboard;
 };
 
+import { Briefcase } from "lucide-react";
+
 const dosenNav: NavItem[] = [
   { to: "/", label: "Ringkasan", icon: LayoutDashboard },
   { to: "/students", label: "Mahasiswa", icon: Users },
+  { to: "/proker", label: "Program Kerja", icon: Briefcase },
   { to: "/sessions", label: "Sesi Absensi", icon: QrCode },
   { to: "/recap", label: "Rekap Kehadiran", icon: ClipboardList },
 ];
@@ -73,6 +76,7 @@ const dosenNav: NavItem[] = [
 const mahasiswaNav: NavItem[] = [
   { to: "/", label: "Ringkasan", icon: LayoutDashboard },
   { to: "/scan", label: "Pindai QR", icon: ScanLine },
+  { to: "/proker", label: "Program Kerja", icon: Briefcase },
   { to: "/history", label: "Riwayat Absen", icon: History },
 ];
 

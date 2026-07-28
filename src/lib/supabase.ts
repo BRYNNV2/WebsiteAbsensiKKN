@@ -60,3 +60,19 @@ export type AttendanceRecord = {
   scanned_at: string
   created_at: string
 }
+
+export type WorkProgram = {
+  id: string
+  group_id: string
+  title: string
+  code: string
+  day_name: string // "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"
+  date: string // YYYY-MM-DD
+  starts_at: string // HH:mm
+  ends_at: string // HH:mm
+  category: string // e.g. "Bidang Kesehatan & Lingkungan", "Bidang Pendidikan"
+  location: string // e.g. "Balai Desa", "Posko 1"
+  description: string | null
+  created_by: string
+  created_at: string
+}

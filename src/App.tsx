@@ -10,9 +10,11 @@ import { DosenDashboardPage } from "@/pages/dosen/dashboard";
 import { DosenStudentsPage } from "@/pages/dosen/students";
 import { DosenSessionsPage } from "@/pages/dosen/sessions";
 import { DosenRecapPage } from "@/pages/dosen/recap";
+import { DosenProkerPage } from "@/pages/dosen/proker";
 import { MahasiswaDashboardPage } from "@/pages/mahasiswa/dashboard";
 import { MahasiswaScanPage } from "@/pages/mahasiswa/scan";
 import { MahasiswaHistoryPage } from "@/pages/mahasiswa/history";
+import { MahasiswaProkerPage } from "@/pages/mahasiswa/proker";
 import { SettingsPage } from "@/pages/settings";
 import { HelpSupportPage } from "@/pages/support";
 
@@ -74,6 +76,13 @@ function HomeRoute() {
   return profile.role === "dosen" ? <DosenDashboardPage /> : <MahasiswaDashboardPage />;
 }
 
+function ProkerRoute() {
+  const { profile, loading } = useAuth();
+  if (loading) return <FullScreenLoader />;
+  if (!profile) return null;
+  return profile.role === "dosen" ? <DosenProkerPage /> : <MahasiswaProkerPage />;
+}
+
 export function App() {
   return (
     <Routes>
@@ -88,6 +97,7 @@ export function App() {
         }
       >
         <Route path="/" element={<HomeRoute />} />
+        <Route path="/proker" element={<ProkerRoute />} />
         <Route
           path="/students"
           element={
