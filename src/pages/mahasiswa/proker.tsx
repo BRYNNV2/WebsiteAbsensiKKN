@@ -137,13 +137,22 @@ function getProkerStatus(p: WorkProgram) {
       badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
       cardClass: "bg-card border-border/70 hover:border-border",
     };
-  }
+}
+
+function getProkerWeek(dateStr: string) {
+  if (!dateStr) return 1;
+  const day = new Date(dateStr).getDate();
+  if (day <= 7) return 1;
+  if (day <= 14) return 2;
+  if (day <= 21) return 3;
+  return 4;
 }
 
 export function MahasiswaProkerPage() {
   const { profile } = useAuth();
   const [programs, setPrograms] = useState<WorkProgram[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedWeek, setSelectedWeek] = useState<string>("Semua Minggu");
   const [activeTab, setActiveTab] = useState<string>("Semua Hari");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -187,9 +196,28 @@ export function MahasiswaProkerPage() {
   // Filtered programs
   const filteredPrograms = useMemo(() => {
     let result = programs;
+
+    // Filter by Week
+    if (selectedWeek !== "Semua Minggu") {
+      if (selectedWeek === "Hari Ini") {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, "0");
+        const d = String(now.getDate()).padStart(2, "0");
+        const todayStr = `${y}-${m}-${d}`;
+        result = result.filter((p) => (p.date || "").slice(0, 10) === todayStr);
+      } else {
+        const targetWeekNum = parseInt(selectedWeek.replace("Minggu ", ""), 10);
+        result = result.filter((p) => getProkerWeek(p.date) === targetWeekNum);
+      }
+    }
+
+    // Filter by Day of Week
     if (activeTab !== "Semua Hari") {
       result = result.filter((p) => p.day_name === activeTab);
     }
+
+    // Filter by Search Query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -201,7 +229,7 @@ export function MahasiswaProkerPage() {
       );
     }
     return result;
-  }, [programs, activeTab, searchQuery]);
+  }, [programs, selectedWeek, activeTab, searchQuery]);
 
   // Group programs by Day for UI rendering
   const programsByDay = useMemo(() => {
@@ -342,65 +370,100 @@ export function MahasiswaProkerPage() {
         </Card>
       </div>
 
-      {/* Segmented Navbar Filter Bar & Search */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-2.5 rounded-2xl border border-border/70 shadow-2xs">
-        {/* Left: Segmented Navbar Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/40">
-          <button
-            onClick={() => setActiveTab("Semua Hari")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer",
-              activeTab === "Semua Hari"
-                ? "bg-background text-foreground shadow-2xs font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-            )}
-          >
-            <CalendarDays className="size-3.5 text-primary" />
-            <span>Semua Hari</span>
-          </button>
+      {/* 2-Level Weekly & Daily Filter Navigation Bar */}
+      <div className="space-y-3 bg-card p-3.5 rounded-2xl border border-border/70 shadow-2xs">
+        {/* Row 1: Week Selection Navbar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border/50">
+          <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto scrollbar-none">
+            <span className="text-xs font-bold text-muted-foreground mr-1 flex items-center gap-1">
+              <Calendar className="size-3.5 text-primary" />
+              <span>Minggu KKN:</span>
+            </span>
 
-          <button
-            onClick={() => setActiveTab(todayDayName)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer",
-              activeTab === todayDayName
-                ? "bg-sky-500 text-white shadow-2xs font-bold"
-                : "text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 font-semibold"
-            )}
-          >
-            <Sparkles className="size-3.5" />
-            <span>Hari Ini ({todayDayName})</span>
-          </button>
+            {[
+              { id: "Semua Minggu", label: "Semua Minggu" },
+              { id: "Minggu 1", label: "Minggu 1 (Tgl 1-7)" },
+              { id: "Minggu 2", label: "Minggu 2 (Tgl 8-14)" },
+              { id: "Minggu 3", label: "Minggu 3 (Tgl 15-21)" },
+              { id: "Minggu 4", label: "Minggu 4 (Tgl 22-31)" },
+            ].map((w) => (
+              <button
+                key={w.id}
+                onClick={() => setSelectedWeek(w.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer whitespace-nowrap",
+                  selectedWeek === w.id
+                    ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                    : "bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+              >
+                {w.label}
+              </button>
+            ))}
 
-          <div className="h-4 w-px bg-border/60 mx-0.5 hidden sm:block" />
-
-          {/* Select Specific Day */}
-          <Select
-            value={DAYS_LIST.includes(activeTab) && activeTab !== todayDayName ? activeTab : ""}
-            onValueChange={(val) => setActiveTab(val)}
-          >
-            <SelectTrigger className="h-7 border-0 bg-transparent text-xs font-medium text-muted-foreground hover:text-foreground focus:ring-0 gap-1 px-2 shrink-0">
-              <SelectValue placeholder="Pilih Hari Lain ▾" />
-            </SelectTrigger>
-            <SelectContent align="start">
-              {DAYS_LIST.map((d) => (
-                <SelectItem key={d} value={d} className="text-xs">
-                  {d} {d === todayDayName && "(Hari Ini)"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <button
+              onClick={() => {
+                setSelectedWeek("Hari Ini");
+                setActiveTab(todayDayName);
+              }}
+              className={cn(
+                "px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer whitespace-nowrap flex items-center gap-1",
+                selectedWeek === "Hari Ini"
+                  ? "bg-sky-500 text-white shadow-xs font-bold"
+                  : "bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500/20 font-semibold"
+              )}
+            >
+              <Sparkles className="size-3.5" />
+              <span>Hari Ini ({todayDayName})</span>
+            </button>
+          </div>
         </div>
 
-        {/* Right: Search Input */}
-        <div className="relative w-full md:w-64">
-          <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari agenda kegiatan..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 text-xs h-9 rounded-xl bg-background border-border/70"
-          />
+        {/* Row 2: Day Filter & Search Input */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Filter Hari:</span>
+            <Select value={activeTab} onValueChange={(val) => setActiveTab(val)}>
+              <SelectTrigger className="h-8 border-border/70 bg-background text-xs font-semibold w-48">
+                <SelectValue placeholder="Pilih Hari" />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value="Semua Hari" className="text-xs font-semibold">
+                  Semua Hari (Senin - Minggu)
+                </SelectItem>
+                {DAYS_LIST.map((d) => (
+                  <SelectItem key={d} value={d} className="text-xs">
+                    {d} {d === todayDayName && "(Hari Ini)"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {(selectedWeek !== "Semua Minggu" || activeTab !== "Semua Hari" || searchQuery) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedWeek("Semua Minggu");
+                  setActiveTab("Semua Hari");
+                  setSearchQuery("");
+                }}
+                className="h-8 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Reset Filter
+              </Button>
+            )}
+          </div>
+
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari agenda kegiatan..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 text-xs h-8 rounded-xl bg-background border-border/70"
+            />
+          </div>
         </div>
       </div>
 
