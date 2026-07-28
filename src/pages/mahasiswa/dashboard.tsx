@@ -238,6 +238,8 @@ export function MahasiswaDashboardPage() {
         absen: status === "absen" ? 1 : 0,
       };
     });
+  }, [sessions, records]);
+
   const donutData = useMemo(() => {
     const total = sessions.length || 1;
     const hadir = presentCount;
