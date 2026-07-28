@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -480,6 +480,7 @@ export function AppShell() {
 
             {/* Dark Mode Toggle */}
             <ModeToggle />
+          </div>
         </header>
 
         {/* Top Progress Line on Route Navigation */}

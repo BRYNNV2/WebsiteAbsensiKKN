@@ -4,7 +4,6 @@ import {
   QrCode,
   CalendarClock,
   TrendingUp,
-  Loader2,
   ShieldAlert,
   Search,
   CheckCircle2,
