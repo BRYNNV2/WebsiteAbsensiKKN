@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -24,8 +25,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const profileRef = useRef<Profile | null>(null);
 
-  async function loadProfile(userId: string) {
+  async function loadProfile(userId: string, force = false) {
+    // Jika profil sudah ter-load untuk user yang sama dan tidak ada instruksi paksa, cegah re-fetch berulang saat Alt-Tab / fokus jendela!
+    if (!force && profileRef.current?.id === userId) {
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("profiles")
       .select(
@@ -34,12 +41,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("id", userId)
       .maybeSingle();
     if (error || !data) {
+      profileRef.current = null;
       setProfile(null);
       setSession(null);
       await supabase.auth.signOut();
       return;
     }
-    setProfile(data as Profile | null);
+    const pData = data as Profile;
+    profileRef.current = pData;
+    setProfile(pData);
   }
 
   useEffect(() => {
@@ -57,18 +67,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
       setSession(sess);
-      if (event === "TOKEN_REFRESHED") {
-        // Jangan re-fetch profil saat refresh token (seperti saat Alt-Tab kembali ke browser)
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
         return;
       }
       if (sess?.user) {
-        (async () => {
-          await loadProfile(sess.user.id);
-          setLoading(false);
-        })();
+        if (profileRef.current?.id !== sess.user.id) {
+          (async () => {
+            await loadProfile(sess.user.id);
+            if (mounted) setLoading(false);
+          })();
+        } else {
+          if (mounted) setLoading(false);
+        }
       } else {
+        profileRef.current = null;
         setProfile(null);
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     });
 
@@ -86,10 +100,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       signOut: async () => {
         await supabase.auth.signOut();
+        profileRef.current = null;
         setProfile(null);
       },
       refreshProfile: async () => {
-        if (session?.user) await loadProfile(session.user.id);
+        if (session?.user) await loadProfile(session.user.id, true);
       },
     }),
     [session, profile, loading]
