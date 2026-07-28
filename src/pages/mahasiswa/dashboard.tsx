@@ -97,8 +97,10 @@ function MiniSparkline({ data, color, id }: { data: number[]; color: string; id:
 function CustomMahasiswaTooltip({ active, payload, label }: any) {
   if (!active || !payload || !payload.length) return null;
 
-  // Dapatkan item data yang tepat untuk batang chart yang sedang diarahkan kursor
-  const itemData = payload[0]?.payload;
+  // Carikan payload aktif yang memiliki nilai > 0 (Hadir/Telat/Izin/Sakit/Absen) untuk bar sesi yang di-hover
+  const activeEntry = payload.find((p: any) => p && p.value > 0) || payload[0];
+  const itemData = activeEntry?.payload;
+
   const sessionTitle = itemData?.fullTitle || label || "Detail Sesi Absensi";
   const statusKey = itemData?.statusKey || "absen";
   const dateStr = itemData?.dateStr || "";
@@ -213,8 +215,15 @@ export function MahasiswaDashboardPage() {
         minute: "2-digit",
       });
 
+      // Bersihkan awalan berulang tanpa memotong nomor di bagian akhir
+      let cleanName = s.title.replace(/^(Absensi\s*(KKN\d*\s*[-_]?\s*)?)/i, "").trim();
+      if (!cleanName) {
+        cleanName = s.title || `Sesi ${idx + 1}`;
+      }
+
       return {
-        name: s.title.replace(/Absensi KKN\d*-?\s*/i, "").slice(0, 14) || `Sesi ${idx + 1}`,
+        id: s.id,
+        name: cleanName,
         fullTitle: s.title,
         dateStr,
         statusKey: status,
