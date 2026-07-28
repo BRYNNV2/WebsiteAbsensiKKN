@@ -51,34 +51,52 @@ export function MahasiswaHistoryPage() {
   const [sessions, setSessions] = useState<QrSession[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const groupId = profile?.group_id;
+  const studentId = profile?.id;
+
   useEffect(() => {
-    if (!profile?.group_id) {
+    if (!groupId || !studentId) {
       setLoading(false);
       return;
     }
+    let isMounted = true;
     (async () => {
-      setLoading(true);
-      const [{ data: sData }, { data: rData }] = await Promise.all([
-        supabase
-          .from("qr_sessions")
-          .select(
-            "id, group_id, title, meeting_date, starts_at, ends_at, location, token, created_by, created_at"
-          )
-          .eq("group_id", profile.group_id)
-          .order("starts_at", { ascending: false }),
-        supabase
-          .from("attendance_records")
-          .select(
-            "id, session_id, student_id, status, scanned_at, created_at"
-          )
-          .eq("student_id", profile.id)
-          .order("scanned_at", { ascending: false }),
-      ]);
-      setSessions((sData as QrSession[]) ?? []);
-      setRecords((rData as AttendanceRecord[]) ?? []);
-      setLoading(false);
+      if (sessions.length === 0 && records.length === 0) {
+        setLoading(true);
+      }
+      try {
+        const [{ data: sData }, { data: rData }] = await Promise.all([
+          supabase
+            .from("qr_sessions")
+            .select(
+              "id, group_id, title, meeting_date, starts_at, ends_at, location, token, created_by, created_at"
+            )
+            .eq("group_id", groupId)
+            .order("starts_at", { ascending: false }),
+          supabase
+            .from("attendance_records")
+            .select(
+              "id, session_id, student_id, status, scanned_at, created_at"
+            )
+            .eq("student_id", studentId)
+            .order("scanned_at", { ascending: false }),
+        ]);
+
+        if (isMounted) {
+          setSessions((sData as QrSession[]) ?? []);
+          setRecords((rData as AttendanceRecord[]) ?? []);
+        }
+      } catch (err) {
+        console.error("Error loading mahasiswa history data:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     })();
-  }, [profile]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [groupId, studentId]);
 
   const allRows = sessions.map((s) => {
     const rec = records.find((r) => r.session_id === s.id);
