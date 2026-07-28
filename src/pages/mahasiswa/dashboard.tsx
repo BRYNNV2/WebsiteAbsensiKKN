@@ -262,13 +262,16 @@ export function MahasiswaDashboardPage() {
     ].filter((item) => item.value > 0);
   }, [sessions, records, presentCount, lateCount]);
 
-  const upcomingSessions = useMemo(() => {
+  const upcomingSessionsAll = useMemo(() => {
     const now = new Date();
     return sessions
       .filter((s) => new Date(s.ends_at) > now)
-      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
-      .slice(0, 3);
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
   }, [sessions]);
+
+  const upcomingSessions = useMemo(() => {
+    return upcomingSessionsAll.slice(0, 5);
+  }, [upcomingSessionsAll]);
 
   const recentRecords = records.slice(0, 5);
 
@@ -629,11 +632,20 @@ export function MahasiswaDashboardPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle>Sesi Mendatang</CardTitle>
-            <CardDescription>
-              Sesi yang akan atau sedang berlangsung.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <div>
+              <CardTitle>Sesi Mendatang</CardTitle>
+              <CardDescription className="mt-1">
+                Sesi yang akan atau sedang berlangsung.
+              </CardDescription>
+            </div>
+            {upcomingSessionsAll.length > 0 && (
+              <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-semibold">
+                <Link to="/history">
+                  Lihat Semua ({upcomingSessionsAll.length})
+                </Link>
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {loading ? (
