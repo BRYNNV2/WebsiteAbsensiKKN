@@ -7,7 +7,6 @@ import {
   XCircle,
   Clock,
   HelpCircle,
-  Info,
   Sparkles,
   ShieldCheck,
   Calendar,
