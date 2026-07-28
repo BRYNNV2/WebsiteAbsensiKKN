@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Sparkles,
   Search,
+  Eye,
 } from "lucide-react";
 
 import { supabase, type WorkProgram } from "@/lib/supabase";
@@ -192,6 +193,7 @@ export function DosenProkerPage() {
   // Modal Dialog states
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingProgram, setEditingProgram] = useState<WorkProgram | null>(null);
+  const [detailProgram, setDetailProgram] = useState<WorkProgram | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -670,11 +672,21 @@ export function DosenProkerPage() {
                                 </Badge>
                               </div>
 
-                              <div className="flex items-center gap-1 shrink-0">
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-7 text-muted-foreground hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950"
+                                  title="Lihat Detail Program Kerja"
+                                  onClick={() => setDetailProgram(p)}
+                                >
+                                  <Eye className="size-3.5" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   className="size-7 text-muted-foreground hover:text-foreground"
+                                  title="Edit Program Kerja"
                                   onClick={() => openEditModal(p)}
                                 >
                                   <Pencil className="size-3.5" />
@@ -683,6 +695,7 @@ export function DosenProkerPage() {
                                   variant="ghost"
                                   size="icon"
                                   className="size-7 text-muted-foreground hover:text-destructive"
+                                  title="Hapus Program Kerja"
                                   onClick={() => setDeletingId(p.id)}
                                 >
                                   <Trash2 className="size-3.5" />
@@ -911,6 +924,99 @@ export function DosenProkerPage() {
               Hapus
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Detail Program Kerja */}
+      <Dialog open={Boolean(detailProgram)} onOpenChange={() => setDetailProgram(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          {detailProgram && (
+            <div>
+              <DialogHeader className="pb-3 border-b">
+                <div className="flex items-center justify-between gap-2 pr-6">
+                  <Badge variant="outline" className="font-mono text-xs border-primary/40 text-primary">
+                    {detailProgram.code}
+                  </Badge>
+                  <Badge className={cn("text-xs px-2.5 py-0.5 border", getProkerStatus(detailProgram).badgeClass)}>
+                    {getProkerStatus(detailProgram).label}
+                  </Badge>
+                </div>
+                <DialogTitle className="text-lg font-bold tracking-tight text-foreground mt-2">
+                  {detailProgram.title}
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  Rincian lengkap informasi kegiatan program kerja KKN.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4 text-xs">
+                {/* Info Grid */}
+                <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl border bg-muted/40">
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                      <Calendar className="size-3 text-sky-600 dark:text-sky-400" />
+                      Hari &amp; Tanggal
+                    </span>
+                    <p className="font-semibold text-foreground">
+                      {detailProgram.day_name},{" "}
+                      {new Date(detailProgram.date).toLocaleDateString("id-ID", {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                      <Clock className="size-3 text-rose-500" />
+                      Waktu Pelaksanaan
+                    </span>
+                    <p className="font-semibold font-mono text-foreground">
+                      {detailProgram.starts_at} - {detailProgram.ends_at} WIB
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                      <GraduationCap className="size-3 text-purple-600 dark:text-purple-400" />
+                      Bidang / Kategori
+                    </span>
+                    <p className="font-semibold text-foreground truncate">
+                      {detailProgram.category}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                      <MapPin className="size-3 text-emerald-600 dark:text-emerald-400" />
+                      Lokasi
+                    </span>
+                    <p className="font-semibold text-foreground truncate">
+                      {detailProgram.location}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Deskripsi Target */}
+                <div className="space-y-1.5">
+                  <span className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
+                    <Briefcase className="size-3.5 text-primary" />
+                    Deskripsi &amp; Target Kegiatan:
+                  </span>
+                  <div className="p-3.5 rounded-xl border bg-card text-foreground/90 text-xs leading-relaxed whitespace-pre-line">
+                    {detailProgram.description || "Tidak ada deskripsi tambahan yang dimasukkan."}
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="pt-2 border-t">
+                <Button variant="outline" size="sm" onClick={() => setDetailProgram(null)}>
+                  Tutup
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
