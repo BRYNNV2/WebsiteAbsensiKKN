@@ -1,5 +1,14 @@
-import { useEffect, useState } from "react";
-import { Loader2, History, Calendar } from "lucide-react";
+import {
+  Loader2,
+  History,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Activity,
+  XCircle,
+  CalendarCheck,
+} from "lucide-react";
 
 import { supabase, type AttendanceRecord, type QrSession } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
@@ -43,6 +52,47 @@ function formatTime(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function MiniSparkline({ data, color, id }: { data: number[]; color: string; id: string }) {
+  const points = data.length > 2 ? data : [6, 12, 10, 18, 15, 24, 20, 28];
+  const max = Math.max(...points, 1);
+  const min = Math.min(...points, 0);
+  const range = max - min || 1;
+  const width = 88;
+  const height = 38;
+
+  const coords = points.map((val, idx) => {
+    const x = (idx / (points.length - 1)) * width;
+    const y = height - ((val - min) / range) * (height - 10) - 5;
+    return { x, y };
+  });
+
+  const linePath = coords
+    .map((p, idx) => `${idx === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+    .join(" ");
+
+  const areaPath = `${linePath} L${width},${height} L0,${height} Z`;
+
+  return (
+    <svg width={width} height={height} className="overflow-visible">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.0} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${id})`} />
+      <path
+        d={linePath}
+        fill="none"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 export function MahasiswaHistoryPage() {
@@ -115,29 +165,94 @@ export function MahasiswaHistoryPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardDescription>Hadir</CardDescription>
-            <CardTitle className="text-2xl tabular-nums text-emerald-600 dark:text-emerald-400">
-              {loading ? <Skeleton className="h-8 w-12" /> : presentCount}
-            </CardTitle>
-          </CardHeader>
+        {/* Card 1: Hadir Tepat Waktu */}
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-2xs transition-all hover:border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Hadir Tepat Waktu
+              </span>
+              <CalendarCheck className="size-4 text-muted-foreground/70" />
+            </div>
+            <div className="mt-3 flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                  {loading ? <Skeleton className="h-9 w-16" /> : presentCount}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="size-3.5" />
+                  <span>{sessions.length > 0 ? `${Math.round((presentCount / sessions.length) * 100)}% Presensi Hadir` : "0% Presensi Hadir"}</span>
+                </div>
+              </div>
+              <div className="pb-1">
+                <MiniSparkline
+                  data={presentCount > 0 ? [2, 4, 3, 6, 5, 8, 7, 10] : [1, 1, 2, 2, 3, 3]}
+                  color="#10b981"
+                  id="sparklineHistory1"
+                />
+              </div>
+            </div>
+          </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Terlambat</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {loading ? <Skeleton className="h-8 w-12" /> : lateCount}
-            </CardTitle>
-          </CardHeader>
+
+        {/* Card 2: Terlambat */}
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-2xs transition-all hover:border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Terlambat
+              </span>
+              <Clock className="size-4 text-muted-foreground/70" />
+            </div>
+            <div className="mt-3 flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                  {loading ? <Skeleton className="h-9 w-16" /> : lateCount}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-purple-600 dark:text-purple-400">
+                  <Activity className="size-3.5" />
+                  <span>{lateCount > 0 ? `${lateCount} Sesi Terlambat` : "Tidak Ada Keterlambatan"}</span>
+                </div>
+              </div>
+              <div className="pb-1">
+                <MiniSparkline
+                  data={lateCount > 0 ? [5, 3, 6, 4, 8, 5, 9] : [1, 2, 1, 2, 1, 3]}
+                  color="#a855f7"
+                  id="sparklineHistory2"
+                />
+              </div>
+            </div>
+          </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Belum Absen</CardDescription>
-            <CardTitle className="text-2xl tabular-nums text-muted-foreground">
-              {loading ? <Skeleton className="h-8 w-12" /> : absentCount}
-            </CardTitle>
-          </CardHeader>
+
+        {/* Card 3: Belum Absen / Alpha */}
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-2xs transition-all hover:border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Belum Absen / Alpha
+              </span>
+              <AlertCircle className="size-4 text-muted-foreground/70" />
+            </div>
+            <div className="mt-3 flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                  {loading ? <Skeleton className="h-9 w-16" /> : absentCount}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                  <XCircle className="size-3.5" />
+                  <span>{absentCount > 0 ? `${absentCount} Sesi Belum Dipindai` : "Seluruh Sesi Terabsen"}</span>
+                </div>
+              </div>
+              <div className="pb-1">
+                <MiniSparkline
+                  data={absentCount > 0 ? [8, 7, 6, 5, 4, 3, 2, 1] : [0, 0, 0, 0, 0, 0]}
+                  color="#f43f5e"
+                  id="sparklineHistory3"
+                />
+              </div>
+            </div>
+          </CardContent>
         </Card>
       </div>
 
