@@ -6,7 +6,20 @@ import {
   ScanLine,
   Clock,
   QrCode as QrIcon,
+  CheckCircle2,
+  BarChart3,
+  Activity,
+  UserCheck,
 } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { supabase, type AttendanceRecord, type QrSession } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
@@ -40,34 +53,44 @@ function formatDateTime(iso: string) {
   });
 }
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  hint,
-  loading,
-}: {
-  label: string;
-  value: string | number;
-  icon: typeof CalendarCheck;
-  hint?: string;
-  loading?: boolean;
-}) {
+function MiniSparkline({ data, color, id }: { data: number[]; color: string; id: string }) {
+  const points = data.length > 2 ? data : [6, 12, 10, 18, 15, 24, 20, 28];
+  const max = Math.max(...points, 1);
+  const min = Math.min(...points, 0);
+  const range = max - min || 1;
+  const width = 88;
+  const height = 38;
+
+  const coords = points.map((val, idx) => {
+    const x = (idx / (points.length - 1)) * width;
+    const y = height - ((val - min) / range) * (height - 10) - 5;
+    return { x, y };
+  });
+
+  const linePath = coords
+    .map((p, idx) => `${idx === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+    .join(" ");
+
+  const areaPath = `${linePath} L${width},${height} L0,${height} Z`;
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardDescription>{label}</CardDescription>
-          <Icon className="size-4 text-muted-foreground" />
-        </div>
-        <CardTitle className="text-3xl tabular-nums">
-          {loading ? <Skeleton className="h-9 w-16" /> : value}
-        </CardTitle>
-        {hint && (
-          <CardDescription className="pt-0">{hint}</CardDescription>
-        )}
-      </CardHeader>
-    </Card>
+    <svg width={width} height={height} className="overflow-visible">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.0} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${id})`} />
+      <path
+        d={linePath}
+        fill="none"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -137,6 +160,24 @@ export function MahasiswaDashboardPage() {
     return Math.round(((presentCount + lateCount) / sessions.length) * 100);
   }, [presentCount, lateCount, sessions]);
 
+  const chartData = useMemo(() => {
+    const sorted = [...sessions].sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+    return sorted.slice(-10).map((s, idx) => {
+      const rec = records.find((r) => r.session_id === s.id);
+      const status = rec?.status ?? "absen";
+      return {
+        name: s.title.replace(/Absensi KKN\d*-?\s*/i, "").slice(0, 14) || `Sesi ${idx + 1}`,
+        fullTitle: s.title,
+        statusLabel: status === "hadir" ? "Hadir Tepat Waktu" : status === "terlambat" ? "Terlambat" : status === "izin" ? "Izin" : status === "sakit" ? "Sakit" : "Belum Absen",
+        hadir: status === "hadir" ? 1 : 0,
+        terlambat: status === "terlambat" ? 1 : 0,
+        izin: status === "izin" ? 1 : 0,
+        sakit: status === "sakit" ? 1 : 0,
+        absen: status === "absen" ? 1 : 0,
+      };
+    });
+  }, [sessions, records]);
+
   const upcomingSessions = useMemo(() => {
     const now = new Date();
     return sessions
@@ -184,29 +225,193 @@ export function MahasiswaDashboardPage() {
         }
       />
 
+      {/* 3 Stat Cards with Sparkline Graphics */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Total Hadir"
-          value={presentCount}
-          icon={CalendarCheck}
-          hint="Sesi yang dihadiri tepat waktu"
-          loading={loading}
-        />
-        <StatCard
-          label="Terlambat"
-          value={lateCount}
-          icon={Clock}
-          hint="Sesi dengan keterlambatan"
-          loading={loading}
-        />
-        <StatCard
-          label="Tingkat Kehadiran"
-          value={`${attendanceRate}%`}
-          icon={TrendingUp}
-          hint="Dari seluruh sesi kelompok"
-          loading={loading}
-        />
+        {/* Card 1: Hadir Tepat Waktu */}
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-2xs transition-all hover:border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Hadir Tepat Waktu
+              </span>
+              <CalendarCheck className="size-4 text-muted-foreground/70" />
+            </div>
+            <div className="mt-3 flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                  {loading ? <Skeleton className="h-9 w-16" /> : presentCount}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="size-3.5" />
+                  <span>{sessions.length > 0 ? `${Math.round((presentCount / sessions.length) * 100)}% dari Total Sesi` : "0% dari Total Sesi"}</span>
+                </div>
+              </div>
+              <div className="pb-1">
+                <MiniSparkline
+                  data={presentCount > 0 ? [2, 4, 3, 6, 5, 8, 7, 10] : [1, 1, 2, 2, 3, 3]}
+                  color="#10b981"
+                  id="sparklineMhs1"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 2: Terlambat / Izin */}
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-2xs transition-all hover:border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Terlambat / Izin
+              </span>
+              <Clock className="size-4 text-muted-foreground/70" />
+            </div>
+            <div className="mt-3 flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                  {loading ? <Skeleton className="h-9 w-16" /> : lateCount}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
+                  <Activity className="size-3.5" />
+                  <span>{lateCount > 0 ? `${lateCount} Sesi Terlambat` : "Tidak Ada Keterlambatan"}</span>
+                </div>
+              </div>
+              <div className="pb-1">
+                <MiniSparkline
+                  data={lateCount > 0 ? [5, 3, 6, 4, 8, 5, 9] : [1, 2, 1, 2, 1, 3]}
+                  color="#0284c7"
+                  id="sparklineMhs2"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 3: Tingkat Kehadiran KKN */}
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-2xs transition-all hover:border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Tingkat Kehadiran KKN
+              </span>
+              <TrendingUp className="size-4 text-muted-foreground/70" />
+            </div>
+            <div className="mt-3 flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+                  {loading ? <Skeleton className="h-9 w-16" /> : `${attendanceRate}%`}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-purple-600 dark:text-purple-400">
+                  <UserCheck className="size-3.5" />
+                  <span>{records.length} / {sessions.length} Sesi Terabsen</span>
+                </div>
+              </div>
+              <div className="pb-1">
+                <MiniSparkline
+                  data={[20, 40, 35, 60, 55, 80, 75, 95]}
+                  color="#a855f7"
+                  id="sparklineMhs3"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Grafik Recharts Riwayat Kehadiran Mahasiswa */}
+      <Card className="border border-border/60 shadow-2xs">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b">
+          <div>
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <BarChart3 className="size-4 text-primary" />
+              <span>Grafik Presensi Sesi KKN Saya</span>
+            </CardTitle>
+            <CardDescription className="text-xs mt-0.5">
+              Visualisasi tren dan status kehadiran Anda pada tiap sesi kegiatan KKN.
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs font-medium">
+            <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+              <span className="size-2.5 rounded-full bg-emerald-500" />
+              Hadir Tepat Waktu
+            </span>
+            <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
+              <span className="size-2.5 rounded-full bg-purple-500" />
+              Terlambat
+            </span>
+            <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+              <span className="size-2.5 rounded-full bg-rose-500" />
+              Belum Absen / Alpha
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4">
+          {loading ? (
+            <div className="h-[280px] flex items-center justify-center">
+              <Skeleton className="h-full w-full rounded-lg" />
+            </div>
+          ) : chartData.length === 0 ? (
+            <Empty className="py-12 border-0">
+              <EmptyMedia variant="icon">
+                <BarChart3 />
+              </EmptyMedia>
+              <EmptyTitle>Belum Ada Data Grafik</EmptyTitle>
+              <EmptyDescription>
+                Grafik kehadiran akan muncul setelah dosen pembimbing membuat sesi KKN.
+              </EmptyDescription>
+            </Empty>
+          ) : (
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/40" />
+                  <XAxis
+                    dataKey="name"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11, fill: "currentColor" }}
+                    className="text-muted-foreground"
+                    interval={0}
+                    angle={-15}
+                    textAnchor="end"
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    domain={[0, 1]}
+                    ticks={[0, 1]}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(val) => (val === 1 ? "Hadir" : "Belum")}
+                    tick={{ fontSize: 11, fill: "currentColor" }}
+                    className="text-muted-foreground"
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="rounded-lg border bg-popover p-3 shadow-xl text-xs space-y-1 z-50">
+                            <p className="font-bold text-popover-foreground">{data.fullTitle}</p>
+                            <p className="text-muted-foreground">
+                              Status Kehadiran: <span className="font-bold text-foreground">{data.statusLabel}</span>
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="hadir" stackId="a" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                  <Bar dataKey="terlambat" stackId="a" fill="#A855F7" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                  <Bar dataKey="izin" stackId="a" fill="#3B82F6" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                  <Bar dataKey="sakit" stackId="a" fill="#F59E0B" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                  <Bar dataKey="absen" stackId="a" fill="#F43F5E" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
