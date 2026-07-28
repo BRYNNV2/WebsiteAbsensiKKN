@@ -19,9 +19,14 @@ import {
   UserCheck,
   ChevronLeft,
   ChevronRight,
+  Pencil,
+  FileText,
+  MapPin,
+  Clock,
+  Users,
 } from "lucide-react";
 
-import { supabase, type QrSession } from "@/lib/supabase";
+import { supabase, type QrSession, type AttendanceRecord, type AttendanceStatus } from "@/lib/supabase";
 import { useDosenData } from "@/hooks/use-dosen-data";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +63,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Empty,
   EmptyDescription,
@@ -140,13 +153,104 @@ function MiniSparkline({ data, color, id }: { data: number[]; color: string; id:
 }
 
 export function DosenSessionsPage() {
-  const { group } = useDosenData();
+  const { group, students } = useDosenData();
   const [sessions, setSessions] = useState<QrSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [previewSession, setPreviewSession] = useState<QrSession | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  // Edit Session State & Form
+  const [editSession, setEditSession] = useState<QrSession | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  const editForm = useForm<SessionForm>({
+    resolver: zodResolver(sessionSchema),
+    mode: "onBlur",
+  });
+
+  function handleOpenEdit(s: QrSession) {
+    setEditSession(s);
+    const startDate = new Date(s.starts_at);
+    const endDate = new Date(s.ends_at);
+    const meetingDateStr = s.meeting_date || startDate.toISOString().slice(0, 10);
+
+    const hours = String(startDate.getHours()).padStart(2, "0");
+    const minutes = String(startDate.getMinutes()).padStart(2, "0");
+    const startTimeStr = `${hours}:${minutes}`;
+
+    const durationMins = Math.max(5, Math.round((endDate.getTime() - startDate.getTime()) / 60000));
+
+    editForm.reset({
+      title: s.title,
+      meeting_date: meetingDateStr,
+      starts_at: startTimeStr,
+      duration: durationMins,
+      location: s.location || "",
+    });
+    setEditOpen(true);
+  }
+
+  async function onEditSubmit(values: SessionForm) {
+    if (!editSession) return;
+    setEditSubmitting(true);
+    try {
+      const start = new Date(`${values.meeting_date}T${values.starts_at}`);
+      const end = new Date(start.getTime() + values.duration * 60 * 1000);
+
+      const { error } = await supabase
+        .from("qr_sessions")
+        .update({
+          title: values.title,
+          meeting_date: values.meeting_date,
+          starts_at: start.toISOString(),
+          ends_at: end.toISOString(),
+          location: values.location || null,
+        })
+        .eq("id", editSession.id);
+
+      if (error) {
+        toast.error("Gagal memperbarui sesi absensi: " + error.message);
+        return;
+      }
+
+      toast.success("Sesi absensi berhasil diperbarui.");
+      setEditOpen(false);
+      setEditSession(null);
+      loadSessions();
+    } catch (err) {
+      toast.error("Terjadi kesalahan saat menyimpan perubahan.");
+    } finally {
+      setEditSubmitting(false);
+    }
+  }
+
+  // Session Details & Attendance Breakdown State
+  const [detailSession, setDetailSession] = useState<QrSession | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailRecords, setDetailRecords] = useState<AttendanceRecord[]>([]);
+
+  async function handleOpenDetail(s: QrSession) {
+    setDetailSession(s);
+    setDetailOpen(true);
+    setDetailLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("attendance_records")
+        .select("id, session_id, student_id, status, scanned_at")
+        .eq("session_id", s.id);
+
+      if (error) {
+        console.error("Error fetching detail attendance records:", error);
+      }
+      setDetailRecords((data as AttendanceRecord[]) ?? []);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
 
   // Search, Filter, & Sorting State
   const [searchQuery, setSearchQuery] = useState("");
@@ -680,14 +784,33 @@ export function DosenSessionsPage() {
                           {s.location && <span>{s.location}</span>}
                         </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-1">
+                      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setPreviewSession(s)}
+                          className="gap-1 text-xs cursor-pointer"
                         >
-                          <Eye className="size-4" />
-                          Lihat QR
+                          <Eye className="size-3.5 text-primary" />
+                          <span>Lihat QR</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenDetail(s)}
+                          className="gap-1 text-xs cursor-pointer border-sky-500/30 hover:bg-sky-500/10 text-sky-600 dark:text-sky-400"
+                        >
+                          <FileText className="size-3.5" />
+                          <span>Detail</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEdit(s)}
+                          className="gap-1 text-xs cursor-pointer border-amber-500/30 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        >
+                          <Pencil className="size-3.5" />
+                          <span>Edit</span>
                         </Button>
                         <Button
                           variant="ghost"
@@ -695,11 +818,12 @@ export function DosenSessionsPage() {
                           onClick={() => handleRemove(s.id)}
                           disabled={removingId === s.id}
                           aria-label="Hapus sesi"
+                          className="cursor-pointer hover:bg-rose-500/10 text-destructive"
                         >
                           {removingId === s.id ? (
-                            <Loader2 className="size-4 animate-spin" />
+                            <Loader2 className="size-3.5 animate-spin" />
                           ) : (
-                            <Trash2 className="size-4 text-destructive" />
+                            <Trash2 className="size-3.5" />
                           )}
                         </Button>
                       </div>
@@ -720,7 +844,7 @@ export function DosenSessionsPage() {
                     <span className="font-bold text-foreground">
                       {Math.min(currentPage * SESSIONS_PER_PAGE, processedSessions.length)}
                     </span>{" "}
-                    dari <span className="font-bold text-foreground">{processedSessions.length}</span> Sesi Absen
+                    dari <span className="font-bold text-foreground">{processedSessions.length}</span> Sesi
                   </div>
 
                   <div className="flex items-center gap-1.5">
@@ -758,9 +882,10 @@ export function DosenSessionsPage() {
         </CardContent>
       </Card>
 
+      {/* Dialog Preview QR */}
       <Dialog
-        open={!!previewSession}
-        onOpenChange={(o) => !o && setPreviewSession(null)}
+        open={Boolean(previewSession)}
+        onOpenChange={(open) => !open && setPreviewSession(null)}
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -787,6 +912,306 @@ export function DosenSessionsPage() {
               />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Edit Sesi Absensi */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <Pencil className="size-5" />
+              Edit Sesi Absensi
+            </DialogTitle>
+            <DialogDescription>
+              Ubah judul, waktu pelaksanaan, durasi, atau lokasi sesi ini.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+            <Field>
+              <FieldLabel htmlFor="ed_title">Judul Sesi Pertemuan *</FieldLabel>
+              <Input
+                id="ed_title"
+                placeholder="mis. Absensi KKN62 - Program Kerja 1"
+                {...editForm.register("title")}
+              />
+              {editForm.formState.errors.title && (
+                <FieldError>{editForm.formState.errors.title.message}</FieldError>
+              )}
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="ed_meeting_date">Tanggal *</FieldLabel>
+                <Input
+                  id="ed_meeting_date"
+                  type="date"
+                  {...editForm.register("meeting_date")}
+                />
+                {editForm.formState.errors.meeting_date && (
+                  <FieldError>{editForm.formState.errors.meeting_date.message}</FieldError>
+                )}
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="ed_starts_at">Jam Mulai *</FieldLabel>
+                <Input
+                  id="ed_starts_at"
+                  type="time"
+                  {...editForm.register("starts_at")}
+                />
+                {editForm.formState.errors.starts_at && (
+                  <FieldError>{editForm.formState.errors.starts_at.message}</FieldError>
+                )}
+              </Field>
+            </div>
+
+            <Field>
+              <FieldLabel htmlFor="ed_duration">Durasi Aktif (Menit) *</FieldLabel>
+              <Input
+                id="ed_duration"
+                type="number"
+                min={5}
+                max={240}
+                {...editForm.register("duration", { valueAsNumber: true })}
+              />
+              {editForm.formState.errors.duration && (
+                <FieldError>{editForm.formState.errors.duration.message}</FieldError>
+              )}
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="ed_location">Lokasi Pertemuan (Opsional)</FieldLabel>
+              <Input
+                id="ed_location"
+                placeholder="mis. Balai Desa Pulau Parit"
+                {...editForm.register("location")}
+              />
+            </Field>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditOpen(false)}
+                disabled={editSubmitting}
+              >
+                Batal
+              </Button>
+              <Button type="submit" disabled={editSubmitting} className="bg-amber-600 hover:bg-amber-700 text-white">
+                {editSubmitting && <Loader2 className="size-4 animate-spin" />}
+                Simpan Perubahan
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Detail Sesi & Rekap Presensi */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between gap-2 pr-6">
+              <DialogTitle className="flex items-center gap-2 text-base font-bold">
+                <FileText className="size-5 text-sky-600 dark:text-sky-400" />
+                <span>{detailSession?.title}</span>
+              </DialogTitle>
+              {detailSession && (
+                <Badge
+                  variant={
+                    statusOf(detailSession) === "active"
+                      ? "default"
+                      : statusOf(detailSession) === "past"
+                        ? "secondary"
+                        : "outline"
+                  }
+                  className={cn(
+                    statusOf(detailSession) === "active" && "bg-emerald-600 text-white"
+                  )}
+                >
+                  {statusOf(detailSession) === "active"
+                    ? "Sesi Aktif"
+                    : statusOf(detailSession) === "past"
+                      ? "Sesi Selesai"
+                      : "Terjadwal"}
+                </Badge>
+              )}
+            </div>
+            <DialogDescription className="text-xs">
+              Detail waktu pelaksanaan, token QR, dan rekapitulasi kehadiran mahasiswa pada sesi ini.
+            </DialogDescription>
+          </DialogHeader>
+
+          {detailSession && (
+            <div className="space-y-4 pt-1">
+              {/* Info Cards Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                <div className="p-2.5 rounded-lg border bg-muted/40 space-y-1">
+                  <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                    <CalendarClock className="size-3 text-muted-foreground" />
+                    Waktu Sesi
+                  </span>
+                  <p className="font-semibold text-foreground">
+                    {formatDateTime(detailSession.starts_at)}
+                  </p>
+                </div>
+
+                <div className="p-2.5 rounded-lg border bg-muted/40 space-y-1">
+                  <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                    <Clock className="size-3 text-muted-foreground" />
+                    Selesai
+                  </span>
+                  <p className="font-semibold text-foreground">
+                    {new Date(detailSession.ends_at).toLocaleTimeString("id-ID", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+
+                <div className="p-2.5 rounded-lg border bg-muted/40 space-y-1">
+                  <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                    <MapPin className="size-3 text-muted-foreground" />
+                    Lokasi
+                  </span>
+                  <p className="font-semibold text-foreground truncate">
+                    {detailSession.location || "—"}
+                  </p>
+                </div>
+
+                <div className="p-2.5 rounded-lg border bg-muted/40 space-y-1">
+                  <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                    <Users className="size-3 text-muted-foreground" />
+                    Total Mahasiswa
+                  </span>
+                  <p className="font-bold text-foreground">
+                    {students.length} Mahasiswa
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Summary Pills */}
+              <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+                {(() => {
+                  const hadirCount = detailRecords.filter((r) => r.status === "hadir").length;
+                  const lateCount = detailRecords.filter((r) => r.status === "terlambat").length;
+                  const izinCount = detailRecords.filter((r) => r.status === "izin").length;
+                  const sakitCount = detailRecords.filter((r) => r.status === "sakit").length;
+                  const absentCount = students.length - (hadirCount + lateCount + izinCount + sakitCount);
+
+                  return (
+                    <>
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 border-emerald-500/30 text-xs px-2.5 py-1">
+                        Hadir: {hadirCount}
+                      </Badge>
+                      <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 border-purple-500/30 text-xs px-2.5 py-1">
+                        Telat: {lateCount}
+                      </Badge>
+                      <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 border-blue-500/30 text-xs px-2.5 py-1">
+                        Izin: {izinCount}
+                      </Badge>
+                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 border-amber-500/30 text-xs px-2.5 py-1">
+                        Sakit: {sakitCount}
+                      </Badge>
+                      <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 border-rose-500/30 text-xs px-2.5 py-1">
+                        Alpha: {Math.max(0, absentCount)}
+                      </Badge>
+                    </>
+                  );
+                })()}
+              </div>
+
+              {/* Table Student Attendances for this session */}
+              <div className="space-y-2 pt-1">
+                <h4 className="text-xs font-bold text-foreground flex items-center justify-between">
+                  <span>Daftar Presensi Mahasiswa</span>
+                  <span className="text-muted-foreground font-normal">
+                    {detailRecords.length} / {students.length} Terabsen
+                  </span>
+                </h4>
+
+                {detailLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : students.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-muted-foreground">
+                    Belum ada mahasiswa terdaftar di kelompok ini.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border">
+                    <Table className="text-xs">
+                      <TableHeader className="bg-muted/50">
+                        <TableRow>
+                          <TableHead className="w-12 text-center">No</TableHead>
+                          <TableHead>Nama Mahasiswa</TableHead>
+                          <TableHead>NIM (ID)</TableHead>
+                          <TableHead>Waktu Pindai</TableHead>
+                          <TableHead className="text-center">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {students.map((st, idx) => {
+                          const record = detailRecords.find((r) => r.student_id === st.id);
+                          const stStatus: AttendanceStatus = record?.status ?? "absen";
+
+                          const badgeInfo =
+                            stStatus === "hadir"
+                              ? { label: "Hadir", cls: "bg-emerald-600 text-white" }
+                              : stStatus === "terlambat"
+                                ? { label: "Telat", cls: "bg-purple-600 text-white" }
+                                : stStatus === "izin"
+                                  ? { label: "Izin", cls: "bg-blue-600 text-white" }
+                                  : stStatus === "sakit"
+                                    ? { label: "Sakit", cls: "bg-amber-600 text-white" }
+                                    : { label: "Alpha", cls: "bg-rose-600 text-white" };
+
+                          return (
+                            <TableRow key={st.id}>
+                              <TableCell className="text-center font-medium text-muted-foreground">{idx + 1}</TableCell>
+                              <TableCell className="font-semibold text-foreground">{st.full_name}</TableCell>
+                              <TableCell className="font-mono text-muted-foreground">{st.student_id ?? "—"}</TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {record?.scanned_at
+                                  ? new Date(record.scanned_at).toLocaleTimeString("id-ID", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge className={cn("text-[11px] font-semibold px-2 py-0.5", badgeInfo.cls)}>
+                                  {badgeInfo.label}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="pt-2 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (detailSession) setPreviewSession(detailSession);
+              }}
+              className="gap-1.5 text-xs cursor-pointer mr-auto"
+            >
+              <QrCode className="size-3.5 text-primary" />
+              <span>Tampilkan Kode QR</span>
+            </Button>
+            <Button size="sm" onClick={() => setDetailOpen(false)}>
+              Tutup
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
