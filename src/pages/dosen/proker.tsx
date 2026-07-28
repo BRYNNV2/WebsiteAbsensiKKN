@@ -160,6 +160,7 @@ function getProkerStatus(p: WorkProgram) {
       badgeClass: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
       cardClass: "bg-card border-border/70 hover:border-border",
     };
+  } else {
     return {
       statusKey: "scheduled",
       label: "Terjadwal (Hari Ini)",
