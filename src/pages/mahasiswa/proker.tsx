@@ -469,8 +469,8 @@ export function MahasiswaProkerPage() {
 
       {/* Schedule Grid by Days (Matching Sample Screenshot) */}
       {loading ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-64 w-full rounded-xl" />
           ))}
         </div>
@@ -489,33 +489,33 @@ export function MahasiswaProkerPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 items-start">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 items-start">
           {programsByDay.map(({ day, items }) => {
             const isToday = day === todayDayName;
             if (activeTab === "Semua Hari" && items.length === 0) return null;
 
             return (
-              <div key={day} className="space-y-3">
+              <div key={day} className="space-y-2.5 sm:space-y-3">
                 <div className="flex items-center justify-between px-1">
-                  <h3 className="text-base font-bold tracking-tight text-foreground flex items-center gap-2">
+                  <h3 className="text-xs sm:text-base font-bold tracking-tight text-foreground flex items-center gap-1.5">
                     <span>{day}</span>
                     {isToday && (
-                      <Badge className="bg-sky-500 text-white text-[10px] px-2 py-0">
+                      <Badge className="bg-sky-500 text-white text-[9px] sm:text-[10px] px-1.5 py-0">
                         Hari Ini
                       </Badge>
                     )}
                   </h3>
-                  <span className="text-xs text-muted-foreground font-semibold">
+                  <span className="text-[10px] sm:text-xs text-muted-foreground font-semibold">
                     {items.length} Agenda
                   </span>
                 </div>
 
                 {items.length === 0 ? (
-                  <div className="p-4 rounded-xl border border-dashed text-center text-xs text-muted-foreground">
+                  <div className="p-3 rounded-xl border border-dashed text-center text-[11px] sm:text-xs text-muted-foreground">
                     Tidak ada kegiatan pada hari {day}.
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2.5 sm:space-y-3">
                     {items.map((p) => {
                       const status = getProkerStatus(p);
                       return (
@@ -526,7 +526,7 @@ export function MahasiswaProkerPage() {
                             status.cardClass
                           )}
                         >
-                          <CardContent className="p-4 space-y-3">
+                          <CardContent className="p-3 sm:p-4 space-y-2.5">
                             {/* Title & Code Header */}
                             <div className="flex items-start justify-between gap-2">
                               <div>
