@@ -115,45 +115,48 @@ function MiniSparkline({ data, color, id }: { data: number[]; color: string; id:
 
 function getProkerStatus(p: WorkProgram) {
   const now = new Date();
-  const todayStr = now.toISOString().split("T")[0];
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const todayStr = `${year}-${month}-${day}`;
 
   const hours = String(now.getHours()).padStart(2, "0");
   const minutes = String(now.getMinutes()).padStart(2, "0");
   const currentTimeStr = `${hours}:${minutes}`;
 
-  if (p.date < todayStr) {
+  const startTime = (p.starts_at || "").slice(0, 5);
+  const endTime = (p.ends_at || "").slice(0, 5);
+  const pDate = (p.date || "").slice(0, 10);
+
+  if (pDate < todayStr) {
     return {
       statusKey: "completed",
       label: "Selesai",
-      isBlue: false,
       badgeClass: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
       cardClass: "bg-card border-border/70 hover:border-border",
     };
   }
-  if (p.date > todayStr) {
+  if (pDate > todayStr) {
     return {
       statusKey: "scheduled",
       label: "Terjadwal",
-      isBlue: false,
       badgeClass: "bg-muted text-muted-foreground border-border",
       cardClass: "bg-card border-border/70 hover:border-border",
     };
   }
 
   // Same day: check time slot!
-  if (currentTimeStr >= p.starts_at && currentTimeStr <= p.ends_at) {
+  if (currentTimeStr >= startTime && currentTimeStr <= endTime) {
     return {
       statusKey: "active",
       label: "Sedang Berlangsung",
-      isBlue: true,
       badgeClass: "bg-sky-500 text-white border-sky-600 font-bold",
-      cardClass: "bg-sky-50/80 border-sky-300 dark:bg-sky-950/50 dark:border-sky-800 shadow-xs",
+      cardClass: "bg-card border-l-4 border-l-sky-500 border-border/70 shadow-2xs",
     };
-  } else if (currentTimeStr > p.ends_at) {
+  } else if (currentTimeStr > endTime) {
     return {
       statusKey: "completed",
       label: "Selesai",
-      isBlue: false,
       badgeClass: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
       cardClass: "bg-card border-border/70 hover:border-border",
     };
@@ -161,7 +164,6 @@ function getProkerStatus(p: WorkProgram) {
     return {
       statusKey: "scheduled",
       label: "Terjadwal (Hari Ini)",
-      isBlue: false,
       badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
       cardClass: "bg-card border-border/70 hover:border-border",
     };
