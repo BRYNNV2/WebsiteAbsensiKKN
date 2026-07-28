@@ -15,6 +15,7 @@ export function LoadingLottie({
       <Lottie
         animationData={loadingAnimation}
         loop={true}
+        speed={3.5}
         className={className}
       />
       {text && (
@@ -41,6 +42,7 @@ export function LoadingOverlay({
         <Lottie
           animationData={loadingAnimation}
           loop={true}
+          speed={3.5}
           className="w-36 h-36"
         />
         <div className="space-y-1">
