@@ -26,6 +26,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { ModeToggle } from "@/components/mode-toggle";
+import { LoadingOverlay } from "@/components/loading-lottie";
 
 const loginSchema = z.object({
   identifier: z.string().min(3, "Masukkan NIM atau Email Anda"),
@@ -160,6 +161,7 @@ export function LoginPage() {
 
   return (
     <div className="relative flex min-h-svh flex-col bg-muted/30">
+      <LoadingOverlay show={submitting} text="Memproses Masuk Akun..." />
       <div className="absolute top-4 right-4">
         <ModeToggle />
       </div>

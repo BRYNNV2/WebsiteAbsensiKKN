@@ -26,6 +26,7 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
 
 import { ModeToggle } from "@/components/mode-toggle";
+import { LoadingOverlay } from "@/components/loading-lottie";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,10 +120,19 @@ export function AppShell() {
     return match ? match.label : "Dashboard";
   }, [navItems, location.pathname]);
 
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   async function handleSignOut() {
-    await signOut();
-    toast.success("Anda telah keluar dari sistem.");
-    navigate("/login", { replace: true });
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+      toast.success("Anda telah keluar dari sistem.");
+      navigate("/login", { replace: true });
+    } catch {
+      toast.error("Gagal keluar dari sistem. Silakan coba lagi.");
+    } finally {
+      setIsLoggingOut(false);
+    }
   }
 
   if (!profile) return null;
@@ -132,6 +142,7 @@ export function AppShell() {
 
   return (
     <SidebarProvider>
+      <LoadingOverlay show={isLoggingOut} text="Memproses Keluar Akun..." />
       <Sidebar collapsible="icon" variant="inset">
         <SidebarHeader className="p-3 space-y-2">
           {/* Header Brand */}
