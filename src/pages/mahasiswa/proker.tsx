@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Briefcase,
   Calendar,
+  CalendarDays,
   Clock,
   MapPin,
   GraduationCap,
@@ -19,6 +20,13 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -334,40 +342,64 @@ export function MahasiswaProkerPage() {
         </Card>
       </div>
 
-      {/* Filter Tabs & Search Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-          <Button
-            variant={activeTab === "Semua Hari" ? "default" : "outline"}
-            size="sm"
+      {/* Segmented Navbar Filter Bar & Search */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-2.5 rounded-2xl border border-border/70 shadow-2xs">
+        {/* Left: Segmented Navbar Tabs */}
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/40">
+          <button
             onClick={() => setActiveTab("Semua Hari")}
-            className="text-xs shrink-0"
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer",
+              activeTab === "Semua Hari"
+                ? "bg-background text-foreground shadow-2xs font-bold"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+            )}
           >
-            Semua Hari
-          </Button>
-          {DAYS_LIST.map((day) => (
-            <Button
-              key={day}
-              variant={activeTab === day ? "default" : "outline"}
-              size="sm"
-              onClick={() => setActiveTab(day)}
-              className={cn(
-                "text-xs shrink-0",
-                day === todayDayName && activeTab !== day && "border-sky-500/50 text-sky-600 dark:text-sky-400 font-semibold"
-              )}
-            >
-              {day} {day === todayDayName && "• Hari Ini"}
-            </Button>
-          ))}
+            <CalendarDays className="size-3.5 text-primary" />
+            <span>Semua Hari</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab(todayDayName)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer",
+              activeTab === todayDayName
+                ? "bg-sky-500 text-white shadow-2xs font-bold"
+                : "text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 font-semibold"
+            )}
+          >
+            <Sparkles className="size-3.5" />
+            <span>Hari Ini ({todayDayName})</span>
+          </button>
+
+          <div className="h-4 w-px bg-border/60 mx-0.5 hidden sm:block" />
+
+          {/* Select Specific Day */}
+          <Select
+            value={DAYS_LIST.includes(activeTab) && activeTab !== todayDayName ? activeTab : ""}
+            onValueChange={(val) => setActiveTab(val)}
+          >
+            <SelectTrigger className="h-7 border-0 bg-transparent text-xs font-medium text-muted-foreground hover:text-foreground focus:ring-0 gap-1 px-2 shrink-0">
+              <SelectValue placeholder="Pilih Hari Lain ▾" />
+            </SelectTrigger>
+            <SelectContent align="start">
+              {DAYS_LIST.map((d) => (
+                <SelectItem key={d} value={d} className="text-xs">
+                  {d} {d === todayDayName && "(Hari Ini)"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="relative w-full sm:w-64">
+        {/* Right: Search Input */}
+        <div className="relative w-full md:w-64">
           <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
           <Input
             placeholder="Cari agenda kegiatan..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 text-xs"
+            className="pl-9 text-xs h-9 rounded-xl bg-background border-border/70"
           />
         </div>
       </div>
