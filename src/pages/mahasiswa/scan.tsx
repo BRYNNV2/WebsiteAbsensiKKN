@@ -135,8 +135,8 @@ export function MahasiswaScanPage() {
         description="Arahkan kamera ke kode QR yang ditampilkan dosen, atau unggah foto QR jika hanya memiliki satu perangkat."
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-12 max-w-5xl mx-auto items-start">
+        <Card className="lg:col-span-7">
           <CardHeader>
             <CardTitle>Pemindai QR</CardTitle>
             <CardDescription>
@@ -148,7 +148,7 @@ export function MahasiswaScanPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="lg:col-span-5">
           <CardHeader>
             <CardTitle>Status Absen</CardTitle>
             <CardDescription>

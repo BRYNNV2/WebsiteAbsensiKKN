@@ -145,11 +145,11 @@ export function QrScanner({ onResult, className }: QrScannerProps) {
   const isScanning = state === "scanning";
 
   return (
-    <div className={cn("flex flex-col gap-4", className)}>
+    <div className={cn("space-y-4 max-w-[380px] mx-auto w-full", className)}>
       <div
         className={cn(
-          "relative aspect-square w-full overflow-hidden rounded-xl border bg-black",
-          !isScanning && "flex items-center justify-center"
+          "relative aspect-square w-full overflow-hidden rounded-2xl border border-border/80 bg-black shadow-md",
+          !isScanning && "flex items-center justify-center bg-card"
         )}
       >
         <video
