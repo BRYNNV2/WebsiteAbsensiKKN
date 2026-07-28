@@ -94,6 +94,44 @@ function MiniSparkline({ data, color, id }: { data: number[]; color: string; id:
   );
 }
 
+function CustomMahasiswaTooltip({ active, payload, label }: any) {
+  if (!active || !payload || !payload.length) return null;
+
+  // Dapatkan item data yang tepat untuk batang chart yang sedang diarahkan kursor
+  const itemData = payload[0]?.payload;
+  const sessionTitle = itemData?.fullTitle || label || "Detail Sesi Absensi";
+  const statusKey = itemData?.statusKey || "absen";
+  const dateStr = itemData?.dateStr || "";
+
+  const badgeStyles: Record<string, { bg: string; text: string }> = {
+    hadir: { bg: "bg-emerald-600 text-white", text: "Hadir Tepat Waktu" },
+    terlambat: { bg: "bg-purple-600 text-white", text: "Terlambat" },
+    izin: { bg: "bg-blue-600 text-white", text: "Izin (Ada Keterangan)" },
+    sakit: { bg: "bg-amber-600 text-white", text: "Sakit" },
+    absen: { bg: "bg-rose-600 text-white", text: "Belum Absen / Alpha" },
+  };
+
+  const badge = badgeStyles[statusKey] || badgeStyles.absen;
+
+  return (
+    <div className="rounded-xl border border-border/80 bg-background/95 p-3.5 shadow-2xl backdrop-blur-md min-w-[220px] z-50 text-xs space-y-2 pointer-events-none animate-in fade-in-50 zoom-in-95">
+      <p className="font-bold text-foreground border-b pb-1.5 text-xs tracking-tight">{sessionTitle}</p>
+      {dateStr && (
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+          <CalendarCheck className="size-3 text-muted-foreground" />
+          <span>{dateStr}</span>
+        </p>
+      )}
+      <div className="pt-1 flex items-center justify-between gap-3">
+        <span className="text-muted-foreground font-medium">Status Presensi:</span>
+        <Badge className={cn("text-[11px] font-semibold px-2 py-0.5 shadow-xs", badge.bg)}>
+          {badge.text}
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
 export function MahasiswaDashboardPage() {
   const { profile } = useAuth();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -161,14 +199,25 @@ export function MahasiswaDashboardPage() {
   }, [presentCount, lateCount, sessions]);
 
   const chartData = useMemo(() => {
-    const sorted = [...sessions].sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
-    return sorted.slice(-10).map((s, idx) => {
+    const sorted = [...sessions].sort(
+      (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
+    );
+    return sorted.map((s, idx) => {
       const rec = records.find((r) => r.session_id === s.id);
       const status = rec?.status ?? "absen";
+      const startDate = new Date(s.starts_at);
+      const dateStr = startDate.toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
       return {
         name: s.title.replace(/Absensi KKN\d*-?\s*/i, "").slice(0, 14) || `Sesi ${idx + 1}`,
         fullTitle: s.title,
-        statusLabel: status === "hadir" ? "Hadir Tepat Waktu" : status === "terlambat" ? "Terlambat" : status === "izin" ? "Izin" : status === "sakit" ? "Sakit" : "Belum Absen",
+        dateStr,
+        statusKey: status,
         hadir: status === "hadir" ? 1 : 0,
         terlambat: status === "terlambat" ? 1 : 0,
         izin: status === "izin" ? 1 : 0,
@@ -399,22 +448,7 @@ export function MahasiswaDashboardPage() {
                     tick={{ fontSize: 11, fill: "currentColor" }}
                     className="text-muted-foreground"
                   />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className="rounded-lg border bg-popover p-3 shadow-xl text-xs space-y-1 z-50">
-                            <p className="font-bold text-popover-foreground">{data.fullTitle}</p>
-                            <p className="text-muted-foreground">
-                              Status Kehadiran: <span className="font-bold text-foreground">{data.statusLabel}</span>
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
+                  <Tooltip content={<CustomMahasiswaTooltip />} />
                   <Bar dataKey="hadir" stackId="a" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={36} />
                   <Bar dataKey="terlambat" stackId="a" fill="#A855F7" radius={[4, 4, 0, 0]} maxBarSize={36} />
                   <Bar dataKey="izin" stackId="a" fill="#3B82F6" radius={[4, 4, 0, 0]} maxBarSize={36} />
