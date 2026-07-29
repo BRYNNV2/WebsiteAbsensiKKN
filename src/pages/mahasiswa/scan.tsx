@@ -150,7 +150,6 @@ export function MahasiswaScanPage() {
       setSuccessSession(validSession);
       setResult({ kind: "success", session: validSession });
       setShowSuccessModal(true);
-      toast.success("Absen berhasil tercatat.");
     } catch {
       setResult({
         kind: "error",

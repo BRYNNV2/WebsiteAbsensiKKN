@@ -85,7 +85,7 @@ export function SuccessScanModal({
           {/* Title & Live Status Badge */}
           <div className="space-y-1.5 -mt-2">
             <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-400 bg-clip-text text-transparent">
-              Presensi Berhasil!
+              Absen Berhasil Tercatat!
             </h3>
             
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-500/25 shadow-2xs">
