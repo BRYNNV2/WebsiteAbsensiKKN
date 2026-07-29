@@ -243,19 +243,19 @@ export function FeedbackPage() {
     }
   }
 
-  // Delete Feedback
+  // Delete Feedback (Only Dosen has authority)
   async function handleDeleteFeedback(item: FeedbackItem) {
-    if (item.response || item.status === "resolved") {
-      toast.error("Feedback yang telah ditanggapi resmi oleh Dosen Pembimbing tidak dapat dihapus.");
+    if (profile?.role !== "dosen") {
+      toast.error("Hanya Dosen Pembimbing yang memiliki wewenang untuk menghapus masukan.");
       return;
     }
 
-    if (!confirm("Apakah Anda yakin ingin menghapus feedback ini?")) return;
+    if (!confirm("Apakah Anda yakin ingin menghapus masukan ini secara permanen?")) return;
     try {
       const { error } = await supabase.from("kkn_feedbacks").delete().eq("id", item.id);
       if (error) throw error;
 
-      toast.success("Feedback telah dihapus.");
+      toast.success("Feedback telah dihapus oleh Dosen.");
       setFeedbacks((prev) => prev.filter((f) => f.id !== item.id));
     } catch (err: any) {
       toast.error("Gagal menghapus feedback: " + err.message);
@@ -640,14 +640,14 @@ export function FeedbackPage() {
                           </Button>
                         )}
 
-                        {/* Action to Delete own feedback (Only if not yet responded by Dosen) */}
-                        {item.user_id === profile?.id && !item.response && (
+                        {/* Action to Delete feedback (Only Dosen has full control authority) */}
+                        {profile?.role === "dosen" && (
                           <Button
                             size="icon"
                             variant="ghost"
                             className="size-7 text-muted-foreground hover:text-destructive cursor-pointer"
                             onClick={() => handleDeleteFeedback(item)}
-                            title="Hapus Feedback"
+                            title="Hapus Feedback (Wewenang Dosen)"
                           >
                             <Trash2 className="size-3.5" />
                           </Button>

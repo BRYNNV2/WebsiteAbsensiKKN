@@ -24,6 +24,7 @@ DROP POLICY IF EXISTS "Authenticated users can read feedbacks" ON public.kkn_fee
 DROP POLICY IF EXISTS "Users can insert feedback" ON public.kkn_feedbacks;
 DROP POLICY IF EXISTS "Users or Dosen can update feedback" ON public.kkn_feedbacks;
 DROP POLICY IF EXISTS "Users can delete own feedback" ON public.kkn_feedbacks;
+DROP POLICY IF EXISTS "Only Dosen can delete feedback" ON public.kkn_feedbacks;
 
 -- RLS Policies
 -- 1. All authenticated users (Dosen & Mahasiswa) can read all feedbacks
@@ -42,7 +43,12 @@ CREATE POLICY "Users or Dosen can update feedback"
   USING (auth.role() = 'authenticated')
   WITH CHECK (auth.role() = 'authenticated');
 
--- 4. Users can delete their own feedback
-CREATE POLICY "Users can delete own feedback"
+-- 4. ONLY DOSEN CAN DELETE FEEDBACK (Lecturers have full control)
+CREATE POLICY "Only Dosen can delete feedback"
   ON public.kkn_feedbacks FOR DELETE
-  USING (auth.uid() = user_id);
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'dosen'
+    )
+  );
