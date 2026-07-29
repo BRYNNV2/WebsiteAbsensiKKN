@@ -15,7 +15,6 @@ import {
   UserCheck,
   CheckCircle2,
   AlertCircle,
-  MessageSquare,
   MessageSquareHeart,
   HelpCircle,
   ChevronsUpDown,
