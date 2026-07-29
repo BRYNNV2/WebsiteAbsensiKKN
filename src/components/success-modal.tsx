@@ -2,7 +2,7 @@ import { Component, type ReactNode } from "react";
 import Lottie from "lottie-react";
 import successCheckAnimation from "@/assets/success-check.json";
 import { Button } from "@/components/ui/button";
-import { Sparkles, CheckCircle2, X } from "lucide-react";
+import { CheckCircle2, X } from "lucide-react";
 import { type QrSession } from "@/lib/supabase";
 
 class LottieErrorBoundary extends Component<
@@ -34,67 +34,69 @@ export function SuccessScanModal({
   if (!open) return null;
 
   const fallbackCheck = (
-    <div className="size-28 rounded-full bg-emerald-500/15 border-2 border-emerald-500/40 flex items-center justify-center shadow-lg shadow-emerald-500/20 animate-in zoom-in-75 duration-300">
-      <CheckCircle2 className="size-16 text-emerald-500 animate-pulse" />
+    <div className="size-24 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shadow-xs animate-in zoom-in-75 duration-300">
+      <CheckCircle2 className="size-14 text-emerald-600 dark:text-emerald-400" />
     </div>
   );
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all duration-200 animate-in fade-in"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all duration-200 animate-in fade-in"
       onClick={() => onOpenChange(false)}
     >
       <div
-        className="w-full max-w-[340px] sm:max-w-[360px] p-6 text-center rounded-3xl border border-emerald-500/30 dark:border-emerald-500/40 shadow-2xl bg-card text-card-foreground relative z-10 animate-in zoom-in-95 duration-200 space-y-4"
+        className="w-full max-w-[330px] sm:max-w-[350px] p-6 text-center rounded-3xl border border-border shadow-2xl bg-card text-card-foreground relative z-10 animate-in zoom-in-95 duration-200 space-y-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button at Top Right */}
+        {/* Subtle Ambient Light */}
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 size-40 bg-emerald-500/10 dark:bg-emerald-500/15 rounded-full blur-2xl pointer-events-none" />
+
+        {/* Close Button */}
         <button
           onClick={() => onOpenChange(false)}
-          className="absolute top-3.5 right-3.5 z-30 p-1.5 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+          className="absolute top-3.5 right-3.5 z-30 p-1.5 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
           title="Tutup"
         >
           <X className="size-4" />
         </button>
 
-        {/* Ambient Top Glow */}
-        <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-emerald-500/25 dark:bg-emerald-500/35 rounded-full blur-3xl pointer-events-none" />
-
         {/* Lottie Animation Header */}
-        <div className="relative flex justify-center items-center pt-2 min-h-[140px]">
-          <div className="absolute size-28 bg-emerald-500/20 dark:bg-emerald-500/30 rounded-full blur-xl animate-pulse pointer-events-none" />
+        <div className="relative flex justify-center items-center pt-1 min-h-[130px]">
           <LottieErrorBoundary fallback={fallbackCheck}>
             <Lottie
               animationData={successCheckAnimation}
               loop={false}
               autoplay={true}
-              className="w-36 h-36 sm:w-40 sm:h-40 relative z-10 drop-shadow-md"
+              className="w-32 h-32 sm:w-36 sm:h-36 relative z-10 drop-shadow-xs"
             />
           </LottieErrorBoundary>
         </div>
 
-        {/* Minimalist Title & Subtitle */}
-        <div className="space-y-1 relative z-10">
-          <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-400 bg-clip-text text-transparent">
+        {/* Title, Session Pill & Subtitle */}
+        <div className="space-y-2 relative z-10">
+          <h3 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
             Absen Berhasil Tercatat!
           </h3>
+
           {session?.title && (
-            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 truncate px-2">
-              Sesi: {session.title}
-            </p>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[11px] font-medium border border-emerald-500/20 max-w-[90%]">
+              <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span className="truncate">Sesi: {session.title}</span>
+            </div>
           )}
-          <p className="text-xs text-muted-foreground pt-0.5">
-            Presensi kehadiran Anda telah sukses divalidasi dan dicatat di server.
+
+          <p className="text-xs text-muted-foreground leading-relaxed pt-0.5 max-w-[260px] mx-auto">
+            Presensi kehadiran Anda telah sukses divalidasi dan dicatat di sistem.
           </p>
         </div>
 
         {/* Action CTA Button */}
         <Button
           onClick={() => onOpenChange(false)}
-          className="w-full h-11 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-emerald-600/25 active:scale-[0.98] transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+          className="w-full h-10 sm:h-11 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-sm transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
         >
           <span>OK, Selesai</span>
-          <Sparkles className="size-4 text-emerald-200 animate-pulse" />
+          <CheckCircle2 className="size-4 opacity-90" />
         </Button>
       </div>
     </div>
