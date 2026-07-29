@@ -131,9 +131,9 @@ export function LoginPage() {
     setSubmitting(false);
 
     if (error) {
-      console.warn("Login attempt failed:", { input: values.identifier, email: loginEmail, error: error.message });
+      console.warn("Login attempt failed:", { input: values.identifier, error: error.message });
       setServerError(
-        `NIM/Email (${loginEmail}) atau kata sandi salah. (${error.message})`
+        "NIM/Email atau kata sandi salah. Silakan periksa kembali kredensial Anda."
       );
       return;
     }
