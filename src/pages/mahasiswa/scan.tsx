@@ -25,8 +25,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { QrScanner } from "@/components/qr-scanner";
+import { SuccessScanModal } from "@/components/success-modal";
 
 type Result =
   | { kind: "success"; session: QrSession }
@@ -36,6 +36,7 @@ export function MahasiswaScanPage() {
   const { profile } = useAuth();
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [activeSessions, setActiveSessions] = useState<QrSession[]>([]);
 
   useEffect(() => {
@@ -144,6 +145,7 @@ export function MahasiswaScanPage() {
       }
 
       setResult({ kind: "success", session: session as QrSession });
+      setShowSuccessModal(true);
       toast.success("Absen berhasil tercatat.");
     } catch {
       setResult({
@@ -340,6 +342,14 @@ export function MahasiswaScanPage() {
           </Card>
         </div>
       </div>
+
+      {/* Centered Success Lottie Modal Popup */}
+      <SuccessScanModal
+        open={showSuccessModal}
+        onOpenChange={setShowSuccessModal}
+        session={result?.kind === "success" ? result.session : null}
+        studentName={profile?.full_name}
+      />
     </div>
   );
 }
