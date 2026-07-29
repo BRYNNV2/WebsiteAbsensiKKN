@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 
 import { ModeToggle } from "@/components/mode-toggle";
 import { LoadingOverlay } from "@/components/loading-lottie";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -278,6 +278,7 @@ export function AppShell() {
                   >
                     <div className="relative">
                       <Avatar className="size-8">
+                        {profile.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile.full_name} className="object-cover" />}
                         <AvatarFallback className="text-xs font-bold bg-muted text-foreground">
                           {initials(profile.full_name)}
                         </AvatarFallback>

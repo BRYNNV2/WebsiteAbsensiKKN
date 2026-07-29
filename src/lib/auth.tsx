@@ -28,16 +28,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const profileRef = useRef<Profile | null>(null);
 
   async function loadProfile(userId: string, force = false) {
-    // Jika profil sudah ter-load untuk user yang sama dan tidak ada instruksi paksa, cegah re-fetch berulang saat Alt-Tab / fokus jendela!
     if (!force && profileRef.current?.id === userId) {
       setLoading(false);
       return;
     }
     const { data, error } = await supabase
       .from("profiles")
-      .select(
-        "id, email, full_name, role, student_id, group_id, created_at"
-      )
+      .select("*")
       .eq("id", userId)
       .maybeSingle();
     if (error || !data) {
@@ -47,7 +44,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await supabase.auth.signOut();
       return;
     }
-    const pData = data as Profile;
+
+    const localExtra = localStorage.getItem(`profile_extra_${userId}`);
+    let extraData = {};
+    if (localExtra) {
+      try {
+        extraData = JSON.parse(localExtra);
+      } catch (e) {}
+    }
+
+    const pData = {
+      ...(data as Profile),
+      ...extraData,
+    } as Profile;
+
     profileRef.current = pData;
     setProfile(pData);
   }

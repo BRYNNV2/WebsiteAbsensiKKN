@@ -26,6 +26,10 @@ export type Profile = {
   role: Role
   student_id: string | null
   group_id: string | null
+  avatar_url?: string | null
+  phone?: string | null
+  nip?: string | null
+  department?: string | null
   created_at: string
 }
 
