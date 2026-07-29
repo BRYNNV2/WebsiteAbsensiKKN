@@ -195,7 +195,7 @@ export function FeedbackPage() {
     if (!selectedFeedbackForResponse || !responseText.trim()) return;
     setResponding(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("kkn_feedbacks")
         .update({
           response: responseText,
@@ -203,9 +203,15 @@ export function FeedbackPage() {
           responded_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .eq("id", selectedFeedbackForResponse.id);
+        .eq("id", selectedFeedbackForResponse.id)
+        .select();
 
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error(
+          "Izin RLS Supabase menghalangi pengeditan row. Silakan eksekusi query RLS UPDATE di Supabase SQL Editor."
+        );
+      }
 
       toast.success("Tanggapan berhasil disimpan dan dikirim!");
       setSelectedFeedbackForResponse(null);

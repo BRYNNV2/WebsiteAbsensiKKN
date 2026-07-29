@@ -36,20 +36,11 @@ CREATE POLICY "Users can insert feedback"
   ON public.kkn_feedbacks FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
--- 3. Users can update their own feedback or dosen can update response for any feedback
+-- 3. Authenticated users (Dosen & Mahasiswa) can update feedback / response
 CREATE POLICY "Users or Dosen can update feedback"
   ON public.kkn_feedbacks FOR UPDATE
-  USING (
-    auth.uid() = user_id OR
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role = 'dosen'
-    ) OR
-    EXISTS (
-      SELECT 1 FROM public.kkn_groups g
-      WHERE g.dosen_id = auth.uid() AND g.id = kkn_feedbacks.group_id
-    )
-  );
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
 
 -- 4. Users can delete their own feedback
 CREATE POLICY "Users can delete own feedback"
