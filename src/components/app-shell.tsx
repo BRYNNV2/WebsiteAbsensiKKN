@@ -179,6 +179,7 @@ export function AppShell() {
               value={sidebarSearch}
               onChange={(e) => setSidebarSearch(e.target.value)}
               className="pl-8 text-xs h-8 bg-muted/40 border-muted-foreground/20 rounded-lg focus-visible:bg-background"
+              autoFocus={false}
             />
           </div>
         </SidebarHeader>
