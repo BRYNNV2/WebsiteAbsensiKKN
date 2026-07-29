@@ -219,7 +219,7 @@ export function DosenProkerPage() {
       date: new Date().toISOString().split("T")[0],
       starts_at: "08:00",
       ends_at: "10:00",
-      category: "Bidang Kesehatan & Lingkungan",
+      category: "",
       location: "Balai Desa",
       description: "",
     },
@@ -269,7 +269,7 @@ export function DosenProkerPage() {
       date: new Date().toISOString().split("T")[0],
       starts_at: "08:00",
       ends_at: "10:00",
-      category: "Bidang Kesehatan & Lingkungan",
+      category: "",
       location: group?.location ?? "Balai Desa",
       description: "",
     });
