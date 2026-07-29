@@ -162,6 +162,25 @@ export function FeedbackPage() {
   // Submit Feedback
   async function onSubmitFeedback(values: FeedbackFormValues) {
     if (!profile) return;
+
+    // Anti-spam limit: Maximum 1 feedback per day per user
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const hasSubmittedToday = feedbacks.some((f) => {
+      if (f.user_id !== profile.id) return false;
+      const createdAt = new Date(f.created_at);
+      return createdAt >= startOfToday;
+    });
+
+    if (hasSubmittedToday) {
+      toast.warning("Batas Pengiriman Feedback Terlampaui!", {
+        description:
+          "Demi mencegah spam, pengiriman masukan dibatasi 1 kali per hari. Silakan kirimkan masukan baru Anda besok!",
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const { error } = await supabase.from("kkn_feedbacks").insert({
@@ -225,14 +244,19 @@ export function FeedbackPage() {
   }
 
   // Delete Feedback
-  async function handleDeleteFeedback(id: string) {
+  async function handleDeleteFeedback(item: FeedbackItem) {
+    if (item.response || item.status === "resolved") {
+      toast.error("Feedback yang telah ditanggapi resmi oleh Dosen Pembimbing tidak dapat dihapus.");
+      return;
+    }
+
     if (!confirm("Apakah Anda yakin ingin menghapus feedback ini?")) return;
     try {
-      const { error } = await supabase.from("kkn_feedbacks").delete().eq("id", id);
+      const { error } = await supabase.from("kkn_feedbacks").delete().eq("id", item.id);
       if (error) throw error;
 
       toast.success("Feedback telah dihapus.");
-      setFeedbacks((prev) => prev.filter((f) => f.id !== id));
+      setFeedbacks((prev) => prev.filter((f) => f.id !== item.id));
     } catch (err: any) {
       toast.error("Gagal menghapus feedback: " + err.message);
     }
@@ -616,13 +640,13 @@ export function FeedbackPage() {
                           </Button>
                         )}
 
-                        {/* Action to Delete own feedback */}
-                        {item.user_id === profile?.id && (
+                        {/* Action to Delete own feedback (Only if not yet responded by Dosen) */}
+                        {item.user_id === profile?.id && !item.response && (
                           <Button
                             size="icon"
                             variant="ghost"
                             className="size-7 text-muted-foreground hover:text-destructive cursor-pointer"
-                            onClick={() => handleDeleteFeedback(item.id)}
+                            onClick={() => handleDeleteFeedback(item)}
                             title="Hapus Feedback"
                           >
                             <Trash2 className="size-3.5" />
