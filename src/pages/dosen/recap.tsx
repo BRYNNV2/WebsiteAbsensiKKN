@@ -768,12 +768,12 @@ export function DosenRecapPage() {
           ) : (
             <div className="space-y-4">
               {/* Responsive Horizontal Scroll Container with Solid Borders */}
-              <div className="overflow-x-auto relative rounded-lg border border-border/80 shadow-2xs bg-background">
+              <div className="overflow-x-auto relative rounded-lg border border-border/80 shadow-2xs bg-card dark:bg-zinc-900 max-w-full">
                 <Table className="w-full border-collapse text-xs">
                   <TableHeader className="bg-muted/40">
                     <TableRow>
                       {/* Sticky Left Column Header */}
-                      <TableHead className="sticky left-0 z-30 bg-background/95 backdrop-blur-xs min-w-[220px] max-w-[220px] border-r border-border/80 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)] py-3">
+                      <TableHead className="sticky left-0 z-30 bg-card dark:bg-zinc-900 min-w-[190px] max-w-[190px] sm:min-w-[220px] sm:max-w-[220px] border-r border-border/80 shadow-[4px_0_12px_-2px_rgba(0,0,0,0.3)] py-3">
                         Nama Mahasiswa &amp; NIM
                       </TableHead>
 
@@ -817,7 +817,7 @@ export function DosenRecapPage() {
                     {paginatedMatrix.map((row) => (
                       <TableRow key={row.student.id} className="group hover:bg-muted/40 transition-colors">
                         {/* Sticky Left Column Body Cell */}
-                        <TableCell className="sticky left-0 z-20 bg-background group-hover:bg-muted/50 transition-colors min-w-[220px] max-w-[220px] border-r border-border/80 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)] py-2.5">
+                        <TableCell className="sticky left-0 z-20 bg-card dark:bg-zinc-900 group-hover:bg-muted/90 transition-colors min-w-[190px] max-w-[190px] sm:min-w-[220px] sm:max-w-[220px] border-r border-border/80 shadow-[4px_0_12px_-2px_rgba(0,0,0,0.3)] py-2.5">
                           <div className="flex flex-col min-w-0">
                             <span className="font-semibold text-foreground truncate">
                               {row.student.full_name}
