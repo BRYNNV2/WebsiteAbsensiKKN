@@ -227,12 +227,15 @@ export function AppShell() {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => toast.success("Terima kasih! Masukan Anda membantu pengembangan aplikasi.")}
-                    tooltip="Feedback"
-                  >
-                    <MessageSquare />
-                    <span>Feedback</span>
+                  <SidebarMenuButton asChild tooltip="Feedback & Saran">
+                    <NavLink to="/feedback">
+                      {({ isActive }) => (
+                        <>
+                          <MessageSquareHeart className={cn(isActive && "text-sidebar-accent-foreground font-bold")} />
+                          <span>Feedback &amp; Saran</span>
+                        </>
+                      )}
+                    </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
