@@ -4,13 +4,16 @@ import successCheckAnimation from "@/assets/success circle check.json";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { CalendarClock, MapPin, UserCheck, CheckCircle2 } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  UserCheck,
+  Sparkles,
+  BookmarkCheck,
+} from "lucide-react";
 import { type QrSession } from "@/lib/supabase";
 
 interface SuccessScanModalProps {
@@ -31,20 +34,26 @@ export function SuccessScanModal({
   useEffect(() => {
     if (open) {
       lottieRef.current?.goToAndPlay(0, true);
-      lottieRef.current?.setSpeed(1.2);
+      lottieRef.current?.setSpeed(1.25);
     }
   }, [open]);
 
   if (!session) return null;
 
-  const formattedDate = new Date(session.starts_at).toLocaleDateString("id-ID", {
+  const dateObj = new Date(session.starts_at);
+  const formattedDate = dateObj.toLocaleDateString("id-ID", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 
-  const formattedTime = `${new Date(session.starts_at).toLocaleTimeString("id-ID", {
+  const scanTime = new Date().toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }) + " WIB";
+
+  const sessionWindow = `${dateObj.toLocaleTimeString("id-ID", {
     hour: "2-digit",
     minute: "2-digit",
   })} - ${new Date(session.ends_at).toLocaleTimeString("id-ID", {
@@ -54,68 +63,111 @@ export function SuccessScanModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[92vw] sm:max-w-[420px] p-5 sm:p-6 overflow-hidden text-center rounded-2xl border-emerald-500/20 shadow-2xl">
-        <DialogHeader className="space-y-1">
-          {/* Lottie Success Animation */}
-          <div className="flex justify-center -mt-2 -mb-3">
+      <DialogContent className="w-[92vw] sm:max-w-[430px] p-0 overflow-hidden text-center rounded-3xl border border-emerald-500/30 dark:border-emerald-500/40 shadow-2xl bg-card relative">
+        {/* Ambient Top Glow */}
+        <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-56 h-56 bg-emerald-500/20 dark:bg-emerald-500/30 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="p-6 space-y-5 relative z-10">
+          {/* Lottie Animation Header */}
+          <div className="relative flex justify-center items-center pt-2">
+            <div className="absolute size-28 bg-emerald-500/20 dark:bg-emerald-500/30 rounded-full blur-xl animate-pulse pointer-events-none" />
             <Lottie
               lottieRef={lottieRef}
               animationData={successCheckAnimation}
               loop={false}
-              className="w-36 h-36 sm:w-44 sm:h-44"
+              className="w-36 h-36 sm:w-40 sm:h-40 relative z-10 drop-shadow-md"
             />
           </div>
 
-          <DialogTitle className="text-xl sm:text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5">
-            <CheckCircle2 className="size-6 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>Absen Berhasil!</span>
-          </DialogTitle>
-
-          <DialogDescription className="text-xs text-muted-foreground pt-0.5">
-            Presensi kehadiran Anda telah sukses divalidasi dan dicatat di server.
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Session & Student Summary Info Card */}
-        <div className="my-3 p-3.5 sm:p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-2.5 text-left text-xs">
-          <div className="flex items-center justify-between gap-2 border-b border-emerald-500/20 pb-2">
-            <span className="font-bold text-foreground text-sm truncate">
-              {session.title}
-            </span>
-            <Badge className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 shrink-0 font-semibold shadow-xs">
-              Hadir
-            </Badge>
+          {/* Title & Live Status Badge */}
+          <div className="space-y-1.5 -mt-2">
+            <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-400 bg-clip-text text-transparent">
+              Presensi Berhasil!
+            </h3>
+            
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-500/25 shadow-2xs">
+              <span className="relative flex size-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
+              </span>
+              <span>Hadir (Tepat Waktu)</span>
+            </div>
           </div>
 
-          <div className="space-y-1.5 text-muted-foreground font-medium">
-            {studentName && (
-              <div className="flex items-center gap-2 text-foreground font-semibold">
-                <UserCheck className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="truncate">{studentName}</span>
+          {/* Premium Card Container */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-muted/40 border border-emerald-500/20 text-left space-y-3 shadow-xs">
+            {/* Session Title Bar */}
+            <div className="flex items-start gap-2.5 pb-2.5 border-b border-emerald-500/20">
+              <div className="size-8 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0 text-emerald-600 dark:text-emerald-400">
+                <BookmarkCheck className="size-4" />
               </div>
-            )}
-
-            <div className="flex items-center gap-2">
-              <CalendarClock className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>{formattedDate} ({formattedTime})</span>
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">
+                  Sesi KKN
+                </span>
+                <p className="font-bold text-foreground text-sm truncate leading-snug">
+                  {session.title}
+                </p>
+              </div>
             </div>
 
-            {session.location && (
-              <div className="flex items-center gap-2">
-                <MapPin className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="truncate">{session.location}</span>
-              </div>
-            )}
-          </div>
-        </div>
+            {/* Grid Detail Info */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {studentName && (
+                <div className="p-2.5 rounded-xl bg-background/80 dark:bg-zinc-900/80 border border-border/50 space-y-0.5 col-span-2">
+                  <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                    <UserCheck className="size-3 text-emerald-600 dark:text-emerald-400" />
+                    Nama Mahasiswa
+                  </span>
+                  <p className="font-semibold text-foreground truncate">
+                    {studentName}
+                  </p>
+                </div>
+              )}
 
-        {/* Action Dismiss Button */}
-        <Button
-          onClick={() => onOpenChange(false)}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 sm:h-11 text-xs sm:text-sm rounded-xl shadow-md cursor-pointer transition-all hover:scale-[1.02]"
-        >
-          Selesai &amp; Tutup
-        </Button>
+              <div className="p-2.5 rounded-xl bg-background/80 dark:bg-zinc-900/80 border border-border/50 space-y-0.5 col-span-2 sm:col-span-1">
+                <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                  <Calendar className="size-3 text-emerald-600 dark:text-emerald-400" />
+                  Tanggal
+                </span>
+                <p className="font-semibold text-foreground truncate">
+                  {formattedDate}
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-background/80 dark:bg-zinc-900/80 border border-border/50 space-y-0.5 col-span-2 sm:col-span-1">
+                <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                  <Clock className="size-3 text-emerald-600 dark:text-emerald-400" />
+                  Waktu Pindai
+                </span>
+                <p className="font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                  {scanTime}
+                </p>
+              </div>
+
+              {session.location && (
+                <div className="p-2.5 rounded-xl bg-background/80 dark:bg-zinc-900/80 border border-border/50 space-y-0.5 col-span-2">
+                  <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                    <MapPin className="size-3 text-emerald-600 dark:text-emerald-400" />
+                    Lokasi Pertemuan
+                  </span>
+                  <p className="font-semibold text-foreground truncate">
+                    {session.location}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action CTA Button */}
+          <Button
+            onClick={() => onOpenChange(false)}
+            className="w-full h-11 sm:h-12 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-emerald-600/25 active:scale-[0.98] transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span>Selesai &amp; Kembali</span>
+            <Sparkles className="size-4 text-emerald-200 animate-pulse" />
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
