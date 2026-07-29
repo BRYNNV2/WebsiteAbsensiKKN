@@ -18,35 +18,36 @@ CREATE TABLE IF NOT EXISTS public.kkn_feedbacks (
 -- Enable RLS
 ALTER TABLE public.kkn_feedbacks ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if any
+DROP POLICY IF EXISTS "Users can read their own feedback or dosen group feedback" ON public.kkn_feedbacks;
+DROP POLICY IF EXISTS "Authenticated users can read feedbacks" ON public.kkn_feedbacks;
+DROP POLICY IF EXISTS "Users can insert feedback" ON public.kkn_feedbacks;
+DROP POLICY IF EXISTS "Users or Dosen can update feedback" ON public.kkn_feedbacks;
+DROP POLICY IF EXISTS "Users can delete own feedback" ON public.kkn_feedbacks;
+
 -- RLS Policies
--- 1. Users can read their own feedbacks or dosen can read feedbacks from their group
-CREATE POLICY "Users can read their own feedback or dosen group feedback"
+-- 1. All authenticated users (Dosen & Mahasiswa) can read all feedbacks
+CREATE POLICY "Authenticated users can read feedbacks"
   ON public.kkn_feedbacks FOR SELECT
-  USING (
-    auth.uid() = user_id OR
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid()
-        AND p.role = 'dosen'
-        AND p.group_id = kkn_feedbacks.group_id
-    )
-  );
+  USING (auth.role() = 'authenticated');
 
 -- 2. Authenticated users can insert feedback
 CREATE POLICY "Users can insert feedback"
   ON public.kkn_feedbacks FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
--- 3. Users can update their own feedback or dosen can update response for their group feedback
+-- 3. Users can update their own feedback or dosen can update response for any feedback
 CREATE POLICY "Users or Dosen can update feedback"
   ON public.kkn_feedbacks FOR UPDATE
   USING (
     auth.uid() = user_id OR
     EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid()
-        AND p.role = 'dosen'
-        AND p.group_id = kkn_feedbacks.group_id
+      WHERE p.id = auth.uid() AND p.role = 'dosen'
+    ) OR
+    EXISTS (
+      SELECT 1 FROM public.kkn_groups g
+      WHERE g.dosen_id = auth.uid() AND g.id = kkn_feedbacks.group_id
     )
   );
 

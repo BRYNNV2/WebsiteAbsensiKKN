@@ -238,7 +238,6 @@ export function FeedbackPage() {
       // Tab filter
       if (activeTab === "my" && item.user_id !== profile?.id) return false;
       if (activeTab === "resolved" && item.status !== "resolved") return false;
-      if (activeTab === "pending" && item.status === "pending") return true;
 
       // Category Filter
       if (selectedCategoryFilter !== "semua" && item.category !== selectedCategoryFilter) {
