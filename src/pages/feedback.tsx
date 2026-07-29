@@ -11,13 +11,8 @@ import {
   MessageSquare,
   CheckCircle2,
   Clock,
-  AlertCircle,
-  HelpCircle,
-  ThumbsUp,
   Trash2,
   MessageCircle,
-  User,
-  Filter,
   Search,
 } from "lucide-react";
 
@@ -32,7 +27,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -506,7 +500,7 @@ export function FeedbackPage() {
           ) : filteredFeedbacks.length === 0 ? (
             <Card className="border border-border/60">
               <CardContent className="py-16 text-center">
-                <Empty variant="outline" className="border-0">
+                <Empty className="border-0">
                   <EmptyMedia variant="icon">
                     <MessageSquareHeart />
                   </EmptyMedia>
