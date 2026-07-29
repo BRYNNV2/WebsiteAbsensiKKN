@@ -9,7 +9,6 @@ import {
   Sparkles,
   Search,
   ScanLine,
-  Eye,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 

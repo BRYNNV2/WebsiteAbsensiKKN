@@ -16,7 +16,6 @@ import {
   CheckCircle2,
   Sparkles,
   Search,
-  Eye,
 } from "lucide-react";
 
 import { supabase, type WorkProgram } from "@/lib/supabase";
