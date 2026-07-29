@@ -506,7 +506,12 @@ export function MahasiswaProkerPage() {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 items-start">
           {programsByDay.map(({ day, items }) => {
-            const isToday = day === todayDayName;
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, "0");
+            const d = String(now.getDate()).padStart(2, "0");
+            const todayStr = `${y}-${m}-${d}`;
+            const isToday = day === todayDayName && items.some((p) => (p.date || "").slice(0, 10) === todayStr);
             if (activeTab === "Semua Hari" && items.length === 0) return null;
 
             return (
