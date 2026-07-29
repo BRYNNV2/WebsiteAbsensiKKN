@@ -98,72 +98,74 @@ export function SuccessScanModal({
           </div>
 
           {/* Premium Card Container */}
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-muted/40 border border-emerald-500/20 text-left space-y-3 shadow-xs">
-            {/* Session Title Bar */}
-            <div className="flex items-start gap-2.5 pb-2.5 border-b border-emerald-500/20">
-              <div className="size-8 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0 text-emerald-600 dark:text-emerald-400">
-                <BookmarkCheck className="size-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">
-                  Sesi KKN
-                </span>
-                <p className="font-bold text-foreground text-sm truncate leading-snug">
-                  {session.title}
-                </p>
-                <p className="text-[11px] text-muted-foreground font-normal truncate">
-                  Rentang Sesi: {sessionWindow}
-                </p>
-              </div>
-            </div>
-
-            {/* Grid Detail Info */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {studentName && (
-                <div className="p-2.5 rounded-xl bg-background/80 dark:bg-zinc-900/80 border border-border/50 space-y-0.5 col-span-2">
-                  <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
-                    <UserCheck className="size-3 text-emerald-600 dark:text-emerald-400" />
-                    Nama Mahasiswa
+          {session && (
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-muted/40 border border-emerald-500/20 text-left space-y-3 shadow-xs">
+              {/* Session Title Bar */}
+              <div className="flex items-start gap-2.5 pb-2.5 border-b border-emerald-500/20">
+                <div className="size-8 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0 text-emerald-600 dark:text-emerald-400">
+                  <BookmarkCheck className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground block">
+                    Sesi KKN
                   </span>
-                  <p className="font-semibold text-foreground truncate">
-                    {studentName}
+                  <p className="font-bold text-foreground text-sm truncate leading-snug">
+                    {session.title}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground font-normal truncate">
+                    Rentang Sesi: {sessionWindow}
                   </p>
                 </div>
-              )}
-
-              <div className="p-2.5 rounded-xl bg-background/80 dark:bg-zinc-900/80 border border-border/50 space-y-0.5 col-span-2 sm:col-span-1">
-                <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
-                  <Calendar className="size-3 text-emerald-600 dark:text-emerald-400" />
-                  Tanggal
-                </span>
-                <p className="font-semibold text-foreground truncate">
-                  {formattedDate}
-                </p>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-background/80 dark:bg-zinc-900/80 border border-border/50 space-y-0.5 col-span-2 sm:col-span-1">
-                <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
-                  <Clock className="size-3 text-emerald-600 dark:text-emerald-400" />
-                  Waktu Pindai
-                </span>
-                <p className="font-bold text-emerald-600 dark:text-emerald-400 truncate">
-                  {scanTime}
-                </p>
-              </div>
+              {/* Grid Detail Info */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {studentName && (
+                  <div className="p-2.5 rounded-xl bg-background/80 dark:bg-zinc-900/80 border border-border/50 space-y-0.5 col-span-2">
+                    <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                      <UserCheck className="size-3 text-emerald-600 dark:text-emerald-400" />
+                      Nama Mahasiswa
+                    </span>
+                    <p className="font-semibold text-foreground truncate">
+                      {studentName}
+                    </p>
+                  </div>
+                )}
 
-              {session.location && (
-                <div className="p-2.5 rounded-xl bg-background/80 dark:bg-zinc-900/80 border border-border/50 space-y-0.5 col-span-2">
+                <div className="p-2.5 rounded-xl bg-background/80 dark:bg-zinc-900/80 border border-border/50 space-y-0.5 col-span-2 sm:col-span-1">
                   <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
-                    <MapPin className="size-3 text-emerald-600 dark:text-emerald-400" />
-                    Lokasi Pertemuan
+                    <Calendar className="size-3 text-emerald-600 dark:text-emerald-400" />
+                    Tanggal
                   </span>
                   <p className="font-semibold text-foreground truncate">
-                    {session.location}
+                    {formattedDate}
                   </p>
                 </div>
-              )}
+
+                <div className="p-2.5 rounded-xl bg-background/80 dark:bg-zinc-900/80 border border-border/50 space-y-0.5 col-span-2 sm:col-span-1">
+                  <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                    <Clock className="size-3 text-emerald-600 dark:text-emerald-400" />
+                    Waktu Pindai
+                  </span>
+                  <p className="font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                    {scanTime}
+                  </p>
+                </div>
+
+                {session.location && (
+                  <div className="p-2.5 rounded-xl bg-background/80 dark:bg-zinc-900/80 border border-border/50 space-y-0.5 col-span-2">
+                    <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                      <MapPin className="size-3 text-emerald-600 dark:text-emerald-400" />
+                      Lokasi Pertemuan
+                    </span>
+                    <p className="font-semibold text-foreground truncate">
+                      {session.location}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Action CTA Button */}
           <Button
