@@ -251,10 +251,14 @@ export function MahasiswaProkerPage() {
     }));
   }, [filteredPrograms, activeTab]);
 
-  const todayCount = useMemo(
-    () => programs.filter((p) => p.day_name === todayDayName).length,
-    [programs, todayDayName]
-  );
+  const todayCount = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    const todayStr = `${y}-${m}-${d}`;
+    return programs.filter((p) => (p.date || "").slice(0, 10) === todayStr).length;
+  }, [programs]);
 
   if (!groupId && !loading) {
     return (
