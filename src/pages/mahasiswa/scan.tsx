@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { QrScanner } from "@/components/qr-scanner";
 import { SuccessScanModal } from "@/components/success-modal";
+import { ErrorScanModal } from "@/components/error-modal";
 
 type Result =
   | { kind: "success"; session: QrSession }
@@ -38,6 +39,7 @@ export function MahasiswaScanPage() {
   const [result, setResult] = useState<Result | null>(null);
   const [successSession, setSuccessSession] = useState<QrSession | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
   const [activeSessions, setActiveSessions] = useState<QrSession[]>([]);
 
   useEffect(() => {
@@ -60,6 +62,12 @@ export function MahasiswaScanPage() {
     };
   }, [profile?.group_id]);
 
+  function triggerError(message: string) {
+    setResult({ kind: "error", message });
+    setShowErrorModal(true);
+    setProcessing(false);
+  }
+
   async function handleScan(decoded: string) {
     setProcessing(true);
     setResult(null);
@@ -74,12 +82,9 @@ export function MahasiswaScanPage() {
         .maybeSingle();
 
       if (error || !session) {
-        setResult({
-          kind: "error",
-          message:
-            "QR code tidak valid. Pastikan Anda memindai kode dari sesi absen yang benar.",
-        });
-        setProcessing(false);
+        triggerError(
+          "QR code tidak valid. Pastikan Anda memindai kode dari sesi absen yang benar."
+        );
         return;
       }
 
@@ -88,33 +93,26 @@ export function MahasiswaScanPage() {
       const end = new Date(session.ends_at);
 
       if (now < start) {
-        setResult({
-          kind: "error",
-          message: `Sesi "${session.title}" belum dimulai. Sesi akan dibuka pada ${start.toLocaleString(
+        triggerError(
+          `Sesi "${session.title}" belum dimulai. Sesi akan dibuka pada ${start.toLocaleString(
             "id-ID",
             { dateStyle: "medium", timeStyle: "short" }
-          )}.`,
-        });
-        setProcessing(false);
+          )}.`
+        );
         return;
       }
 
       if (now > end) {
-        setResult({
-          kind: "error",
-          message: `Sesi "${session.title}" sudah berakhir. Anda tidak dapat melakukan absen lagi.`,
-        });
-        setProcessing(false);
+        triggerError(
+          `Sesi "${session.title}" sudah berakhir. Anda tidak dapat melakukan absen lagi.`
+        );
         return;
       }
 
       if (profile?.group_id !== session.group_id) {
-        setResult({
-          kind: "error",
-          message:
-            "Sesi absen ini bukan untuk kelompok KKN Anda. Hubungi dosen pembimbing jika ini adalah kesalahan.",
-        });
-        setProcessing(false);
+        triggerError(
+          "Sesi absen ini bukan untuk kelompok KKN Anda. Hubungi dosen pembimbing jika ini adalah kesalahan."
+        );
         return;
       }
 
@@ -131,17 +129,14 @@ export function MahasiswaScanPage() {
 
       if (insertErr) {
         if (insertErr.code === "23505") {
-          setResult({
-            kind: "error",
-            message: `Anda sudah tercatat hadir pada sesi "${session.title}". Tidak perlu absen dua kali.`,
-          });
+          triggerError(
+            `Anda sudah tercatat hadir pada sesi "${session.title}". Tidak perlu absen dua kali.`
+          );
         } else {
-          setResult({
-            kind: "error",
-            message: "Gagal mencatat absen. Silakan coba beberapa saat lagi.",
-          });
+          triggerError(
+            "Gagal mencatat absen. Silakan coba beberapa saat lagi."
+          );
         }
-        setProcessing(false);
         return;
       }
 
@@ -150,10 +145,7 @@ export function MahasiswaScanPage() {
       setResult({ kind: "success", session: validSession });
       setShowSuccessModal(true);
     } catch {
-      setResult({
-        kind: "error",
-        message: "Terjadi kesalahan tak terduga. Silakan coba lagi.",
-      });
+      triggerError("Terjadi kesalahan tak terduga. Silakan coba lagi.");
     } finally {
       setProcessing(false);
     }
@@ -363,6 +355,13 @@ export function MahasiswaScanPage() {
         onOpenChange={setShowSuccessModal}
         session={successSession}
         studentName={profile?.full_name}
+      />
+
+      {/* Centered Error Lottie 404 Modal Popup */}
+      <ErrorScanModal
+        open={showErrorModal}
+        onOpenChange={setShowErrorModal}
+        message={result?.kind === "error" ? result.message : null}
       />
     </div>
   );
