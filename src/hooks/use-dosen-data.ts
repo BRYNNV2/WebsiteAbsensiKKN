@@ -49,9 +49,7 @@ export function useDosenData(): DosenData {
 
     const { data: studentData, error: studentErr } = await supabase
       .from("profiles")
-      .select(
-        "id, email, full_name, role, student_id, group_id, created_at"
-      )
+      .select("*")
       .eq("group_id", groupData.id)
       .eq("role", "mahasiswa")
       .order("full_name", { ascending: true });
@@ -59,7 +57,20 @@ export function useDosenData(): DosenData {
     if (studentErr) {
       setError(studentErr.message);
     } else {
-      setStudents((studentData as Profile[]) ?? []);
+      const mergedStudents = ((studentData as Profile[]) ?? []).map((s) => {
+        const localExtra = localStorage.getItem(`profile_extra_${s.id}`);
+        let extra = {};
+        if (localExtra) {
+          try {
+            extra = JSON.parse(localExtra);
+          } catch (e) {}
+        }
+        return {
+          ...s,
+          ...extra,
+        };
+      });
+      setStudents(mergedStudents);
     }
     setLoading(false);
   }, [profile?.id]);

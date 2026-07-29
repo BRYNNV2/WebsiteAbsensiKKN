@@ -31,6 +31,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingLottie } from "@/components/loading-lottie";
 import {
   Dialog,
@@ -129,23 +130,39 @@ export function FeedbackPage() {
         .select(`
           *,
           profiles:user_id (
+            id,
             full_name,
             role,
-            student_id
+            student_id,
+            avatar_url
           )
         `)
         .order("created_at", { ascending: false });
 
       if (error) {
         console.error("Error fetching feedbacks:", error);
-        // Fallback demo mock if table not migrated yet
         setFeedbacks([]);
       } else if (data) {
-        const formatted = data.map((item: any) => ({
-          ...item,
-          user_name: item.profiles?.full_name || "Pengguna",
-          user_role: item.profiles?.role || "mahasiswa",
-        }));
+        const formatted = data.map((item: any) => {
+          const userId = item.user_id;
+          const localExtra = userId ? localStorage.getItem(`profile_extra_${userId}`) : null;
+          let avatar = item.profiles?.avatar_url;
+          let fullName = item.profiles?.full_name;
+          if (localExtra) {
+            try {
+              const extra = JSON.parse(localExtra);
+              if (extra.avatar_url) avatar = extra.avatar_url;
+              if (extra.full_name) fullName = extra.full_name;
+            } catch (e) {}
+          }
+
+          return {
+            ...item,
+            user_name: fullName || item.profiles?.full_name || "Pengguna",
+            user_role: item.profiles?.role || "mahasiswa",
+            user_avatar: avatar || null,
+          };
+        });
         setFeedbacks(formatted);
       }
     } catch (err) {
@@ -616,10 +633,13 @@ export function FeedbackPage() {
 
                     {/* Footer Author & Actions */}
                     <div className="pt-2 sm:pt-3 border-t border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[10px] sm:text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1 min-w-0">
-                        <div className="size-4 sm:size-5 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[9px] sm:text-[10px] shrink-0">
-                          {(item.user_name || "U")[0].toUpperCase()}
-                        </div>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Avatar className="size-5 shrink-0 border">
+                          {item.user_avatar && <AvatarImage src={item.user_avatar} alt={item.user_name} className="object-cover" />}
+                          <AvatarFallback className="text-[9px] font-bold">
+                            {(item.user_name || "U")[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
                         <span className="font-medium text-foreground text-[10px] sm:text-[11px] truncate">
                           {item.user_name}
                         </span>

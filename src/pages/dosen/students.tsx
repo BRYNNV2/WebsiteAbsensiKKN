@@ -49,7 +49,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   Empty,
@@ -509,6 +509,7 @@ export function DosenStudentsPage() {
                     <TableRow key={s.id}>
                       <TableCell>
                         <Avatar size="sm">
+                          {s.avatar_url && <AvatarImage src={s.avatar_url} alt={s.full_name} className="object-cover" />}
                           <AvatarFallback>{initials(s.full_name)}</AvatarFallback>
                         </Avatar>
                       </TableCell>

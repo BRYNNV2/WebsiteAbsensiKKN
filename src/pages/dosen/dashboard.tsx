@@ -45,7 +45,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
@@ -725,6 +725,7 @@ export function DosenDashboardPage() {
                       className="flex items-start gap-3 rounded-lg border border-border/50 bg-card p-3 transition-all hover:bg-muted/40"
                     >
                       <Avatar className="size-8 mt-0.5 border">
+                        {student?.avatar_url && <AvatarImage src={student.avatar_url} alt={student.full_name} className="object-cover" />}
                         <AvatarFallback className="text-[10px] font-bold">
                           {initials(student?.full_name ?? "MH")}
                         </AvatarFallback>
@@ -866,6 +867,7 @@ export function DosenDashboardPage() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="size-8 border">
+                            {st.avatar_url && <AvatarImage src={st.avatar_url} alt={st.full_name} className="object-cover" />}
                             <AvatarFallback className="text-xs font-bold">
                               {initials(st.full_name)}
                             </AvatarFallback>
