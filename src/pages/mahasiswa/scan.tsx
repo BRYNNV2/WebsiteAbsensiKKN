@@ -37,6 +37,7 @@ export function MahasiswaScanPage() {
   const { profile } = useAuth();
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+  const [successSession, setSuccessSession] = useState<QrSession | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [activeSessions, setActiveSessions] = useState<QrSession[]>([]);
 
@@ -145,7 +146,9 @@ export function MahasiswaScanPage() {
         return;
       }
 
-      setResult({ kind: "success", session: session as QrSession });
+      const validSession = session as QrSession;
+      setSuccessSession(validSession);
+      setResult({ kind: "success", session: validSession });
       setShowSuccessModal(true);
       toast.success("Absen berhasil tercatat.");
     } catch {
@@ -348,7 +351,7 @@ export function MahasiswaScanPage() {
       <SuccessScanModal
         open={showSuccessModal}
         onOpenChange={setShowSuccessModal}
-        session={result?.kind === "success" ? result.session : null}
+        session={successSession}
         studentName={profile?.full_name}
       />
     </div>

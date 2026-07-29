@@ -38,31 +38,34 @@ export function SuccessScanModal({
     }
   }, [open]);
 
-  if (!session) return null;
+  const dateObj = session ? new Date(session.starts_at) : new Date();
+  const formattedDate = session
+    ? dateObj.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "";
 
-  const dateObj = new Date(session.starts_at);
-  const formattedDate = dateObj.toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const scanTime =
+    new Date().toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }) + " WIB";
 
-  const scanTime = new Date().toLocaleTimeString("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }) + " WIB";
-
-  const sessionWindow = `${dateObj.toLocaleTimeString("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })} - ${new Date(session.ends_at).toLocaleTimeString("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })} WIB`;
+  const sessionWindow = session
+    ? `${dateObj.toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })} - ${new Date(session.ends_at).toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })} WIB`
+    : "";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open && Boolean(session)} onOpenChange={onOpenChange}>
       <DialogContent className="w-[92vw] sm:max-w-[430px] p-0 overflow-hidden text-center rounded-3xl border border-emerald-500/30 dark:border-emerald-500/40 shadow-2xl bg-card relative">
         {/* Ambient Top Glow */}
         <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-56 h-56 bg-emerald-500/20 dark:bg-emerald-500/30 rounded-full blur-3xl pointer-events-none" />
@@ -107,6 +110,9 @@ export function SuccessScanModal({
                 </span>
                 <p className="font-bold text-foreground text-sm truncate leading-snug">
                   {session.title}
+                </p>
+                <p className="text-[11px] text-muted-foreground font-normal truncate">
+                  Rentang Sesi: {sessionWindow}
                 </p>
               </div>
             </div>
