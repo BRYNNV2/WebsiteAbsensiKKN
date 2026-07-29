@@ -97,5 +97,6 @@ export type FeedbackItem = {
   created_at: string
   updated_at: string
   user_name?: string
-  user_role?: Role
+  user_role?: string
+  user_avatar?: string | null
 }
