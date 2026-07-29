@@ -995,201 +995,6 @@ export function DosenSessionsPage() {
               <Button
                 type="button"
                 variant="outline"
-                        >
-                          <FileText className="size-3.5" />
-                          <span>Detail</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenEdit(s)}
-                          className="gap-1 text-xs cursor-pointer border-amber-500/30 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                        >
-                          <Pencil className="size-3.5" />
-                          <span>Edit</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleRemove(s.id)}
-                          disabled={removingId === s.id}
-                          aria-label="Hapus sesi"
-                          className="cursor-pointer hover:bg-rose-500/10 text-destructive"
-                        >
-                          {removingId === s.id ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="size-3.5" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Pagination Controls */}
-              {processedSessions.length > SESSIONS_PER_PAGE && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4 text-xs">
-                  <div className="text-muted-foreground font-medium">
-                    Menampilkan{" "}
-                    <span className="font-bold text-foreground">
-                      {(currentPage - 1) * SESSIONS_PER_PAGE + 1}
-                    </span>{" "}
-                    -{" "}
-                    <span className="font-bold text-foreground">
-                      {Math.min(currentPage * SESSIONS_PER_PAGE, processedSessions.length)}
-                    </span>{" "}
-                    dari <span className="font-bold text-foreground">{processedSessions.length}</span> Sesi
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="h-8 gap-1 text-xs cursor-pointer"
-                    >
-                      <ChevronLeft className="size-3.5" />
-                      <span>Sebelumnya</span>
-                    </Button>
-
-                    <div className="flex items-center gap-1 px-2 font-medium text-xs text-muted-foreground">
-                      Halaman <span className="font-bold text-foreground">{currentPage}</span> dari{" "}
-                      <span className="font-bold text-foreground">{totalPages}</span>
-                    </div>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="h-8 gap-1 text-xs cursor-pointer"
-                    >
-                      <span>Selanjutnya</span>
-                      <ChevronRight className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Dialog Preview QR */}
-      <Dialog
-        open={Boolean(previewSession)}
-        onOpenChange={(open) => !open && setPreviewSession(null)}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{previewSession?.title}</DialogTitle>
-            <DialogDescription>
-              {previewSession &&
-                `${formatDateTime(previewSession.starts_at)} - ${new Date(
-                  previewSession.ends_at
-                ).toLocaleTimeString("id-ID", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}`}
-            </DialogDescription>
-          </DialogHeader>
-          {previewSession && (
-            <div className="flex justify-center py-2">
-              <QrPreview
-                value={previewSession.token}
-                size={260}
-                caption="Tampilkan QR ini kepada mahasiswa untuk dipindai atau diunduh lalu dikirim melalui perangkat lain."
-                downloadName={`qr-${previewSession.title
-                  .toLowerCase()
-                  .replace(/\s+/g, "-")}`}
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog Edit Sesi Absensi */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-              <Pencil className="size-5" />
-              Edit Sesi Absensi
-            </DialogTitle>
-            <DialogDescription>
-              Ubah judul, waktu pelaksanaan, durasi, atau lokasi sesi ini.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-            <Field>
-              <FieldLabel htmlFor="ed_title">Judul Sesi Pertemuan *</FieldLabel>
-              <Input
-                id="ed_title"
-                placeholder="mis. Absensi KKN62 - Program Kerja 1"
-                {...editForm.register("title")}
-              />
-              {editForm.formState.errors.title && (
-                <FieldError>{editForm.formState.errors.title.message}</FieldError>
-              )}
-            </Field>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field>
-                <FieldLabel htmlFor="ed_meeting_date">Tanggal *</FieldLabel>
-                <Input
-                  id="ed_meeting_date"
-                  type="date"
-                  {...editForm.register("meeting_date")}
-                />
-                {editForm.formState.errors.meeting_date && (
-                  <FieldError>{editForm.formState.errors.meeting_date.message}</FieldError>
-                )}
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="ed_starts_at">Jam Mulai *</FieldLabel>
-                <Input
-                  id="ed_starts_at"
-                  type="time"
-                  {...editForm.register("starts_at")}
-                />
-                {editForm.formState.errors.starts_at && (
-                  <FieldError>{editForm.formState.errors.starts_at.message}</FieldError>
-                )}
-              </Field>
-            </div>
-
-            <Field>
-              <FieldLabel htmlFor="ed_duration">Durasi Aktif (Menit) *</FieldLabel>
-              <Input
-                id="ed_duration"
-                type="number"
-                min={5}
-                max={240}
-                {...editForm.register("duration", { valueAsNumber: true })}
-              />
-              {editForm.formState.errors.duration && (
-                <FieldError>{editForm.formState.errors.duration.message}</FieldError>
-              )}
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="ed_location">Lokasi Pertemuan (Opsional)</FieldLabel>
-              <Input
-                id="ed_location"
-                placeholder="mis. Balai Desa Pulau Parit"
-                {...editForm.register("location")}
-              />
-            </Field>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
                 onClick={() => setEditOpen(false)}
                 disabled={editSubmitting}
               >
@@ -1290,7 +1095,7 @@ export function DosenSessionsPage() {
               </div>
 
               {/* Status Summary Pills */}
-              <div className="flex flex-wrap items-center gap-1.5 border-t pt-3">
+              <div className="flex flex-wrap items-center gap-2 border-t pt-3">
                 {(() => {
                   const hadirCount = detailRecords.filter((r) => r.status === "hadir").length;
                   const lateCount = detailRecords.filter((r) => r.status === "terlambat").length;
@@ -1300,19 +1105,19 @@ export function DosenSessionsPage() {
 
                   return (
                     <>
-                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 border-emerald-500/30 text-[10px] sm:text-xs px-2 py-0.5">
+                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 border-emerald-500/30 text-xs px-2.5 py-1">
                         Hadir: {hadirCount}
                       </Badge>
-                      <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 border-purple-500/30 text-[10px] sm:text-xs px-2 py-0.5">
+                      <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 border-purple-500/30 text-xs px-2.5 py-1">
                         Telat: {lateCount}
                       </Badge>
-                      <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 border-blue-500/30 text-[10px] sm:text-xs px-2 py-0.5">
+                      <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 border-blue-500/30 text-xs px-2.5 py-1">
                         Izin: {izinCount}
                       </Badge>
-                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 border-amber-500/30 text-[10px] sm:text-xs px-2 py-0.5">
+                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 border-amber-500/30 text-xs px-2.5 py-1">
                         Sakit: {sakitCount}
                       </Badge>
-                      <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 border-rose-500/30 text-[10px] sm:text-xs px-2 py-0.5">
+                      <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 border-rose-500/30 text-xs px-2.5 py-1">
                         Alpha: {Math.max(0, absentCount)}
                       </Badge>
                     </>
@@ -1338,11 +1143,11 @@ export function DosenSessionsPage() {
                     Belum ada mahasiswa terdaftar di kelompok ini.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto rounded-lg border max-w-full">
-                    <Table className="text-xs min-w-[450px]">
+                  <div className="overflow-x-auto rounded-lg border">
+                    <Table className="text-xs">
                       <TableHeader className="bg-muted/50">
                         <TableRow>
-                          <TableHead className="w-10 text-center">No</TableHead>
+                          <TableHead className="w-12 text-center">No</TableHead>
                           <TableHead>Nama Mahasiswa</TableHead>
                           <TableHead>NIM (ID)</TableHead>
                           <TableHead>Waktu Pindai</TableHead>
@@ -1379,7 +1184,7 @@ export function DosenSessionsPage() {
                                   : "—"}
                               </TableCell>
                               <TableCell className="text-center">
-                                <Badge className={cn("text-[10px] font-semibold px-2 py-0.5", badgeInfo.cls)}>
+                                <Badge className={cn("text-[11px] font-semibold px-2 py-0.5", badgeInfo.cls)}>
                                   {badgeInfo.label}
                                 </Badge>
                               </TableCell>
@@ -1394,17 +1199,17 @@ export function DosenSessionsPage() {
             </div>
           )}
 
-          <DialogFooter className="pt-2 border-t flex flex-row items-center justify-between gap-2">
+          <DialogFooter className="pt-2 border-t">
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
                 if (detailSession) setPreviewSession(detailSession);
               }}
-              className="gap-1.5 text-xs cursor-pointer"
+              className="gap-1.5 text-xs cursor-pointer mr-auto"
             >
               <QrCode className="size-3.5 text-primary" />
-              <span>Lihat QR</span>
+              <span>Tampilkan Kode QR</span>
             </Button>
             <Button size="sm" onClick={() => setDetailOpen(false)}>
               Tutup
