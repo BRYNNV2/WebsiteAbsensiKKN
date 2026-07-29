@@ -542,31 +542,22 @@ export function MahasiswaProkerPage() {
                         <Card
                           key={p.id}
                           className={cn(
-                            "relative transition-all duration-200 hover:shadow-md border",
+                            "relative transition-all duration-200 hover:shadow-md border cursor-pointer select-none",
                             status.cardClass
                           )}
+                          onClick={() => setDetailProgram(p)}
                         >
                           <CardContent className="p-3 sm:p-4 space-y-2.5">
                             {/* Title & Code Header */}
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <h4 className="font-bold text-sm text-foreground tracking-tight line-clamp-2">
+                            <div className="flex items-start justify-between gap-1.5">
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-bold text-xs sm:text-sm text-foreground tracking-tight line-clamp-2">
                                   {p.title} - {p.code}
                                 </h4>
-                                <Badge className={cn("mt-1 text-[10px] px-2 py-0.5 border", status.badgeClass)}>
+                                <Badge className={cn("mt-1 text-[9px] sm:text-[10px] px-1.5 py-0.5 border", status.badgeClass)}>
                                   {status.label}
                                 </Badge>
                               </div>
-
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-7 text-muted-foreground hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950 shrink-0"
-                                title="Lihat Detail Program Kerja"
-                                onClick={() => setDetailProgram(p)}
-                              >
-                                <Eye className="size-3.5" />
-                              </Button>
                             </div>
 
                             {/* Details matching reference screenshot */}
