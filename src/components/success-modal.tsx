@@ -64,8 +64,10 @@ export function SuccessScanModal({
       })} WIB`
     : "";
 
+  if (!open || !session) return null;
+
   return (
-    <Dialog open={open && Boolean(session)} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[92vw] sm:max-w-[430px] p-0 overflow-hidden text-center rounded-3xl border border-emerald-500/30 dark:border-emerald-500/40 shadow-2xl bg-card relative">
         {/* Ambient Top Glow */}
         <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-56 h-56 bg-emerald-500/20 dark:bg-emerald-500/30 rounded-full blur-3xl pointer-events-none" />
