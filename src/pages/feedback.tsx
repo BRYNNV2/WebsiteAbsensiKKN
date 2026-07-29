@@ -252,8 +252,18 @@ export function FeedbackPage() {
 
     if (!confirm("Apakah Anda yakin ingin menghapus masukan ini secara permanen?")) return;
     try {
-      const { error } = await supabase.from("kkn_feedbacks").delete().eq("id", item.id);
+      const { data, error } = await supabase
+        .from("kkn_feedbacks")
+        .delete()
+        .eq("id", item.id)
+        .select();
+
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error(
+          "Izin RLS Supabase menghalangi penghapusan. Silakan eksekusi query RLS DELETE di Supabase SQL Editor."
+        );
+      }
 
       toast.success("Feedback telah dihapus oleh Dosen.");
       setFeedbacks((prev) => prev.filter((f) => f.id !== item.id));
