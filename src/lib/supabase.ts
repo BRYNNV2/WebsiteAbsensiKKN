@@ -76,3 +76,22 @@ export type WorkProgram = {
   created_by: string
   created_at: string
 }
+
+export type FeedbackCategory = 'Saran & Masukan' | 'Laporan Kendala' | 'Pertanyaan' | 'Apresiasi & Ulasan'
+
+export type FeedbackItem = {
+  id: string
+  user_id: string
+  group_id: string | null
+  category: string
+  rating: number
+  title: string
+  content: string
+  status: 'pending' | 'in_review' | 'resolved'
+  response: string | null
+  responded_at: string | null
+  created_at: string
+  updated_at: string
+  user_name?: string
+  user_role?: Role
+}

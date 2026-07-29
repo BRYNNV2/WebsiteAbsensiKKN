@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   AlertCircle,
   MessageSquare,
+  MessageSquareHeart,
   HelpCircle,
   ChevronsUpDown,
   Calendar,
@@ -72,6 +73,7 @@ const dosenNav: NavItem[] = [
   { to: "/proker", label: "Program Kerja", icon: Briefcase },
   { to: "/sessions", label: "Sesi Absensi", icon: QrCode },
   { to: "/recap", label: "Rekap Kehadiran", icon: ClipboardList },
+  { to: "/feedback", label: "Feedback & Saran", icon: MessageSquareHeart },
 ];
 
 const mahasiswaNav: NavItem[] = [
@@ -79,6 +81,7 @@ const mahasiswaNav: NavItem[] = [
   { to: "/scan", label: "Pindai QR", icon: ScanLine },
   { to: "/proker", label: "Program Kerja", icon: Briefcase },
   { to: "/history", label: "Riwayat Absen", icon: History },
+  { to: "/feedback", label: "Feedback & Saran", icon: MessageSquareHeart },
 ];
 
 function initials(name: string) {
@@ -313,6 +316,13 @@ export function AppShell() {
                   >
                     <SettingsIcon className="size-4" />
                     Pengaturan Akun
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-xs cursor-pointer"
+                    onClick={() => navigate("/feedback")}
+                  >
+                    <MessageSquareHeart className="size-4" />
+                    Feedback &amp; Saran
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

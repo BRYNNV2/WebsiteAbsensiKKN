@@ -17,6 +17,7 @@ import { MahasiswaHistoryPage } from "@/pages/mahasiswa/history";
 import { MahasiswaProkerPage } from "@/pages/mahasiswa/proker";
 import { SettingsPage } from "@/pages/settings";
 import { HelpSupportPage } from "@/pages/support";
+import { FeedbackPage } from "@/pages/feedback";
 
 function FullScreenLoader() {
   return (
@@ -140,6 +141,7 @@ export function App() {
         />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/support" element={<HelpSupportPage />} />
+        <Route path="/feedback" element={<FeedbackPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
