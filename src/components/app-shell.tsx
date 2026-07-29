@@ -73,7 +73,6 @@ const dosenNav: NavItem[] = [
   { to: "/proker", label: "Program Kerja", icon: Briefcase },
   { to: "/sessions", label: "Sesi Absensi", icon: QrCode },
   { to: "/recap", label: "Rekap Kehadiran", icon: ClipboardList },
-  { to: "/feedback", label: "Feedback & Saran", icon: MessageSquareHeart },
 ];
 
 const mahasiswaNav: NavItem[] = [
@@ -81,7 +80,6 @@ const mahasiswaNav: NavItem[] = [
   { to: "/scan", label: "Pindai QR", icon: ScanLine },
   { to: "/proker", label: "Program Kerja", icon: Briefcase },
   { to: "/history", label: "Riwayat Absen", icon: History },
-  { to: "/feedback", label: "Feedback & Saran", icon: MessageSquareHeart },
 ];
 
 function initials(name: string) {
