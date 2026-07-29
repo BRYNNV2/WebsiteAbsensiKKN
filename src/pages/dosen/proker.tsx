@@ -181,6 +181,13 @@ function getProkerWeek(dateStr: string) {
   return 4;
 }
 
+export function formatProkerTime(startsAt: string, endsAt: string) {
+  if (!endsAt || endsAt.toLowerCase().includes("selesai") || endsAt === "23:59") {
+    return `${startsAt} WIB - Selesai`;
+  }
+  return `${startsAt} - ${endsAt} WIB`;
+}
+
 export function DosenProkerPage() {
   const { profile } = useAuth();
   const { group, loading: groupLoading } = useDosenData();
@@ -190,6 +197,7 @@ export function DosenProkerPage() {
   const [selectedWeek, setSelectedWeek] = useState<string>("Semua Minggu");
   const [activeTab, setActiveTab] = useState<string>("Semua Hari");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isUntilFinish, setIsUntilFinish] = useState(false);
 
   // Modal Dialog states
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -253,7 +261,7 @@ export function DosenProkerPage() {
   const openCreateModal = () => {
     form.reset({
       title: "",
-      code: `PRK-${String(programs.length + 1).padStart(2, "0")}`,
+      code: `PRK-0${programs.length + 1}`,
       day_name: todayDayName,
       date: new Date().toISOString().split("T")[0],
       starts_at: "08:00",
@@ -262,11 +270,14 @@ export function DosenProkerPage() {
       location: group?.location ?? "Balai Desa",
       description: "",
     });
+    setIsUntilFinish(false);
     setEditingProgram(null);
     setIsCreateOpen(true);
   };
 
   const openEditModal = (p: WorkProgram) => {
+    const isSelesai = p.ends_at?.toLowerCase().includes("selesai") || p.ends_at === "23:59";
+    setIsUntilFinish(Boolean(isSelesai));
     form.reset({
       title: p.title,
       code: p.code,
@@ -711,7 +722,7 @@ export function DosenProkerPage() {
 
                               <div className="flex items-center gap-2 text-muted-foreground">
                                 <Clock className="size-3.5 text-rose-500 shrink-0" />
-                                <span className="font-mono font-medium">{p.starts_at} - {p.ends_at} WIB</span>
+                                <span className="font-mono font-medium">{formatProkerTime(p.starts_at, p.ends_at)}</span>
                               </div>
 
                               <div className="flex items-center gap-2 text-muted-foreground">
@@ -832,15 +843,44 @@ export function DosenProkerPage() {
 
                 <Field>
                   <FieldLabel>Jam Selesai</FieldLabel>
-                  <Input
-                    type="time"
-                    {...form.register("ends_at")}
-                    className="text-xs"
-                  />
+                  {isUntilFinish ? (
+                    <Input
+                      value="Selesai"
+                      disabled
+                      className="text-xs bg-muted font-semibold text-sky-600 dark:text-sky-400 border-sky-500/30"
+                    />
+                  ) : (
+                    <Input
+                      type="time"
+                      {...form.register("ends_at")}
+                      className="text-xs"
+                    />
+                  )}
                   {form.formState.errors.ends_at && (
                     <FieldError>{form.formState.errors.ends_at.message}</FieldError>
                   )}
                 </Field>
+              </div>
+
+              {/* Checkbox Waktu Fleksibel (Sampai Selesai) */}
+              <div className="flex items-center gap-2 -mt-1 pb-1">
+                <label className="flex items-center gap-2 text-xs font-semibold text-sky-600 dark:text-sky-400 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isUntilFinish}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setIsUntilFinish(checked);
+                      if (checked) {
+                        form.setValue("ends_at", "Selesai");
+                      } else {
+                        form.setValue("ends_at", "12:00");
+                      }
+                    }}
+                    className="rounded border-border text-primary focus:ring-primary size-4 cursor-pointer"
+                  />
+                  <span>Jam Selesai Fleksibel ("Mulai {form.watch("starts_at") || "08:00"} - Selesai")</span>
+                </label>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -972,7 +1012,7 @@ export function DosenProkerPage() {
                       Waktu Pelaksanaan
                     </span>
                     <p className="font-semibold font-mono text-foreground">
-                      {detailProgram.starts_at} - {detailProgram.ends_at} WIB
+                      {formatProkerTime(detailProgram.starts_at, detailProgram.ends_at)}
                     </p>
                   </div>
 

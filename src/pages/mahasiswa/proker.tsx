@@ -16,6 +16,7 @@ import { Link } from "react-router-dom";
 import { supabase, type WorkProgram } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { formatProkerTime } from "@/pages/dosen/proker";
 
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -568,7 +569,7 @@ export function MahasiswaProkerPage() {
 
                               <div className="flex items-center gap-2 text-muted-foreground">
                                 <Clock className="size-3.5 text-rose-500 shrink-0" />
-                                <span className="font-mono font-medium">{p.starts_at} - {p.ends_at} WIB</span>
+                                <span className="font-mono font-medium">{formatProkerTime(p.starts_at, p.ends_at)}</span>
                               </div>
 
                               <div className="flex items-center gap-2 text-muted-foreground">
@@ -645,7 +646,7 @@ export function MahasiswaProkerPage() {
                       Waktu Pelaksanaan
                     </span>
                     <p className="font-semibold font-mono text-foreground">
-                      {detailProgram.starts_at} - {detailProgram.ends_at} WIB
+                      {formatProkerTime(detailProgram.starts_at, detailProgram.ends_at)}
                     </p>
                   </div>
 
