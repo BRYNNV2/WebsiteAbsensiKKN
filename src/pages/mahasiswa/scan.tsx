@@ -214,26 +214,14 @@ export function MahasiswaScanPage() {
                         })}
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setSuccessSession(result.session);
-                          setShowSuccessModal(true);
-                        }}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg"
-                      >
-                        Lihat Pop-up Bukti Absen
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setResult(null)}
-                        className="text-xs rounded-lg"
-                      >
-                        Pindai Sesi Lain
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setResult(null)}
+                      className="mt-2 text-xs rounded-lg"
+                    >
+                      Pindai Sesi Lain
+                    </Button>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-3 py-4 text-center">
