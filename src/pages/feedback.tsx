@@ -543,115 +543,116 @@ export function FeedbackPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filteredFeedbacks.map((item) => (
                 <Card
                   key={item.id}
                   className="border border-border/60 hover:border-primary/40 transition-all duration-200 shadow-sm flex flex-col justify-between"
                 >
-                  <CardHeader className="p-5 pb-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="outline" className="text-[11px] font-medium bg-secondary/50">
+                  <CardHeader className="p-3.5 sm:p-5 pb-2 sm:pb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1.5 sm:gap-3">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant="outline" className="text-[9px] sm:text-[11px] font-medium bg-secondary/50 px-1.5 py-0.5">
                             {item.category}
                           </Badge>
                           {item.status === "resolved" ? (
-                            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] gap-1">
-                              <CheckCircle2 className="size-3" /> Ditanggapi
+                            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[9px] sm:text-[10px] px-1.5 py-0.5 gap-1">
+                              <CheckCircle2 className="size-2.5 sm:size-3" /> Ditanggapi
                             </Badge>
                           ) : (
-                            <Badge variant="secondary" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20 text-[10px] gap-1">
-                              <Clock className="size-3" /> Menunggu Review
+                            <Badge variant="secondary" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20 text-[9px] sm:text-[10px] px-1.5 py-0.5 gap-1">
+                              <Clock className="size-2.5 sm:size-3" /> Menunggu
                             </Badge>
                           )}
                         </div>
-                        <CardTitle className="text-base font-bold text-foreground leading-snug pt-1">
+                        <CardTitle className="text-xs sm:text-base font-bold text-foreground leading-snug pt-0.5 line-clamp-2">
                           {item.title}
                         </CardTitle>
                       </div>
 
                       {/* Rating Stars */}
-                      <div className="flex items-center gap-0.5 bg-amber-500/10 px-2 py-1 rounded-lg shrink-0">
-                        <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                      <div className="flex items-center gap-0.5 bg-amber-500/10 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg shrink-0 self-start">
+                        <Star className="size-3 sm:size-3.5 fill-amber-400 text-amber-400" />
+                        <span className="text-[10px] sm:text-xs font-bold text-amber-600 dark:text-amber-400">
                           {item.rating}.0
                         </span>
                       </div>
                     </div>
                   </CardHeader>
 
-                  <CardContent className="p-5 pt-0 space-y-4 flex-1 flex flex-col justify-between">
-                    <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
+                  <CardContent className="p-3.5 sm:p-5 pt-0 space-y-3 sm:space-y-4 flex-1 flex flex-col justify-between">
+                    <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed whitespace-pre-line line-clamp-3 sm:line-clamp-none">
                       "{item.content}"
                     </p>
 
                     {/* Dosen Official Response Box if exists */}
                     {item.response && (
-                      <div className="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/20 space-y-1.5">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-sky-600 dark:text-sky-400">
-                          <MessageCircle className="size-3.5" />
-                          Tanggapan Pembimbing / Pengelola:
+                      <div className="p-2.5 sm:p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/20 space-y-1">
+                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold text-sky-600 dark:text-sky-400">
+                          <MessageCircle className="size-3 shrink-0" />
+                          Tanggapan Pembimbing:
                         </div>
-                        <p className="text-xs text-foreground/90 italic pl-5">
+                        <p className="text-[10px] sm:text-xs text-foreground/90 italic pl-4 leading-normal line-clamp-2 sm:line-clamp-none">
                           "{item.response}"
                         </p>
                         {item.responded_at && (
-                          <p className="text-[10px] text-muted-foreground pl-5 pt-0.5">
-                            Ditanggapi pada: {new Date(item.responded_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })} WIB
+                          <p className="text-[9px] sm:text-[10px] text-muted-foreground pl-4 pt-0.5">
+                            {new Date(item.responded_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} WIB
                           </p>
                         )}
                       </div>
                     )}
 
                     {/* Footer Author & Actions */}
-                    <div className="pt-3 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <div className="size-5 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px]">
+                    <div className="pt-2 sm:pt-3 border-t border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[10px] sm:text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <div className="size-4 sm:size-5 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[9px] sm:text-[10px] shrink-0">
                           {(item.user_name || "U")[0].toUpperCase()}
                         </div>
-                        <span className="font-medium text-foreground text-[11px]">
-                          {item.user_name} ({item.user_role === "dosen" ? "Dosen" : "Mahasiswa"})
+                        <span className="font-medium text-foreground text-[10px] sm:text-[11px] truncate">
+                          {item.user_name}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px]">
+                      <div className="flex items-center justify-between sm:justify-end gap-1.5 w-full sm:w-auto">
+                        <span className="text-[9px] sm:text-[10px] text-muted-foreground shrink-0">
                           {new Date(item.created_at).toLocaleDateString("id-ID", {
                             day: "numeric",
                             month: "short",
-                            year: "numeric",
                           })}
                         </span>
 
-                        {/* Action for Dosen to respond */}
-                        {profile?.role === "dosen" && !item.response && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-[11px] gap-1 text-sky-600 border-sky-500/30 hover:bg-sky-500/10 cursor-pointer"
-                            onClick={() => {
-                              setSelectedFeedbackForResponse(item);
-                              setResponseText("");
-                            }}
-                          >
-                            <MessageCircle className="size-3" />
-                            Beri Tanggapan
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {/* Action for Dosen to respond */}
+                          {profile?.role === "dosen" && !item.response && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-[11px] gap-1 text-sky-600 border-sky-500/30 hover:bg-sky-500/10 cursor-pointer"
+                              onClick={() => {
+                                setSelectedFeedbackForResponse(item);
+                                setResponseText("");
+                              }}
+                            >
+                              <MessageCircle className="size-2.5 sm:size-3" />
+                              Balas
+                            </Button>
+                          )}
 
-                        {/* Action to Delete feedback (Only Dosen has full control authority) */}
-                        {profile?.role === "dosen" && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="size-7 text-muted-foreground hover:text-destructive cursor-pointer"
-                            onClick={() => handleDeleteFeedback(item)}
-                            title="Hapus Feedback (Wewenang Dosen)"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        )}
+                          {/* Action to Delete feedback (Only Dosen has full control authority) */}
+                          {profile?.role === "dosen" && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="size-6 sm:size-7 text-muted-foreground hover:text-destructive cursor-pointer"
+                              onClick={() => handleDeleteFeedback(item)}
+                              title="Hapus Feedback (Wewenang Dosen)"
+                            >
+                              <Trash2 className="size-3 sm:size-3.5" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
