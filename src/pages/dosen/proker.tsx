@@ -67,7 +67,7 @@ const prokerSchema = z.object({
   date: z.string().min(1, "Pilih tanggal pelaksanaan"),
   starts_at: z.string().min(1, "Masukkan jam mulai"),
   ends_at: z.string().min(1, "Masukkan jam selesai"),
-  category: z.string().min(2, "Bidang / kategori minimal 2 karakter"),
+  category: z.string().optional(),
   location: z.string().min(2, "Lokasi minimal 2 karakter"),
   description: z.string().optional(),
 });
@@ -307,7 +307,7 @@ export function DosenProkerPage() {
             date: values.date,
             starts_at: values.starts_at,
             ends_at: values.ends_at,
-            category: values.category,
+            category: values.category || "Umum",
             location: values.location,
             description: values.description || null,
           })
@@ -324,7 +324,7 @@ export function DosenProkerPage() {
           date: values.date,
           starts_at: values.starts_at,
           ends_at: values.ends_at,
-          category: values.category,
+          category: values.category || "Umum",
           location: values.location,
           description: values.description || null,
           created_by: profile.id,
@@ -885,7 +885,7 @@ export function DosenProkerPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <Field>
-                  <FieldLabel>Bidang / Kategori</FieldLabel>
+                  <FieldLabel>Bidang / Kategori (Opsional)</FieldLabel>
                   <Input
                     {...form.register("category")}
                     placeholder="Contoh: Bidang Kesehatan & Lingkungan"
