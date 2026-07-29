@@ -1,3 +1,4 @@
+import { Component, type ReactNode } from "react";
 import Lottie from "lottie-react";
 import successCheckAnimation from "@/assets/success-check.json";
 import {
@@ -15,8 +16,23 @@ import {
   UserCheck,
   Sparkles,
   BookmarkCheck,
+  CheckCircle2,
 } from "lucide-react";
 import { type QrSession } from "@/lib/supabase";
+
+class LottieErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
 
 interface SuccessScanModalProps {
   open: boolean;
@@ -55,9 +71,15 @@ export function SuccessScanModal({
     minute: "2-digit",
   })} WIB`;
 
+  const fallbackCheck = (
+    <div className="size-28 rounded-full bg-emerald-500/15 border-2 border-emerald-500/40 flex items-center justify-center shadow-lg shadow-emerald-500/20 animate-in zoom-in-75 duration-300">
+      <CheckCircle2 className="size-16 text-emerald-500 animate-pulse" />
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[92vw] sm:max-w-[430px] p-0 overflow-hidden text-center rounded-3xl border border-emerald-500/30 dark:border-emerald-500/40 shadow-2xl bg-card relative">
+      <DialogContent className="w-[92vw] sm:max-w-[430px] p-0 overflow-hidden text-center rounded-3xl border border-emerald-500/30 dark:border-emerald-500/40 shadow-2xl bg-background dark:bg-zinc-950 text-foreground relative z-50">
         {/* Radix Accessible Header (sr-only for screenreaders) */}
         <DialogHeader className="sr-only">
           <DialogTitle>Absen Berhasil Tercatat</DialogTitle>
@@ -65,18 +87,20 @@ export function SuccessScanModal({
         </DialogHeader>
 
         {/* Ambient Top Glow */}
-        <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-56 h-56 bg-emerald-500/20 dark:bg-emerald-500/30 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-56 h-56 bg-emerald-500/25 dark:bg-emerald-500/35 rounded-full blur-3xl pointer-events-none" />
 
         <div className="p-6 space-y-5 relative z-10">
-          {/* Lottie Animation Header */}
-          <div className="relative flex justify-center items-center pt-2">
+          {/* Lottie Animation Header with Safe Fallback */}
+          <div className="relative flex justify-center items-center pt-2 min-h-[140px]">
             <div className="absolute size-28 bg-emerald-500/20 dark:bg-emerald-500/30 rounded-full blur-xl animate-pulse pointer-events-none" />
-            <Lottie
-              animationData={successCheckAnimation}
-              loop={false}
-              autoplay={true}
-              className="w-36 h-36 sm:w-40 sm:h-40 relative z-10 drop-shadow-md"
-            />
+            <LottieErrorBoundary fallback={fallbackCheck}>
+              <Lottie
+                animationData={successCheckAnimation}
+                loop={false}
+                autoplay={true}
+                className="w-36 h-36 sm:w-40 sm:h-40 relative z-10 drop-shadow-md"
+              />
+            </LottieErrorBoundary>
           </div>
 
           {/* Title & Live Status Badge */}
