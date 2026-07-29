@@ -1,13 +1,6 @@
 import { Component, type ReactNode } from "react";
 import Lottie from "lottie-react";
 import successCheckAnimation from "@/assets/success-check.json";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
   Calendar,
@@ -17,6 +10,7 @@ import {
   Sparkles,
   BookmarkCheck,
   CheckCircle2,
+  X,
 } from "lucide-react";
 import { type QrSession } from "@/lib/supabase";
 
@@ -47,6 +41,8 @@ export function SuccessScanModal({
   session,
   studentName,
 }: SuccessScanModalProps) {
+  if (!open) return null;
+
   const dateObj = session ? new Date(session.starts_at) : new Date();
   const formattedDate = session
     ? dateObj.toLocaleDateString("id-ID", {
@@ -80,13 +76,22 @@ export function SuccessScanModal({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[92vw] sm:max-w-[430px] p-0 overflow-hidden text-center rounded-3xl border border-emerald-500/30 dark:border-emerald-500/40 shadow-2xl bg-card text-card-foreground relative z-50">
-        {/* Radix Accessible Header */}
-        <DialogHeader className="sr-only">
-          <DialogTitle>Absen Berhasil Tercatat</DialogTitle>
-          <DialogDescription>Detail presensi kehadiran mahasiswa</DialogDescription>
-        </DialogHeader>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all duration-200 animate-in fade-in"
+      onClick={() => onOpenChange(false)}
+    >
+      <div
+        className="w-full max-w-[430px] p-0 overflow-hidden text-center rounded-3xl border border-emerald-500/30 dark:border-emerald-500/40 shadow-2xl bg-card text-card-foreground relative z-10 animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close Button at Top Right */}
+        <button
+          onClick={() => onOpenChange(false)}
+          className="absolute top-4 right-4 z-30 p-1.5 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+          title="Tutup"
+        >
+          <X className="size-4" />
+        </button>
 
         {/* Ambient Top Glow */}
         <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-56 h-56 bg-emerald-500/25 dark:bg-emerald-500/35 rounded-full blur-3xl pointer-events-none" />
@@ -110,7 +115,7 @@ export function SuccessScanModal({
             <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-400 bg-clip-text text-transparent">
               Absen Berhasil Tercatat!
             </h3>
-            
+
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-500/25 shadow-2xs">
               <span className="relative flex size-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -135,9 +140,11 @@ export function SuccessScanModal({
                   <p className="font-bold text-foreground text-sm truncate leading-snug">
                     {session.title}
                   </p>
-                  <p className="text-[11px] text-muted-foreground font-normal truncate">
-                    Rentang Sesi: {sessionWindow}
-                  </p>
+                  {sessionWindow && (
+                    <p className="text-[11px] text-muted-foreground font-normal truncate mt-0.5">
+                      Rentang Sesi: {sessionWindow}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -199,7 +206,7 @@ export function SuccessScanModal({
             <Sparkles className="size-4 text-emerald-200 animate-pulse" />
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
