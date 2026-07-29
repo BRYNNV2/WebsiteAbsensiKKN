@@ -25,6 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { QrScanner } from "@/components/qr-scanner";
 import { SuccessScanModal } from "@/components/success-modal";
 
