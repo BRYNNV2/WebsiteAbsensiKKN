@@ -182,10 +182,13 @@ function getProkerWeek(dateStr: string) {
 }
 
 export function formatProkerTime(startsAt: string, endsAt: string) {
-  if (!endsAt || endsAt.toLowerCase().includes("selesai") || endsAt === "23:59") {
-    return `${startsAt} WIB - Selesai`;
+  const isSelesai = !endsAt || endsAt.toLowerCase().includes("selesai") || endsAt.startsWith("23:59");
+  const formattedStart = startsAt ? startsAt.slice(0, 5) : "08:00";
+  if (isSelesai) {
+    return `${formattedStart} WIB - Selesai`;
   }
-  return `${startsAt} - ${endsAt} WIB`;
+  const formattedEnd = endsAt ? endsAt.slice(0, 5) : "12:00";
+  return `${formattedStart} - ${formattedEnd} WIB`;
 }
 
 export function DosenProkerPage() {
@@ -276,15 +279,15 @@ export function DosenProkerPage() {
   };
 
   const openEditModal = (p: WorkProgram) => {
-    const isSelesai = p.ends_at?.toLowerCase().includes("selesai") || p.ends_at === "23:59";
+    const isSelesai = p.ends_at?.toLowerCase().includes("selesai") || p.ends_at?.startsWith("23:59");
     setIsUntilFinish(Boolean(isSelesai));
     form.reset({
       title: p.title,
       code: p.code,
       day_name: p.day_name,
       date: p.date,
-      starts_at: p.starts_at,
-      ends_at: p.ends_at,
+      starts_at: p.starts_at ? p.starts_at.slice(0, 5) : "08:00",
+      ends_at: isSelesai ? "23:59" : (p.ends_at ? p.ends_at.slice(0, 5) : "12:00"),
       category: p.category,
       location: p.location,
       description: p.description ?? "",
@@ -296,6 +299,7 @@ export function DosenProkerPage() {
   const onSubmit = async (values: ProkerFormValues) => {
     if (!group?.id || !profile?.id) return;
     setSubmitting(true);
+    const finalEndsAt = isUntilFinish || values.ends_at === "Selesai" ? "23:59" : values.ends_at;
     try {
       if (editingProgram) {
         const { error } = await supabase
@@ -306,7 +310,7 @@ export function DosenProkerPage() {
             day_name: values.day_name,
             date: values.date,
             starts_at: values.starts_at,
-            ends_at: values.ends_at,
+            ends_at: finalEndsAt,
             category: values.category || "Umum",
             location: values.location,
             description: values.description || null,
@@ -323,7 +327,7 @@ export function DosenProkerPage() {
           day_name: values.day_name,
           date: values.date,
           starts_at: values.starts_at,
-          ends_at: values.ends_at,
+          ends_at: finalEndsAt,
           category: values.category || "Umum",
           location: values.location,
           description: values.description || null,
@@ -872,7 +876,7 @@ export function DosenProkerPage() {
                       const checked = e.target.checked;
                       setIsUntilFinish(checked);
                       if (checked) {
-                        form.setValue("ends_at", "Selesai");
+                        form.setValue("ends_at", "23:59");
                       } else {
                         form.setValue("ends_at", "12:00");
                       }
