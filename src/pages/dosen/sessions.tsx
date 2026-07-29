@@ -160,6 +160,7 @@ export function DosenSessionsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [previewSession, setPreviewSession] = useState<QrSession | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [deleteConfirmSession, setDeleteConfirmSession] = useState<QrSession | null>(null);
 
   // Edit Session State & Form
   const [editSession, setEditSession] = useState<QrSession | null>(null);
@@ -372,20 +373,18 @@ export function DosenSessionsPage() {
   }
 
   async function handleRemove(id: string) {
-    if (!confirm("Hapus sesi absen ini? Semua catatan kehadiran terkait juga akan dihapus.")) {
-      return;
-    }
     setRemovingId(id);
     const { error } = await supabase
       .from("qr_sessions")
       .delete()
       .eq("id", id);
     setRemovingId(null);
+    setDeleteConfirmSession(null);
     if (error) {
       toast.error("Gagal menghapus sesi.");
       return;
     }
-    toast.success("Sesi absen dihapus.");
+    toast.success("Sesi absen berhasil dihapus.");
     loadSessions();
   }
 
@@ -816,7 +815,7 @@ export function DosenSessionsPage() {
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() => handleRemove(s.id)}
+                          onClick={() => setDeleteConfirmSession(s)}
                           disabled={removingId === s.id}
                           aria-label="Hapus sesi"
                           className="cursor-pointer hover:bg-rose-500/10 text-destructive"
@@ -1213,6 +1212,38 @@ export function DosenSessionsPage() {
             </Button>
             <Button size="sm" onClick={() => setDetailOpen(false)}>
               Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Confirm Delete Session */}
+      <Dialog open={Boolean(deleteConfirmSession)} onOpenChange={(o) => !o && setDeleteConfirmSession(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Hapus Sesi Absensi?</DialogTitle>
+            <DialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Semua catatan kehadiran mahasiswa pada sesi <span className="font-semibold text-foreground">"{deleteConfirmSession?.title}"</span> juga akan dihapus secara permanen.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex flex-row items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteConfirmSession(null)}
+              disabled={Boolean(removingId)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => deleteConfirmSession && handleRemove(deleteConfirmSession.id)}
+              disabled={Boolean(removingId)}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {removingId && <Loader2 className="size-4 animate-spin" />}
+              Hapus
             </Button>
           </DialogFooter>
         </DialogContent>

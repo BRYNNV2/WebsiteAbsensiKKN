@@ -94,6 +94,7 @@ export function DosenStudentsPage() {
   const [viewStudent, setViewStudent] = useState<Profile | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [deleteConfirmStudent, setDeleteConfirmStudent] = useState<{ id: string; name: string } | null>(null);
 
   // Search & Sorting state
   const [searchQuery, setSearchQuery] = useState("");
@@ -283,7 +284,6 @@ export function DosenStudentsPage() {
   }
 
   async function handleRemove(id: string, name: string) {
-    if (!confirm(`Hapus mahasiswa ${name} secara permanen?`)) return;
     setRemovingId(id);
     try {
       const { error: rpcErr } = await supabase.rpc("admin_delete_student", {
@@ -305,6 +305,7 @@ export function DosenStudentsPage() {
       toast.error((err as Error).message ?? "Gagal menghapus mahasiswa");
     } finally {
       setRemovingId(null);
+      setDeleteConfirmStudent(null);
     }
   }
 
@@ -550,7 +551,7 @@ export function DosenStudentsPage() {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            onClick={() => handleRemove(s.id, s.full_name)}
+                            onClick={() => setDeleteConfirmStudent({ id: s.id, name: s.full_name })}
                             disabled={removingId === s.id}
                             title="Hapus Mahasiswa"
                           >
@@ -775,6 +776,42 @@ export function DosenStudentsPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Modal Confirm Delete Student */}
+      <Dialog open={Boolean(deleteConfirmStudent)} onOpenChange={(o) => !o && setDeleteConfirmStudent(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Hapus Mahasiswa?</DialogTitle>
+            <DialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Mahasiswa <span className="font-semibold text-foreground">{deleteConfirmStudent?.name}</span> akan dihapus dari anggota kelompok KKN ini.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex flex-row items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteConfirmStudent(null)}
+              disabled={Boolean(removingId)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                if (deleteConfirmStudent) {
+                  handleRemove(deleteConfirmStudent.id, deleteConfirmStudent.name);
+                }
+              }}
+              disabled={Boolean(removingId)}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {removingId && <Loader2 className="size-4 animate-spin" />}
+              Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

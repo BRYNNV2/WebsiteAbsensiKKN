@@ -91,6 +91,7 @@ export function FeedbackPage() {
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingFeedbackItem, setDeletingFeedbackItem] = useState<FeedbackItem | null>(null);
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("semua");
@@ -267,7 +268,6 @@ export function FeedbackPage() {
       return;
     }
 
-    if (!confirm("Apakah Anda yakin ingin menghapus masukan ini secara permanen?")) return;
     try {
       const { data, error } = await supabase
         .from("kkn_feedbacks")
@@ -286,6 +286,8 @@ export function FeedbackPage() {
       setFeedbacks((prev) => prev.filter((f) => f.id !== item.id));
     } catch (err: any) {
       toast.error("Gagal menghapus feedback: " + err.message);
+    } finally {
+      setDeletingFeedbackItem(null);
     }
   }
 
@@ -676,7 +678,7 @@ export function FeedbackPage() {
                               size="icon"
                               variant="ghost"
                               className="size-6 sm:size-7 text-muted-foreground hover:text-destructive cursor-pointer"
-                              onClick={() => handleDeleteFeedback(item)}
+                              onClick={() => setDeletingFeedbackItem(item)}
                               title="Hapus Feedback (Wewenang Dosen)"
                             >
                               <Trash2 className="size-3 sm:size-3.5" />
@@ -748,6 +750,35 @@ export function FeedbackPage() {
               className="gap-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold"
             >
               {responding ? "Menyimpan..." : "Kirim Tanggapan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Confirm Delete Feedback */}
+      <Dialog open={Boolean(deletingFeedbackItem)} onOpenChange={(o) => !o && setDeletingFeedbackItem(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Hapus Feedback?</DialogTitle>
+            <DialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Masukan dari <span className="font-semibold text-foreground">"{deletingFeedbackItem?.user_name}"</span> akan dihapus secara permanen.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex flex-row items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeletingFeedbackItem(null)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => deletingFeedbackItem && handleDeleteFeedback(deletingFeedbackItem)}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Hapus
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -85,8 +85,9 @@ export function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
-  // Crop Dialog States
+  // Crop & Delete Dialog States
   const [isCropOpen, setIsCropOpen] = useState(false);
+  const [isDeletePhotoOpen, setIsDeletePhotoOpen] = useState(false);
   const [tempImgSrc, setTempImgSrc] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
@@ -206,7 +207,6 @@ export function SettingsPage() {
   // Handle Delete Profile Photo
   async function handleDeletePhoto() {
     if (!profile) return;
-    if (!confirm("Apakah Anda yakin ingin menghapus foto profil ini?")) return;
 
     setAvatarUrl("");
     localStorage.removeItem(`profile_extra_${profile.id}`);
@@ -225,6 +225,8 @@ export function SettingsPage() {
       toast.success("Foto profil telah dihapus.");
     } catch (err: any) {
       toast.error(err.message ?? "Gagal menghapus foto profil.");
+    } finally {
+      setIsDeletePhotoOpen(false);
     }
   }
 
@@ -431,7 +433,7 @@ export function SettingsPage() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={handleDeletePhoto}
+                  onClick={() => setIsDeletePhotoOpen(true)}
                   className="gap-1.5 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                 >
                   <Trash2 className="size-3.5" />
@@ -766,6 +768,35 @@ export function SettingsPage() {
             >
               <Crop className="size-3.5" />
               Potong &amp; Gunakan Foto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Confirm Delete Profile Photo */}
+      <Dialog open={isDeletePhotoOpen} onOpenChange={setIsDeletePhotoOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Hapus Foto Profil?</DialogTitle>
+            <DialogDescription>
+              Foto profil Anda akan dihapus dan dikembalikan ke tampilan inisial nama standar.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex flex-row items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDeletePhotoOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeletePhoto}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Hapus
             </Button>
           </DialogFooter>
         </DialogContent>
