@@ -15,6 +15,7 @@ import { MahasiswaDashboardPage } from "@/pages/mahasiswa/dashboard";
 import { MahasiswaScanPage } from "@/pages/mahasiswa/scan";
 import { MahasiswaHistoryPage } from "@/pages/mahasiswa/history";
 import { MahasiswaProkerPage } from "@/pages/mahasiswa/proker";
+import { MahasiswaLogbookPage } from "@/pages/mahasiswa/logbook";
 import { SettingsPage } from "@/pages/settings";
 import { HelpSupportPage } from "@/pages/support";
 import { FeedbackPage } from "@/pages/feedback";
@@ -136,6 +137,14 @@ export function App() {
           element={
             <RoleRoute role="mahasiswa">
               <MahasiswaHistoryPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/logbook"
+          element={
+            <RoleRoute role="mahasiswa">
+              <MahasiswaLogbookPage />
             </RoleRoute>
           }
         />
