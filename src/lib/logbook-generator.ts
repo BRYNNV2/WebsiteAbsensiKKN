@@ -35,7 +35,8 @@ export async function exportLogbookToDocx(
   student: StudentLogbookProfile,
   entries: LogbookEntryItem[],
   weeklyNotes: string[] = [],
-  weekNumber: number = 1
+  weekNumber: number = 1,
+  photoUrlOrBuffer?: string | ArrayBuffer | null
 ) {
   try {
     let response = await fetch("/templates/template_logbook_kkn_prepared.docx");
@@ -48,6 +49,28 @@ export async function exportLogbookToDocx(
 
     const content = await response.arrayBuffer();
     const zip = new PizZip(content);
+
+    // Embed Pas Foto 4x6 otomatis ke dalam word/media/image1.png (Bingkai Foto Halaman 1)
+    if (photoUrlOrBuffer) {
+      try {
+        let photoBuffer: ArrayBuffer | null = null;
+        if (typeof photoUrlOrBuffer === "string" && photoUrlOrBuffer.trim()) {
+          const res = await fetch(photoUrlOrBuffer);
+          if (res.ok) {
+            photoBuffer = await res.arrayBuffer();
+          }
+        } else if (photoUrlOrBuffer instanceof ArrayBuffer) {
+          photoBuffer = photoUrlOrBuffer;
+        }
+
+        if (photoBuffer) {
+          zip.file("word/media/image1.png", photoBuffer);
+        }
+      } catch (imgErr) {
+        console.warn("Gagal menyisipkan pas foto 4x6 ke file Word:", imgErr);
+      }
+    }
+
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
@@ -89,19 +112,20 @@ export async function exportLogbookToDocx(
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
 
-    const fileName = `LOGBOOK_KKN_MINGGU_${weekNumber}_${student.student_id}.docx`;
+    const fileName = `LOGBOOK_KKN_MINGGU_${weekNumber}_${student.student_id || "MAHASISWA"}.docx`;
     saveAs(out, fileName);
-  } catch (err) {
-    console.error("Gagal mengunduh file DOCX:", err);
-    throw err;
+  } catch (error: any) {
+    console.error("Error generating DOCX logbook:", error);
+    throw error;
   }
 }
 
-export function exportLogbookToPdf(
+export async function exportLogbookToPdf(
   student: StudentLogbookProfile,
   entries: LogbookEntryItem[],
   weeklyNotes: string[] = [],
-  weekNumber: number = 1
+  weekNumber: number = 1,
+  photoUrlOrBuffer?: string | ArrayBuffer | null
 ) {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -120,9 +144,30 @@ export function exportLogbookToPdf(
 
   // Frame Foto 4x6
   doc.rect(87, 65, 36, 48);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text("Foto 4x6", 105, 91, { align: "center" });
+
+  if (photoUrlOrBuffer) {
+    try {
+      let dataUrl = "";
+      if (typeof photoUrlOrBuffer === "string" && photoUrlOrBuffer.trim()) {
+        dataUrl = photoUrlOrBuffer;
+      }
+      if (dataUrl) {
+        doc.addImage(dataUrl, "JPEG", 87.5, 65.5, 35, 47);
+      } else {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.text("Foto 4x6", 105, 91, { align: "center" });
+      }
+    } catch (e) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text("Foto 4x6", 105, 91, { align: "center" });
+    }
+  } else {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Foto 4x6", 105, 91, { align: "center" });
+  }
 
   // Tabel Identitas Sampul
   autoTable(doc, {

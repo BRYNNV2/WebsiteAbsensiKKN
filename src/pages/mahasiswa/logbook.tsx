@@ -53,6 +53,8 @@ import {
   Trash2,
   Save,
   ImageIcon,
+  Upload,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -360,6 +362,32 @@ export function MahasiswaLogbookPage() {
     }
   }
 
+  const [photoUrl, setPhotoUrl] = useState<string | null>(profile?.avatar_url || null);
+
+  useEffect(() => {
+    if (profile?.avatar_url) {
+      setPhotoUrl(profile.avatar_url);
+    }
+  }, [profile?.avatar_url]);
+
+  function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Format file harus berupa gambar (JPG, PNG, WebP).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      setPhotoUrl(result);
+      toast.success("Pas foto 4x6 berhasil diperbarui untuk dokumen Logbook!");
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function handleExportDocx() {
     if (entries.length === 0) {
       toast.error("Belum ada kegiatan pada minggu ini untuk diunduh.");
@@ -371,7 +399,8 @@ export function MahasiswaLogbookPage() {
         studentProfile,
         entries,
         weeklyNotes,
-        selectedWeek
+        selectedWeek,
+        photoUrl || profile?.avatar_url || null
       );
       toast.success("File Word Logbook KKN (.docx) berhasil diunduh!");
     } catch (err) {
@@ -384,22 +413,23 @@ export function MahasiswaLogbookPage() {
     }
   }
 
-  function handleExportPdf() {
+  async function handleExportPdf() {
     if (entries.length === 0) {
       toast.error("Belum ada kegiatan pada minggu ini untuk diunduh.");
       return;
     }
     try {
-      exportLogbookToPdf(
+      await exportLogbookToPdf(
         studentProfile,
         entries,
         weeklyNotes,
-        selectedWeek
+        selectedWeek,
+        photoUrl || profile?.avatar_url || null
       );
-      toast.success("File PDF Logbook KKN (.pdf) berhasil diunduh!");
+      toast.success("File PDF Logbook KKN berhasil diunduh!");
     } catch (err) {
       console.error("Export PDF Error:", err);
-      toast.error("Gagal mengunduh dokumen PDF.");
+      toast.error("Gagal mengunduh PDF Logbook.");
     }
   }
 
@@ -467,8 +497,63 @@ export function MahasiswaLogbookPage() {
             <FileText className="size-4 text-rose-600 dark:text-rose-400" />
             <span>Unduh PDF</span>
           </Button>
-        </div>
       </div>
+
+      {/* Pas Foto 4x6 Widget Banner */}
+      <Card className="border-border/60 shadow-2xs bg-card/60 backdrop-blur-xs">
+        <CardContent className="p-3.5 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="relative size-12 rounded-xl border border-border/80 overflow-hidden bg-muted flex items-center justify-center shrink-0 shadow-xs">
+              {photoUrl ? (
+                <img
+                  src={photoUrl}
+                  alt="Pas Foto 4x6"
+                  className="size-full object-cover"
+                />
+              ) : (
+                <User className="size-6 text-muted-foreground" />
+              )}
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-foreground">
+                  Pas Foto 4x6 (Halaman Cover Logbook)
+                </span>
+                <Badge variant="secondary" className="text-[10px] px-2 py-0 h-4 bg-primary/10 text-primary border-primary/20 font-medium">
+                  {photoUrl ? "Foto Terpasang" : "Foto Bawaan Akun"}
+                </Badge>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {photoUrl
+                  ? "Pas foto ini otomatis dipasang pada bingkai foto 4x6 Halaman 1 saat mengunduh dokumen Word & PDF."
+                  : "Otomatis menggunakan Foto Profil akun Anda, atau klik tombol di samping jika ingin mengunggah foto 4x6 kustom."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto shrink-0">
+            <input
+              type="file"
+              id="logbook-photo-input"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePhotoUpload}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs font-semibold rounded-xl border-border/80 gap-1.5"
+              onClick={() => {
+                document.getElementById("logbook-photo-input")?.click();
+              }}
+            >
+              <Upload className="size-3.5 text-primary" />
+              <span>{photoUrl ? "Ganti Pas Foto 4x6" : "Unggah Foto 4x6"}</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-12 items-start">
