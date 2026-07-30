@@ -50,7 +50,8 @@ export async function exportLogbookToDocx(
     const content = await response.arrayBuffer();
     const zip = new PizZip(content);
 
-    // Embed Pas Foto 4x6 otomatis ke dalam word/media/image1.png (Bingkai Foto Halaman 1)
+    // Embed Pas Foto 4x6 ke word/media/image2.png (rId7) dan reposisi anchor ke kotak bingkai
+    let hasPhoto = false;
     if (photoUrlOrBuffer) {
       try {
         let photoBuffer: ArrayBuffer | null = null;
@@ -64,7 +65,9 @@ export async function exportLogbookToDocx(
         }
 
         if (photoBuffer) {
-          zip.file("word/media/image1.png", photoBuffer);
+          // Replace image2.png (rId7 = foto placeholder below table)
+          zip.file("word/media/image2.png", photoBuffer);
+          hasPhoto = true;
         }
       } catch (imgErr) {
         console.warn("Gagal menyisipkan pas foto 4x6 ke file Word:", imgErr);
@@ -106,7 +109,52 @@ export async function exportLogbookToDocx(
     };
 
     doc.render(data);
-    const out = doc.getZip().generate({
+
+    // Reposisi anchor rId7 (image2.png) agar menumpuk presisi di atas kotak bingkai 4x6
+    const renderedZip = doc.getZip();
+    if (hasPhoto) {
+      try {
+        let docXml = renderedZip.file("word/document.xml")?.asText() || "";
+
+        // Koordinat kotak bingkai 4x6 dari template asli:
+        // positionH=2336800, positionV=279400, cx=1270000, cy=1546225
+        // Ubah positionH rId7 anchor
+        docXml = docXml.replace(
+          /(<wp:anchor[^>]*wp14:anchorId="7523C5D4"[\s\S]*?<wp:positionH[^>]*><wp:posOffset>)\d+(<\/wp:posOffset><\/wp:positionH>)/,
+          "$12336800$2"
+        );
+        // Ubah positionV rId7 anchor
+        docXml = docXml.replace(
+          /(<wp:anchor[^>]*wp14:anchorId="7523C5D4"[\s\S]*?<wp:positionV[^>]*><wp:posOffset>)\d+(<\/wp:posOffset><\/wp:positionV>)/,
+          "$1279400$2"
+        );
+        // Ubah extent (ukuran) rId7 anchor ke 4x6 cm
+        docXml = docXml.replace(
+          /(<wp:anchor[^>]*wp14:anchorId="7523C5D4"[\s\S]*?<wp:extent) cx="[^"]*" cy="[^"]*"(\/?>)/,
+          '$1 cx="1270000" cy="1546225"$2'
+        );
+        // Ubah a:ext di dalam spPr rId7
+        docXml = docXml.replace(
+          /(<wp:anchor[^>]*wp14:anchorId="7523C5D4"[\s\S]*?<a:ext) cx="[^"]*" cy="[^"]*"(\/?>)/,
+          '$1 cx="1270000" cy="1546225"$2'
+        );
+
+        // Hapus lastRenderedPageBreak agar gambar tidak terdorong ke halaman berikutnya
+        docXml = docXml.replace(
+          /(<w:r><w:rPr><w:noProof\/><\/w:rPr>)<w:lastRenderedPageBreak\/>/,
+          "$1"
+        );
+
+        // Kosongkan teks "Foto 4x6" di dalam kotak bingkai
+        docXml = docXml.replace("<w:t>Foto 4x6</w:t>", "<w:t></w:t>");
+
+        renderedZip.file("word/document.xml", docXml);
+      } catch (xmlErr) {
+        console.warn("Gagal reposisi anchor foto 4x6:", xmlErr);
+      }
+    }
+
+    const out = renderedZip.generate({
       type: "blob",
       mimeType:
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
