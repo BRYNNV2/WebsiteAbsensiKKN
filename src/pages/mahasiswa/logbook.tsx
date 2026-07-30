@@ -497,6 +497,7 @@ export function MahasiswaLogbookPage() {
             <FileText className="size-4 text-rose-600 dark:text-rose-400" />
             <span>Unduh PDF</span>
           </Button>
+        </div>
       </div>
 
       {/* Pas Foto 4x6 Widget Banner */}
