@@ -116,45 +116,53 @@ export async function exportLogbookToDocx(
       try {
         let docXml = renderedZip.file("word/document.xml")?.asText() || "";
 
-        // Cari paragraf yang mengandung rId7 (foto mahasiswa)
-        const rId7Match = docXml.match(/<w:p [^>]*>[\s\S]*?r:embed="rId7"[\s\S]*?<\/w:p>/);
-        if (rId7Match) {
-          let imgParagraph = rId7Match[0];
+        // Cari posisi rId7 dalam XML
+        const rId7Idx = docXml.indexOf('r:embed="rId7"');
+        if (rId7Idx !== -1) {
+          // Cari opening <w:p yang terdekat SEBELUM rId7
+          const pOpenIdx = docXml.lastIndexOf("<w:p ", rId7Idx);
+          // Cari closing </w:p> yang terdekat SETELAH rId7
+          const pCloseIdx = docXml.indexOf("</w:p>", rId7Idx);
 
-          // Hapus paragraf dari posisi aslinya (di bawah tabel / page 2)
-          docXml = docXml.replace(imgParagraph, "");
+          if (pOpenIdx !== -1 && pCloseIdx !== -1) {
+            const pEnd = pCloseIdx + "</w:p>".length;
+            let imgParagraph = docXml.substring(pOpenIdx, pEnd);
 
-          // Hapus lastRenderedPageBreak agar tidak terdorong ke page 2
-          imgParagraph = imgParagraph.replace(/<w:lastRenderedPageBreak\/>/g, "");
+            // Hapus paragraf dari posisi aslinya
+            docXml = docXml.substring(0, pOpenIdx) + docXml.substring(pEnd);
 
-          // Ubah positionH ke koordinat kotak bingkai 4x6: 2336800 EMU
-          imgParagraph = imgParagraph.replace(
-            /(<wp:positionH[^>]*><wp:posOffset>)\d+(<\/wp:posOffset><\/wp:positionH>)/,
-            "$12336800$2"
-          );
+            // Hapus lastRenderedPageBreak agar tidak terdorong ke page 2
+            imgParagraph = imgParagraph.replace(/<w:lastRenderedPageBreak\/>/g, "");
 
-          // Ubah positionV ke koordinat kotak bingkai 4x6: 279400 EMU
-          imgParagraph = imgParagraph.replace(
-            /(<wp:positionV[^>]*><wp:posOffset>)\d+(<\/wp:posOffset><\/wp:positionV>)/,
-            "$1279400$2"
-          );
+            // Ubah positionH ke koordinat kotak bingkai 4x6: 2336800 EMU
+            imgParagraph = imgParagraph.replace(
+              /(<wp:positionH[^>]*><wp:posOffset>)\d+(<\/wp:posOffset><\/wp:positionH>)/,
+              "$12336800$2"
+            );
 
-          // Ubah ukuran extent ke 4x6 cm: cx=1270000, cy=1546225
-          imgParagraph = imgParagraph.replace(
-            /<wp:extent cx="[^"]*" cy="[^"]*"\/>/,
-            '<wp:extent cx="1270000" cy="1546225"/>'
-          );
+            // Ubah positionV ke koordinat kotak bingkai 4x6: 279400 EMU
+            imgParagraph = imgParagraph.replace(
+              /(<wp:positionV[^>]*><wp:posOffset>)\d+(<\/wp:posOffset><\/wp:positionV>)/,
+              "$1279400$2"
+            );
 
-          // Ubah ukuran a:ext di dalam spPr
-          imgParagraph = imgParagraph.replace(
-            /<a:ext cx="[^"]*" cy="[^"]*"\/>/,
-            '<a:ext cx="1270000" cy="1546225"/>'
-          );
+            // Ubah ukuran extent ke 4x6 cm: cx=1270000, cy=1546225
+            imgParagraph = imgParagraph.replace(
+              /<wp:extent cx="[^"]*" cy="[^"]*"\/>/,
+              '<wp:extent cx="1270000" cy="1546225"/>'
+            );
 
-          // Sisipkan paragraf foto tepat sebelum tabel NAMA pertama
-          const tblIdx = docXml.indexOf("<w:tbl>");
-          if (tblIdx !== -1) {
-            docXml = docXml.substring(0, tblIdx) + imgParagraph + docXml.substring(tblIdx);
+            // Ubah ukuran a:ext di dalam spPr
+            imgParagraph = imgParagraph.replace(
+              /<a:ext cx="[^"]*" cy="[^"]*"\/>/,
+              '<a:ext cx="1270000" cy="1546225"/>'
+            );
+
+            // Sisipkan paragraf foto tepat sebelum tabel NAMA pertama
+            const tblIdx = docXml.indexOf("<w:tbl>");
+            if (tblIdx !== -1) {
+              docXml = docXml.substring(0, tblIdx) + imgParagraph + docXml.substring(tblIdx);
+            }
           }
         }
 
