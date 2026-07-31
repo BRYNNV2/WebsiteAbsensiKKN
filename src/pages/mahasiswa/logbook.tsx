@@ -176,12 +176,13 @@ export function MahasiswaLogbookPage() {
       const currentUserId = authUserData.user?.id || profile.id;
       const currentWeekNum = Number(selectedWeek);
 
-      // 1. Load entries for student (filtered by student_id & week_number)
+      // 1. Load entries for student (filtered by student_id & week_number, sorted by entry_date)
       const { data: entriesData, error: entriesErr } = await supabase
         .from("kkn_logbook_entries")
         .select("*")
         .eq("student_id", currentUserId)
-        .eq("week_number", currentWeekNum);
+        .eq("week_number", currentWeekNum)
+        .order("entry_date", { ascending: true });
 
       if (entriesErr) {
         console.error("Error fetching logbook entries:", entriesErr);
@@ -469,9 +470,9 @@ export function MahasiswaLogbookPage() {
 
       // Susun data per minggu (WeekBundleData[])
       const weekBundles: WeekBundleData[] = targetWeeks.map((weekNum) => {
-        const weekEntries = ((entriesData as LogbookEntryItem[]) || []).filter(
-          (e) => Number(e.week_number) === weekNum
-        );
+        const weekEntries = ((entriesData as LogbookEntryItem[]) || [])
+          .filter((e) => Number(e.week_number) === weekNum)
+          .sort((a, b) => new Date(a.entry_date || "").getTime() - new Date(b.entry_date || "").getTime());
 
         const matchNote = (notesData || []).find(
           (n: any) => Number(n.week_number) === weekNum

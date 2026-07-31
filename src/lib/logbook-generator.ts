@@ -116,7 +116,10 @@ export async function exportLogbookToDocx(
       const zip = new PizZip(content);
       const bundle = bundles[0];
       const weekText = ROMAN_WEEKS[bundle.weekNumber - 1] || `${bundle.weekNumber}`;
-      const formattedEntries = bundle.entries.map((item, index) => ({
+      const sortedEntries = [...bundle.entries].sort(
+        (a, b) => new Date(a.entry_date || "").getTime() - new Date(b.entry_date || "").getTime()
+      );
+      const formattedEntries = sortedEntries.map((item, index) => ({
         no: index + 1,
         day_name: item.day_name || "",
         entry_date: item.entry_date
@@ -157,7 +160,10 @@ export async function exportLogbookToDocx(
         });
 
         const weekText = ROMAN_WEEKS[bundle.weekNumber - 1] || `${bundle.weekNumber}`;
-        const formattedEntries = bundle.entries.map((item, index) => ({
+        const sortedEntries = [...bundle.entries].sort(
+          (a, b) => new Date(a.entry_date || "").getTime() - new Date(b.entry_date || "").getTime()
+        );
+        const formattedEntries = sortedEntries.map((item, index) => ({
           no: index + 1,
           day_name: item.day_name || "",
           entry_date: item.entry_date
@@ -377,7 +383,11 @@ export async function exportLogbookToPdf(
     doc.setFont("helvetica", "bold");
     doc.text("A. JADWAL:", 15, 57);
 
-    const tableBody = bundle.entries.map((item) => [
+    const sortedEntries = [...bundle.entries].sort(
+      (a, b) => new Date(a.entry_date || "").getTime() - new Date(b.entry_date || "").getTime()
+    );
+
+    const tableBody = sortedEntries.map((item) => [
       item.day_name || "",
       item.entry_date
         ? format(new Date(item.entry_date), "dd/MM/yyyy", { locale: localeID })
