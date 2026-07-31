@@ -68,6 +68,7 @@ import {
   ImageIcon,
   Upload,
   User,
+  ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -77,7 +78,8 @@ const DAYS_LIST = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu
 
 export function MahasiswaLogbookPage() {
   const { profile } = useAuth();
-  const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const [selectedWeek, setSelectedWeek] = useState<number>(1); // 0 = Semua Minggu (Lihat Semua Data)
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc"); // asc = Tanggal 1 -> Akhir, desc = Terbaru -> Terlama
   const [entries, setEntries] = useState<LogbookEntryItem[]>([]);
   const [weeklyNotes, setWeeklyNotes] = useState<string[]>(["", "", ""]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -124,6 +126,14 @@ export function MahasiswaLogbookPage() {
     if (!profile) return;
     loadLogbookData();
   }, [profile, selectedWeek]);
+
+  const sortedEntries = useMemo(() => {
+    return [...entries].sort((a, b) => {
+      const timeA = new Date(a.entry_date || "").getTime();
+      const timeB = new Date(b.entry_date || "").getTime();
+      return sortOrder === "asc" ? timeA - timeB : timeB - timeA;
+    });
+  }, [entries, sortOrder]);
 
   async function loadStudentGroupProfile() {
     if (!profile) return;
@@ -176,13 +186,17 @@ export function MahasiswaLogbookPage() {
       const currentUserId = authUserData.user?.id || profile.id;
       const currentWeekNum = Number(selectedWeek);
 
-      // 1. Load entries for student (filtered by student_id & week_number, sorted by entry_date)
-      const { data: entriesData, error: entriesErr } = await supabase
+      // 1. Load entries for student (filtered by student_id & optionally week_number, sorted by entry_date)
+      let entriesQuery = supabase
         .from("kkn_logbook_entries")
         .select("*")
-        .eq("student_id", currentUserId)
-        .eq("week_number", currentWeekNum)
-        .order("entry_date", { ascending: true });
+        .eq("student_id", currentUserId);
+
+      if (currentWeekNum !== 0) {
+        entriesQuery = entriesQuery.eq("week_number", currentWeekNum);
+      }
+
+      const { data: entriesData, error: entriesErr } = await entriesQuery.order("entry_date", { ascending: true });
 
       if (entriesErr) {
         console.error("Error fetching logbook entries:", entriesErr);
@@ -191,23 +205,41 @@ export function MahasiswaLogbookPage() {
         setEntries((entriesData as LogbookEntryItem[]) || []);
       }
 
-      // 2. Load weekly notes for student (filtered by student_id & week_number)
-      const { data: notesData, error: notesErr } = await supabase
-        .from("kkn_logbook_weekly_notes")
-        .select("*")
-        .eq("student_id", currentUserId)
-        .eq("week_number", currentWeekNum)
-        .maybeSingle();
+      // 2. Load weekly notes for student
+      if (currentWeekNum === 0) {
+        const { data: notesData } = await supabase
+          .from("kkn_logbook_weekly_notes")
+          .select("*")
+          .eq("student_id", currentUserId)
+          .order("week_number", { ascending: true });
 
-      if (notesErr) {
-        console.error("Error fetching weekly notes:", notesErr);
-      }
-
-      if (notesData && Array.isArray(notesData.important_notes)) {
-        const arr = notesData.important_notes;
-        setWeeklyNotes([arr[0] || "", arr[1] || "", arr[2] || ""]);
+        const allN: string[] = [];
+        (notesData || []).forEach((nItem: any) => {
+          if (Array.isArray(nItem.important_notes)) {
+            nItem.important_notes.forEach((str: string) => {
+              if (str && str.trim()) allN.push(str.trim());
+            });
+          }
+        });
+        setWeeklyNotes([allN[0] || "", allN[1] || "", allN[2] || ""]);
       } else {
-        setWeeklyNotes(["", "", ""]);
+        const { data: notesData, error: notesErr } = await supabase
+          .from("kkn_logbook_weekly_notes")
+          .select("*")
+          .eq("student_id", currentUserId)
+          .eq("week_number", currentWeekNum)
+          .maybeSingle();
+
+        if (notesErr) {
+          console.error("Error fetching weekly notes:", notesErr);
+        }
+
+        if (notesData && Array.isArray(notesData.important_notes)) {
+          const arr = notesData.important_notes;
+          setWeeklyNotes([arr[0] || "", arr[1] || "", arr[2] || ""]);
+        } else {
+          setWeeklyNotes(["", "", ""]);
+        }
       }
     } catch (err: any) {
       console.error("Error loading logbook:", err);
@@ -534,10 +566,11 @@ export function MahasiswaLogbookPage() {
               value={selectedWeek.toString()}
               onValueChange={(val: string) => setSelectedWeek(parseInt(val))}
             >
-              <SelectTrigger className="w-[180px] h-9 text-xs font-bold rounded-lg border-border/80">
+              <SelectTrigger className="w-[210px] h-9 text-xs font-bold rounded-lg border-border/80">
                 <SelectValue placeholder="Pilih Minggu" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="0">✨ Lihat Semua Data (Semua Minggu)</SelectItem>
                 <SelectItem value="1">Minggu I (Pertama)</SelectItem>
                 <SelectItem value="2">Minggu II (Kedua)</SelectItem>
                 <SelectItem value="3">Minggu III (Ketiga)</SelectItem>
@@ -640,20 +673,69 @@ export function MahasiswaLogbookPage() {
       <div className="grid gap-6 lg:grid-cols-12 items-start">
         {/* Left Column (8 cols): Tabel Jadwal & Kegiatan */}
         <Card className="lg:col-span-8 border-border/60 shadow-2xs">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+          <CardHeader className="pb-3 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Calendar className="size-4 text-primary" />
                   <span>A. Jadwal &amp; Kegiatan Harian</span>
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Daftar kegiatan harian pada Minggu ke-{selectedWeek}
+                  {selectedWeek === 0
+                    ? "Menampilkan seluruh daftar kegiatan KKN dari Minggu 1 s/d 5"
+                    : `Daftar kegiatan harian pada Minggu ke-${selectedWeek}`}
                 </CardDescription>
               </div>
-              <Badge variant="outline" className="text-xs font-semibold px-2.5 py-0.5">
-                {entries.length} Kegiatan
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
+                  className="h-8 px-2.5 text-xs font-semibold rounded-xl border-border/80 gap-1.5 hover:bg-muted"
+                  title="Klik untuk mengubah urutan tanggal"
+                >
+                  <ArrowUpDown className="size-3.5 text-primary" />
+                  <span>
+                    {sortOrder === "asc" ? "Urut: Tanggal 1 → Akhir" : "Urut: Terbaru → Terlama"}
+                  </span>
+                </Button>
+                <Badge variant="outline" className="text-xs font-semibold px-2.5 py-1">
+                  {sortedEntries.length} Kegiatan
+                </Badge>
+              </div>
+            </div>
+
+            {/* Quick Pills Selector Tab */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-t border-border/40 pt-2.5">
+              <Button
+                variant={selectedWeek === 0 ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedWeek(0)}
+                className={cn(
+                  "h-7 text-xs font-bold rounded-lg px-3 transition-all shrink-0 gap-1",
+                  selectedWeek === 0
+                    ? "bg-primary text-primary-foreground shadow-2xs"
+                    : "border-border/60 hover:bg-muted text-muted-foreground"
+                )}
+              >
+                <span>✨ Lihat Semua Data</span>
+              </Button>
+              {[1, 2, 3, 4, 5].map((wNum) => (
+                <Button
+                  key={wNum}
+                  variant={selectedWeek === wNum ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedWeek(wNum)}
+                  className={cn(
+                    "h-7 text-xs font-semibold rounded-lg px-3 transition-all shrink-0",
+                    selectedWeek === wNum
+                      ? "bg-primary text-primary-foreground shadow-2xs"
+                      : "border-border/60 hover:bg-muted text-muted-foreground"
+                  )}
+                >
+                  Minggu {wNum}
+                </Button>
+              ))}
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -661,13 +743,15 @@ export function MahasiswaLogbookPage() {
               <div className="p-8 text-center text-xs text-muted-foreground animate-pulse">
                 Memuat catatan kegiatan harian...
               </div>
-            ) : entries.length === 0 ? (
+            ) : sortedEntries.length === 0 ? (
               <div className="p-10 text-center space-y-3">
                 <div className="size-12 rounded-full bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground">
                   <BookOpen className="size-6" />
                 </div>
                 <p className="text-sm font-semibold text-foreground">
-                  Belum ada catatan kegiatan pada Minggu ke-{selectedWeek}
+                  {selectedWeek === 0
+                    ? "Belum ada catatan kegiatan KKN yang tersimpan"
+                    : `Belum ada catatan kegiatan pada Minggu ke-${selectedWeek}`}
                 </p>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                   Klik tombol **"Tambah Kegiatan"** di atas untuk mulai menginventarisir kegiatan harian KKN Anda.
@@ -686,14 +770,19 @@ export function MahasiswaLogbookPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {entries.map((item, idx) => (
+                    {sortedEntries.map((item, idx) => (
                       <TableRow key={item.id || idx} className="hover:bg-muted/30">
                         <TableCell className="text-center text-xs font-semibold">
                           {idx + 1}
                         </TableCell>
                         <TableCell className="text-xs space-y-0.5">
-                          <span className="font-bold text-foreground block">
+                          <span className="font-bold text-foreground block flex items-center gap-1.5">
                             {item.day_name}
+                            {selectedWeek === 0 && (
+                              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-3.5 bg-primary/10 text-primary border-primary/20">
+                                M{item.week_number}
+                              </Badge>
+                            )}
                           </span>
                           <span className="text-[11px] text-muted-foreground">
                             {format(new Date(item.entry_date), "dd/MM/yyyy")}
