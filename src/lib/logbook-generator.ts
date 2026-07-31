@@ -133,9 +133,6 @@ export async function exportLogbookToDocx(
           docXml = docXml.substring(0, tblIdx) + newPhotoParagraph + docXml.substring(tblIdx);
         }
 
-        // 5. Kosongkan teks "Foto 4x6" di dalam kotak bingkai shape
-        docXml = docXml.replace("<w:t>Foto 4x6</w:t>", "<w:t></w:t>");
-
         renderedZip.file("word/document.xml", docXml);
       } catch (xmlErr) {
         console.warn("Gagal menyisipkan pas foto 4x6:", xmlErr);
