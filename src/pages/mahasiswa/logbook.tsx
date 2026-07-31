@@ -37,6 +37,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   exportLogbookToDocx,
   exportLogbookToPdf,
   type LogbookEntryItem,
@@ -69,6 +79,11 @@ export function MahasiswaLogbookPage() {
   const [weeklyNotes, setWeeklyNotes] = useState<string[]>(["", "", ""]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isExporting, setIsExporting] = useState<boolean>(false);
+
+  // Dialog Konfirmasi Hapus State
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   // Group & DPL info
   const [studentProfile, setStudentProfile] = useState<StudentLogbookProfile>({
@@ -281,21 +296,31 @@ export function MahasiswaLogbookPage() {
     }
   }
 
-  async function handleDeleteEntry(id: string) {
-    if (!confirm("Apakah Anda yakin ingin menghapus kegiatan ini?")) return;
+  function handleOpenDeleteDialog(id: string) {
+    setDeletingId(id);
+    setDeleteDialogOpen(true);
+  }
+
+  async function handleConfirmDelete() {
+    if (!deletingId) return;
+    setIsDeleting(true);
     try {
       const { error } = await supabase
         .from("kkn_logbook_entries")
         .delete()
-        .eq("id", id);
+        .eq("id", deletingId);
 
       if (error) throw error;
-      setEntries((prev) => prev.filter((e) => e.id !== id));
-      toast.success("Kegiatan berhasil dihapus.");
-      loadLogbookData();
+      setEntries((prev) => prev.filter((e) => e.id !== deletingId));
+      toast.success("Kegiatan logbook berhasil dihapus.");
+      await loadLogbookData();
     } catch (err) {
       console.error("Error deleting entry:", err);
-      toast.error("Gagal menghapus kegiatan.");
+      toast.error("Gagal menghapus kegiatan logbook.");
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setDeletingId(null);
     }
   }
 
@@ -650,7 +675,7 @@ export function MahasiswaLogbookPage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => item.id && handleDeleteEntry(item.id)}
+                              onClick={() => item.id && handleOpenDeleteDialog(item.id)}
                               className="size-7 text-rose-500 hover:text-rose-700 hover:bg-rose-500/10"
                               title="Hapus"
                             >
@@ -821,6 +846,41 @@ export function MahasiswaLogbookPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Custom Alert Dialog Konfirmasi Hapus Kegiatan */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="sm:max-w-[420px] rounded-2xl p-6 border-border/80 shadow-2xl">
+          <AlertDialogHeader className="space-y-3 text-left">
+            <div className="size-11 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center border border-rose-500/20 shadow-2xs">
+              <Trash2 className="size-5" />
+            </div>
+            <div className="space-y-1">
+              <AlertDialogTitle className="text-base font-bold text-foreground">
+                Hapus Kegiatan Logbook?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                Apakah Anda yakin ingin menghapus kegiatan logbook ini? Data yang sudah dihapus tidak dapat dikembalikan lagi.
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex items-center justify-end gap-2.5 mt-4 pt-2 border-t border-border/40">
+            <AlertDialogCancel
+              disabled={isDeleting}
+              onClick={() => setDeleteDialogOpen(false)}
+              className="h-9 px-4 text-xs font-semibold rounded-xl border-border/80"
+            >
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={handleConfirmDelete}
+              className="h-9 px-4 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
+            >
+              {isDeleting ? "Menghapus..." : "Ya, Hapus Kegiatan"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
