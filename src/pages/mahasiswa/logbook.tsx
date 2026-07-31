@@ -58,7 +58,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
   exportLogbookToDocx,
-  exportLogbookToPdf,
   type LogbookEntryItem,
   type StudentLogbookProfile,
   type WeekBundleData,
@@ -103,7 +102,6 @@ export function MahasiswaLogbookPage() {
 
   // Dialog Ekspor Logbook State (Minggu Tunggal / Kustom / Semua Minggu)
   const [exportModalOpen, setExportModalOpen] = useState<boolean>(false);
-  const [exportFormat, setExportFormat] = useState<"docx" | "pdf">("docx");
   const [exportScope, setExportScope] = useState<"current" | "all" | "custom">("current");
   const [customExportWeeks, setCustomExportWeeks] = useState<number[]>([1]);
 
@@ -462,10 +460,9 @@ export function MahasiswaLogbookPage() {
     reader.readAsDataURL(file);
   }
 
-  function handleOpenExportModal(formatType: "docx" | "pdf") {
-    setExportFormat(formatType);
+  function handleOpenExportModal() {
     setExportScope("current");
-    setCustomExportWeeks([selectedWeek]);
+    setCustomExportWeeks([selectedWeek === 0 ? 1 : selectedWeek]);
     setExportModalOpen(true);
   }
 
@@ -537,13 +534,8 @@ export function MahasiswaLogbookPage() {
 
       const photo = photoUrl || profile?.avatar_url || null;
 
-      if (exportFormat === "docx") {
-        await exportLogbookToDocx(studentProfile, weekBundles, photo);
-        toast.success("File Word Logbook KKN (.docx) berhasil diunduh!");
-      } else {
-        await exportLogbookToPdf(studentProfile, weekBundles, photo);
-        toast.success("File PDF Logbook KKN berhasil diunduh!");
-      }
+      await exportLogbookToDocx(studentProfile, weekBundles, photo);
+      toast.success("File Word Logbook KKN (.docx) berhasil diunduh!");
 
       setExportModalOpen(false);
     } catch (err: any) {
@@ -558,7 +550,7 @@ export function MahasiswaLogbookPage() {
     <div className="space-y-6">
       <PageHeader
         title="Buku Catatan Harian (Logbook KKN)"
-        description="Kelola rekap kegiatan harian KKN Anda dan ekspor secara otomatis ke dalam bentuk Word (.docx) berstandar UMRAH maupun PDF."
+        description="Kelola rekap kegiatan harian KKN Anda dan ekspor secara otomatis ke dalam dokumen Word (.docx) resmi berstandar UMRAH."
       />
 
       {/* Control Bar: Header Info & Export Action Buttons */}
@@ -588,23 +580,13 @@ export function MahasiswaLogbookPage() {
           </Button>
 
           <Button
-            onClick={() => handleOpenExportModal("docx")}
+            onClick={handleOpenExportModal}
             disabled={isExporting}
             variant="outline"
             className="h-9 px-3.5 border-blue-500/40 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 font-semibold text-xs rounded-xl gap-1.5"
           >
             <FileSpreadsheet className="size-4 text-blue-600 dark:text-blue-400" />
             <span>Unduh Word (.DOCX)</span>
-          </Button>
-
-          <Button
-            onClick={() => handleOpenExportModal("pdf")}
-            disabled={isExporting}
-            variant="outline"
-            className="h-9 px-3.5 border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-semibold text-xs rounded-xl gap-1.5"
-          >
-            <FileText className="size-4 text-rose-600 dark:text-rose-400" />
-            <span>Unduh PDF</span>
           </Button>
         </div>
       </div>
@@ -1053,28 +1035,23 @@ export function MahasiswaLogbookPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Dialog Opsi Ekspor Logbook (Minggu Tunggal / Kustom / Semua Minggu) */}
+      {/* Dialog Opsi Ekspor Logbook Word (.docx) */}
       <Dialog open={exportModalOpen} onOpenChange={setExportModalOpen}>
         <DialogContent className="sm:max-w-[480px] rounded-2xl p-6 border-border/80 shadow-2xl">
           <DialogHeader className="space-y-2 text-left">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-lg font-bold text-foreground">
-                Unduh Dokumen Logbook KKN
+                Unduh Logbook Word (.docx)
               </DialogTitle>
               <Badge
                 variant="outline"
-                className={cn(
-                  "text-xs font-semibold px-2.5 py-0.5 rounded-full border",
-                  exportFormat === "docx"
-                    ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30"
-                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
-                )}
+                className="text-xs font-semibold px-2.5 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30"
               >
-                {exportFormat === "docx" ? "Format Word (.docx)" : "Format PDF"}
+                Format Word (.docx)
               </Badge>
             </div>
             <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-              Pilih cakupan minggu logbook kegiatan yang ingin Anda gabungkan ke dalam satu dokumen.
+              Pilih cakupan minggu logbook kegiatan yang ingin Anda gabungkan ke dalam dokumen Word resmi KKN.
             </DialogDescription>
           </DialogHeader>
 
@@ -1212,19 +1189,10 @@ export function MahasiswaLogbookPage() {
               size="sm"
               disabled={isExporting}
               onClick={handleExecuteExport}
-              className={cn(
-                "h-9 px-4 text-xs font-semibold rounded-xl text-white shadow-xs gap-1.5",
-                exportFormat === "docx"
-                  ? "bg-blue-600 hover:bg-blue-700"
-                  : "bg-rose-600 hover:bg-rose-700"
-              )}
+              className="h-9 px-4 text-xs font-semibold rounded-xl text-white shadow-xs gap-1.5 bg-blue-600 hover:bg-blue-700"
             >
-              {exportFormat === "docx" ? (
-                <FileSpreadsheet className="size-4" />
-              ) : (
-                <FileText className="size-4" />
-              )}
-              <span>{isExporting ? "Proses Mengunduh..." : "Unduh Dokumen"}</span>
+              <FileSpreadsheet className="size-4" />
+              <span>{isExporting ? "Proses Mengunduh..." : "Unduh Word (.docx)"}</span>
             </Button>
           </DialogFooter>
         </DialogContent>
