@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { PageHeader } from "@/components/page-header";
@@ -770,7 +770,7 @@ export function MahasiswaLogbookPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedEntries.map((item, idx) => (
+                    {sortedEntries.map((item: LogbookEntryItem, idx: number) => (
                       <TableRow key={item.id || idx} className="hover:bg-muted/30">
                         <TableCell className="text-center text-xs font-semibold">
                           {idx + 1}
