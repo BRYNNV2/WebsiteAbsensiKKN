@@ -46,11 +46,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import {
   exportLogbookToDocx,
   exportLogbookToPdf,
   type LogbookEntryItem,
   type StudentLogbookProfile,
+  type WeekBundleData,
 } from "@/lib/logbook-generator";
 import {
   BookOpen,
@@ -85,6 +88,12 @@ export function MahasiswaLogbookPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [isSavingNotes, setIsSavingNotes] = useState<boolean>(false);
+
+  // Dialog Ekspor Logbook State (Minggu Tunggal / Kustom / Semua Minggu)
+  const [exportModalOpen, setExportModalOpen] = useState<boolean>(false);
+  const [exportFormat, setExportFormat] = useState<"docx" | "pdf">("docx");
+  const [exportScope, setExportScope] = useState<"current" | "all" | "custom">("current");
+  const [customExportWeeks, setCustomExportWeeks] = useState<number[]>([1]);
 
   // Group & DPL info
   const [studentProfile, setStudentProfile] = useState<StudentLogbookProfile>({
@@ -410,48 +419,95 @@ export function MahasiswaLogbookPage() {
     reader.readAsDataURL(file);
   }
 
-  async function handleExportDocx() {
-    if (entries.length === 0) {
-      toast.error("Belum ada kegiatan pada minggu ini untuk diunduh.");
-      return;
-    }
-    setIsExporting(true);
-    try {
-      await exportLogbookToDocx(
-        studentProfile,
-        entries,
-        weeklyNotes,
-        selectedWeek,
-        photoUrl || profile?.avatar_url || null
-      );
-      toast.success("File Word Logbook KKN (.docx) berhasil diunduh!");
-    } catch (err) {
-      console.error("Export DOCX Error:", err);
-      toast.error(
-        "Gagal mengunduh Word. Pastikan file template_logbook_kkn.docx berada di folder public/templates."
-      );
-    } finally {
-      setIsExporting(false);
-    }
+  function handleOpenExportModal(formatType: "docx" | "pdf") {
+    setExportFormat(formatType);
+    setExportScope("current");
+    setCustomExportWeeks([selectedWeek]);
+    setExportModalOpen(true);
   }
 
-  async function handleExportPdf() {
-    if (entries.length === 0) {
-      toast.error("Belum ada kegiatan pada minggu ini untuk diunduh.");
+  async function handleExecuteExport() {
+    if (!profile) return;
+
+    let targetWeeks: number[] = [];
+    if (exportScope === "current") {
+      targetWeeks = [selectedWeek];
+    } else if (exportScope === "all") {
+      targetWeeks = [1, 2, 3, 4, 5];
+    } else {
+      targetWeeks = [...customExportWeeks].sort((a, b) => a - b);
+    }
+
+    if (targetWeeks.length === 0) {
+      toast.error("Pilih setidaknya satu minggu untuk diunduh.");
       return;
     }
+
+    setIsExporting(true);
     try {
-      await exportLogbookToPdf(
-        studentProfile,
-        entries,
-        weeklyNotes,
-        selectedWeek,
-        photoUrl || profile?.avatar_url || null
-      );
-      toast.success("File PDF Logbook KKN berhasil diunduh!");
-    } catch (err) {
-      console.error("Export PDF Error:", err);
-      toast.error("Gagal mengunduh PDF Logbook.");
+      const { data: authUserData } = await supabase.auth.getUser();
+      const currentUserId = authUserData.user?.id || profile.id;
+
+      // 1. Ambil seluruh entri kegiatan minggu pilihan
+      const { data: entriesData, error: entriesErr } = await supabase
+        .from("kkn_logbook_entries")
+        .select("*")
+        .eq("student_id", currentUserId)
+        .in("week_number", targetWeeks)
+        .order("entry_date", { ascending: true });
+
+      if (entriesErr) throw entriesErr;
+
+      // 2. Ambil catatan mingguan minggu pilihan
+      const { data: notesData, error: notesErr } = await supabase
+        .from("kkn_logbook_weekly_notes")
+        .select("*")
+        .eq("student_id", currentUserId)
+        .in("week_number", targetWeeks);
+
+      if (notesErr) console.warn("Fetch notes warning:", notesErr);
+
+      // Susun data per minggu (WeekBundleData[])
+      const weekBundles: WeekBundleData[] = targetWeeks.map((weekNum) => {
+        const weekEntries = ((entriesData as LogbookEntryItem[]) || []).filter(
+          (e) => Number(e.week_number) === weekNum
+        );
+
+        const matchNote = (notesData || []).find(
+          (n: any) => Number(n.week_number) === weekNum
+        );
+        const notesArr =
+          matchNote && Array.isArray(matchNote.important_notes)
+            ? [
+                matchNote.important_notes[0] || "",
+                matchNote.important_notes[1] || "",
+                matchNote.important_notes[2] || "",
+              ]
+            : ["", "", ""];
+
+        return {
+          weekNumber: weekNum,
+          entries: weekEntries,
+          weeklyNotes: notesArr,
+        };
+      });
+
+      const photo = photoUrl || profile?.avatar_url || null;
+
+      if (exportFormat === "docx") {
+        await exportLogbookToDocx(studentProfile, weekBundles, photo);
+        toast.success("File Word Logbook KKN (.docx) berhasil diunduh!");
+      } else {
+        await exportLogbookToPdf(studentProfile, weekBundles, photo);
+        toast.success("File PDF Logbook KKN berhasil diunduh!");
+      }
+
+      setExportModalOpen(false);
+    } catch (err: any) {
+      console.error("Export Error:", err);
+      toast.error("Gagal mengunduh dokumen logbook: " + (err?.message || ""));
+    } finally {
+      setIsExporting(false);
     }
   }
 
@@ -502,7 +558,7 @@ export function MahasiswaLogbookPage() {
           </Button>
 
           <Button
-            onClick={handleExportDocx}
+            onClick={() => handleOpenExportModal("docx")}
             disabled={isExporting}
             variant="outline"
             className="h-9 px-3.5 border-blue-500/40 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 font-semibold text-xs rounded-xl gap-1.5"
@@ -512,7 +568,8 @@ export function MahasiswaLogbookPage() {
           </Button>
 
           <Button
-            onClick={handleExportPdf}
+            onClick={() => handleOpenExportModal("pdf")}
+            disabled={isExporting}
             variant="outline"
             className="h-9 px-3.5 border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-semibold text-xs rounded-xl gap-1.5"
           >
@@ -879,6 +936,183 @@ export function MahasiswaLogbookPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog Opsi Ekspor Logbook (Minggu Tunggal / Kustom / Semua Minggu) */}
+      <Dialog open={exportModalOpen} onOpenChange={setExportModalOpen}>
+        <DialogContent className="sm:max-w-[480px] rounded-2xl p-6 border-border/80 shadow-2xl">
+          <DialogHeader className="space-y-2 text-left">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-lg font-bold text-foreground">
+                Unduh Dokumen Logbook KKN
+              </DialogTitle>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-xs font-semibold px-2.5 py-0.5 rounded-full border",
+                  exportFormat === "docx"
+                    ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                )}
+              >
+                {exportFormat === "docx" ? "Format Word (.docx)" : "Format PDF"}
+              </Badge>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              Pilih cakupan minggu logbook kegiatan yang ingin Anda gabungkan ke dalam satu dokumen.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 my-2">
+            {/* Opsi 1: Minggu Saat Ini */}
+            <div
+              onClick={() => setExportScope("current")}
+              className={cn(
+                "flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer",
+                exportScope === "current"
+                  ? "border-primary bg-primary/5 shadow-2xs"
+                  : "border-border/60 hover:bg-muted/50"
+              )}
+            >
+              <input
+                type="radio"
+                name="exportScope"
+                checked={exportScope === "current"}
+                onChange={() => setExportScope("current")}
+                className="mt-0.5 accent-primary"
+              />
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold text-foreground block">
+                  Minggu Saat Ini (Minggu ke-{selectedWeek})
+                </span>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Mengunduh logbook khusus Minggu ke-{selectedWeek} yang sedang dibuka.
+                </p>
+              </div>
+            </div>
+
+            {/* Opsi 2: Semua Minggu */}
+            <div
+              onClick={() => setExportScope("all")}
+              className={cn(
+                "flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer",
+                exportScope === "all"
+                  ? "border-primary bg-primary/5 shadow-2xs"
+                  : "border-border/60 hover:bg-muted/50"
+              )}
+            >
+              <input
+                type="radio"
+                name="exportScope"
+                checked={exportScope === "all"}
+                onChange={() => setExportScope("all")}
+                className="mt-0.5 accent-primary"
+              />
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold text-foreground block">
+                  Semua Minggu (Keseluruhan KKN - Minggu I s/d V)
+                </span>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Mengunduh logbook lengkap gabungan dari Minggu 1 sampai Minggu 5 dalam 1 file.
+                </p>
+              </div>
+            </div>
+
+            {/* Opsi 3: Pilih Minggu Kustom */}
+            <div
+              onClick={() => setExportScope("custom")}
+              className={cn(
+                "flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer",
+                exportScope === "custom"
+                  ? "border-primary bg-primary/5 shadow-2xs"
+                  : "border-border/60 hover:bg-muted/50"
+              )}
+            >
+              <input
+                type="radio"
+                name="exportScope"
+                checked={exportScope === "custom"}
+                onChange={() => setExportScope("custom")}
+                className="mt-0.5 accent-primary"
+              />
+              <div className="space-y-2.5 w-full">
+                <div>
+                  <span className="text-xs font-bold text-foreground block">
+                    Pilih Minggu Kustom
+                  </span>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Pilih beberapa minggu tertentu yang ingin Anda gabungkan.
+                  </p>
+                </div>
+
+                {exportScope === "custom" && (
+                  <div className="pt-2 grid grid-cols-3 gap-2 border-t border-border/40">
+                    {[1, 2, 3, 4, 5].map((wNum) => {
+                      const isChecked = customExportWeeks.includes(wNum);
+                      return (
+                        <label
+                          key={wNum}
+                          className={cn(
+                            "flex items-center gap-2 p-2 rounded-lg border text-xs font-medium cursor-pointer transition-all select-none",
+                            isChecked
+                              ? "bg-primary/10 border-primary text-primary font-bold"
+                              : "bg-background border-border/60 hover:bg-muted text-muted-foreground"
+                          )}
+                        >
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setCustomExportWeeks((prev) => [...prev, wNum]);
+                              } else {
+                                setCustomExportWeeks((prev) =>
+                                  prev.filter((num) => num !== wNum)
+                                );
+                              }
+                            }}
+                          />
+                          <span>Minggu {wNum}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/40">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isExporting}
+              onClick={() => setExportModalOpen(false)}
+              className="h-9 px-4 text-xs font-semibold rounded-xl border-border/80"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isExporting}
+              onClick={handleExecuteExport}
+              className={cn(
+                "h-9 px-4 text-xs font-semibold rounded-xl text-white shadow-xs gap-1.5",
+                exportFormat === "docx"
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-rose-600 hover:bg-rose-700"
+              )}
+            >
+              {exportFormat === "docx" ? (
+                <FileSpreadsheet className="size-4" />
+              ) : (
+                <FileText className="size-4" />
+              )}
+              <span>{isExporting ? "Proses Mengunduh..." : "Unduh Dokumen"}</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

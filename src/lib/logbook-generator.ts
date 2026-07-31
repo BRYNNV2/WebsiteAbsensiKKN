@@ -29,16 +29,42 @@ export interface StudentLogbookProfile {
   lurah_head_name?: string;
 }
 
+export interface WeekBundleData {
+  weekNumber: number;
+  entries: LogbookEntryItem[];
+  weeklyNotes: string[];
+}
+
 const ROMAN_WEEKS = ["I (PERTAMA)", "II (KEDUA)", "III (KETIGA)", "IV (KEEMPAT)", "V (KELIMA)"];
 
 export async function exportLogbookToDocx(
   student: StudentLogbookProfile,
-  entries: LogbookEntryItem[],
-  weeklyNotes: string[] = [],
-  weekNumber: number = 1,
+  entriesOrBundles: LogbookEntryItem[] | WeekBundleData[],
+  weeklyNotesOrPhoto?: string[] | string | ArrayBuffer | null,
+  weekNumberOrPhoto?: number | string | ArrayBuffer | null,
   photoUrlOrBuffer?: string | ArrayBuffer | null
 ) {
   try {
+    let bundles: WeekBundleData[] = [];
+    let photo: string | ArrayBuffer | null | undefined = photoUrlOrBuffer;
+
+    if (
+      Array.isArray(entriesOrBundles) &&
+      entriesOrBundles.length > 0 &&
+      "weekNumber" in entriesOrBundles[0]
+    ) {
+      bundles = entriesOrBundles as WeekBundleData[];
+      photo = weeklyNotesOrPhoto as any;
+    } else {
+      bundles = [
+        {
+          weekNumber: typeof weekNumberOrPhoto === "number" ? weekNumberOrPhoto : 1,
+          entries: (entriesOrBundles as LogbookEntryItem[]) || [],
+          weeklyNotes: Array.isArray(weeklyNotesOrPhoto) ? weeklyNotesOrPhoto : [],
+        },
+      ];
+    }
+
     let response = await fetch("/templates/template_logbook_kkn_prepared.docx");
     if (!response.ok) {
       response = await fetch("/templates/template_logbook_kkn.docx");
@@ -53,15 +79,15 @@ export async function exportLogbookToDocx(
     // Embed Pas Foto 4x6: tambah file gambar baru + relationship baru + paragraf anchor baru
     let hasPhoto = false;
     let photoBuffer: ArrayBuffer | null = null;
-    if (photoUrlOrBuffer) {
+    if (photo) {
       try {
-        if (typeof photoUrlOrBuffer === "string" && photoUrlOrBuffer.trim()) {
-          const res = await fetch(photoUrlOrBuffer);
+        if (typeof photo === "string" && photo.trim()) {
+          const res = await fetch(photo);
           if (res.ok) {
             photoBuffer = await res.arrayBuffer();
           }
-        } else if (photoUrlOrBuffer instanceof ArrayBuffer) {
-          photoBuffer = photoUrlOrBuffer;
+        } else if (photo instanceof ArrayBuffer) {
+          photoBuffer = photo;
         }
         if (photoBuffer) {
           hasPhoto = true;
@@ -76,18 +102,29 @@ export async function exportLogbookToDocx(
       linebreaks: true,
     });
 
-    const weekText = ROMAN_WEEKS[weekNumber - 1] || `${weekNumber}`;
+    const formattedWeeks = bundles.map((bundle) => {
+      const weekText = ROMAN_WEEKS[bundle.weekNumber - 1] || `${bundle.weekNumber}`;
+      const formattedEntries = bundle.entries.map((item, index) => ({
+        no: index + 1,
+        day_name: item.day_name || "",
+        entry_date: item.entry_date
+          ? format(new Date(item.entry_date), "dd/MM/yyyy")
+          : "",
+        time_range: item.time_range || "",
+        activity_description: item.activity_description || item.activity_name || "",
+        documentation: item.documentation_url ? "Ada Dokumentasi" : "-",
+      }));
 
-    const formattedEntries = entries.map((item, index) => ({
-      no: index + 1,
-      day_name: item.day_name || "",
-      entry_date: item.entry_date
-        ? format(new Date(item.entry_date), "dd/MM/yyyy")
-        : "",
-      time_range: item.time_range || "",
-      activity_description: item.activity_description || item.activity_name || "",
-      documentation: item.documentation_url ? "Ada Dokumentasi" : "-",
-    }));
+      return {
+        week_number: bundle.weekNumber,
+        week_label: `MINGGU ${weekText}`,
+        group_info: `${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
+        entries: formattedEntries,
+        note_1: bundle.weeklyNotes[0] || "-",
+        note_2: bundle.weeklyNotes[1] || "-",
+        note_3: bundle.weeklyNotes[2] || "-",
+      };
+    });
 
     const data = {
       full_name: student.full_name || "",
@@ -96,12 +133,7 @@ export async function exportLogbookToDocx(
       group_location: student.group_location || student.group_name || "-",
       dosen_name: student.dosen_name || "-",
       year: new Date().getFullYear().toString(),
-      week_label: `MINGGU ${weekText}`,
-      group_info: `${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
-      entries: formattedEntries,
-      note_1: weeklyNotes[0] || "-",
-      note_2: weeklyNotes[1] || "-",
-      note_3: weeklyNotes[2] || "-",
+      weeks: formattedWeeks,
     };
 
     doc.render(data);
@@ -110,10 +142,8 @@ export async function exportLogbookToDocx(
     const renderedZip = doc.getZip();
     if (hasPhoto && photoBuffer) {
       try {
-        // 1. Tambah file gambar baru ke zip
         renderedZip.file("word/media/image3.png", photoBuffer);
 
-        // 2. Tambah relationship baru (rId10) di document.xml.rels
         let relsXml = renderedZip.file("word/_rels/document.xml.rels")?.asText() || "";
         relsXml = relsXml.replace(
           "</Relationships>",
@@ -121,12 +151,8 @@ export async function exportLogbookToDocx(
         );
         renderedZip.file("word/_rels/document.xml.rels", relsXml);
 
-        // 3. Buat paragraf anchor gambar baru di posisi antara judul dan tabel
-        // posH=2336800 (center horizontal), posV=0 (atas paragraf), cx=1270000 cy=1546225 (4x6cm)
-        // distB=180000 (~5mm jarak bawah ke tabel)
         const newPhotoParagraph = '<w:p><w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:anchor distT="0" distB="180000" distL="0" distR="0" simplePos="0" relativeHeight="251661312" behindDoc="0" locked="0" layoutInCell="1" hidden="0" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:posOffset>2336800</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="1270000" cy="1546225"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapTopAndBottom distT="0" distB="180000"/><wp:docPr id="9999" name="PasFoto4x6"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="9999" name="pasfoto4x6.png"/><pic:cNvPicPr preferRelativeResize="0"/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId10"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1270000" cy="1546225"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:ln/></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>';
 
-        // 4. Sisipkan paragraf gambar baru tepat sebelum tabel NAMA pertama
         let docXml = renderedZip.file("word/document.xml")?.asText() || "";
         const tblIdx = docXml.indexOf("<w:tbl>");
         if (tblIdx !== -1) {
@@ -145,7 +171,16 @@ export async function exportLogbookToDocx(
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
 
-    const fileName = `LOGBOOK_KKN_MINGGU_${weekNumber}_${student.student_id || "MAHASISWA"}.docx`;
+    let fileName = "";
+    if (bundles.length === 1) {
+      fileName = `LOGBOOK_KKN_MINGGU_${bundles[0].weekNumber}_${student.student_id || "MAHASISWA"}.docx`;
+    } else if (bundles.length === 5) {
+      fileName = `LOGBOOK_KKN_SEMUA_MINGGU_${student.student_id || "MAHASISWA"}.docx`;
+    } else {
+      const weekNums = bundles.map((b) => b.weekNumber).join("_");
+      fileName = `LOGBOOK_KKN_MINGGU_${weekNums}_${student.student_id || "MAHASISWA"}.docx`;
+    }
+
     saveAs(out, fileName);
   } catch (error: any) {
     console.error("Error generating DOCX logbook:", error);
@@ -155,18 +190,36 @@ export async function exportLogbookToDocx(
 
 export async function exportLogbookToPdf(
   student: StudentLogbookProfile,
-  entries: LogbookEntryItem[],
-  weeklyNotes: string[] = [],
-  weekNumber: number = 1,
+  entriesOrBundles: LogbookEntryItem[] | WeekBundleData[],
+  weeklyNotesOrPhoto?: string[] | string | ArrayBuffer | null,
+  weekNumberOrPhoto?: number | string | ArrayBuffer | null,
   photoUrlOrBuffer?: string | ArrayBuffer | null
 ) {
+  let bundles: WeekBundleData[] = [];
+  let photo: string | ArrayBuffer | null | undefined = photoUrlOrBuffer;
+
+  if (
+    Array.isArray(entriesOrBundles) &&
+    entriesOrBundles.length > 0 &&
+    "weekNumber" in entriesOrBundles[0]
+  ) {
+    bundles = entriesOrBundles as WeekBundleData[];
+    photo = weeklyNotesOrPhoto as any;
+  } else {
+    bundles = [
+      {
+        weekNumber: typeof weekNumberOrPhoto === "number" ? weekNumberOrPhoto : 1,
+        entries: (entriesOrBundles as LogbookEntryItem[]) || [],
+        weeklyNotes: Array.isArray(weeklyNotesOrPhoto) ? weeklyNotesOrPhoto : [],
+      },
+    ];
+  }
+
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
     format: "a4",
   });
-
-  const weekText = ROMAN_WEEKS[weekNumber - 1] || `${weekNumber}`;
 
   // --- HALAMAN 1: COVER / SAMPUL ---
   doc.setFont("helvetica", "bold");
@@ -178,11 +231,11 @@ export async function exportLogbookToPdf(
   // Frame Foto 4x6
   doc.rect(87, 65, 36, 48);
 
-  if (photoUrlOrBuffer) {
+  if (photo) {
     try {
       let dataUrl = "";
-      if (typeof photoUrlOrBuffer === "string" && photoUrlOrBuffer.trim()) {
-        dataUrl = photoUrlOrBuffer;
+      if (typeof photo === "string" && photo.trim()) {
+        dataUrl = photo;
       }
       if (dataUrl) {
         doc.addImage(dataUrl, "JPEG", 87.5, 65.5, 35, 47);
@@ -230,100 +283,112 @@ export async function exportLogbookToPdf(
   doc.setFontSize(10);
   doc.text(new Date().getFullYear().toString(), 105, 264, { align: "center" });
 
-  // --- HALAMAN 2: ISI LOGBOOK MINGGUAN ---
-  doc.addPage();
+  // --- HALAMAN MINGGU (Satu Halaman per Minggu) ---
+  bundles.forEach((bundle) => {
+    doc.addPage();
+    const weekText = ROMAN_WEEKS[bundle.weekNumber - 1] || `${bundle.weekNumber}`;
 
-  // Header Box Logbook Halaman 2
-  doc.setLineWidth(0.5);
-  doc.rect(15, 15, 180, 28);
-  doc.line(140, 15, 140, 43);
+    // Header Box Logbook Halaman
+    doc.setLineWidth(0.5);
+    doc.rect(15, 15, 180, 28);
+    doc.line(140, 15, 140, 43);
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("LOGBOOK KULIAH KERJA NYATA", 50, 24);
-  doc.text("UNIVERSITAS MARITIM RAJA ALI HAJI", 50, 31);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("LOGBOOK KULIAH KERJA NYATA", 50, 24);
+    doc.text("UNIVERSITAS MARITIM RAJA ALI HAJI", 50, 31);
 
-  doc.setFontSize(9);
-  doc.text(`MINGGU ${weekText}`, 165, 27, { align: "center" });
+    doc.setFontSize(9);
+    doc.text(`MINGGU ${weekText}`, 165, 27, { align: "center" });
 
-  // Bar Identitas Singkat
-  doc.rect(15, 43, 180, 8);
-  doc.setFontSize(8.5);
-  doc.text(
-    `NAMA MAHASISWA/NIM/KELOMPOK: ${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
-    18,
-    48.5
-  );
+    // Bar Identitas Singkat
+    doc.rect(15, 43, 180, 8);
+    doc.setFontSize(8.5);
+    doc.text(
+      `NAMA MAHASISWA/NIM/KELOMPOK: ${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
+      18,
+      48.5
+    );
 
-  // Section A. JADWAL
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.text("A. JADWAL:", 15, 57);
+    // Section A. JADWAL
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("A. JADWAL:", 15, 57);
 
-  const tableBody = entries.map((item) => [
-    item.day_name || "",
-    item.entry_date
-      ? format(new Date(item.entry_date), "dd/MM/yyyy", { locale: localeID })
-      : "",
-    item.time_range || "",
-    item.activity_description || item.activity_name || "",
-    item.documentation_url ? "Ada Dokumentasi" : "-",
-  ]);
+    const tableBody = bundle.entries.map((item) => [
+      item.day_name || "",
+      item.entry_date
+        ? format(new Date(item.entry_date), "dd/MM/yyyy", { locale: localeID })
+        : "",
+      item.time_range || "",
+      item.activity_description || item.activity_name || "",
+      item.documentation_url ? "Ada Dokumentasi" : "-",
+    ]);
 
-  autoTable(doc, {
-    startY: 60,
-    margin: { left: 15, right: 15 },
-    theme: "grid",
-    head: [["HARI", "TANGGAL", "JAM", "KEGIATAN", "Dokumentasi"]],
-    body: tableBody.length > 0 ? tableBody : [["-", "-", "-", "Belum ada kegiatan", "-"]],
-    headStyles: {
-      fillColor: [230, 230, 230],
-      textColor: [0, 0, 0],
-      fontStyle: "bold",
-      fontSize: 8.5,
-      halign: "center",
-    },
-    styles: { fontSize: 8, cellPadding: 3 },
-    columnStyles: {
-      0: { cellWidth: 20 },
-      1: { cellWidth: 25 },
-      2: { cellWidth: 30 },
-      3: { cellWidth: 75 },
-      4: { cellWidth: 30, halign: "center" },
-    },
+    autoTable(doc, {
+      startY: 60,
+      margin: { left: 15, right: 15 },
+      theme: "grid",
+      head: [["HARI", "TANGGAL", "JAM", "KEGIATAN", "Dokumentasi"]],
+      body: tableBody.length > 0 ? tableBody : [["-", "-", "-", "Belum ada kegiatan", "-"]],
+      headStyles: {
+        fillColor: [230, 230, 230],
+        textColor: [0, 0, 0],
+        fontStyle: "bold",
+        fontSize: 8.5,
+        halign: "center",
+      },
+      styles: { fontSize: 8, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 75 },
+        4: { cellWidth: 30, halign: "center" },
+      },
+    });
+
+    // Section B. CATATAN PENTING HARIAN
+    const finalY = (doc as any).lastAutoTable?.finalY || 140;
+    const notesStartY = Math.min(finalY + 8, 200);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("B. CATATAN PENTING HARIAN", 15, notesStartY);
+
+    doc.rect(15, notesStartY + 3, 180, 25);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(`1. ${bundle.weeklyNotes[0] || "-"}`, 18, notesStartY + 9);
+    doc.text(`2. ${bundle.weeklyNotes[1] || "-"}`, 18, notesStartY + 15);
+    doc.text(`3. ${bundle.weeklyNotes[2] || "-"}`, 18, notesStartY + 21);
+
+    // Section D. PENGESAHAN
+    const pengesahanY = notesStartY + 33;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("D. PENGESAHAN", 15, pengesahanY);
+
+    doc.rect(15, pengesahanY + 3, 90, 30);
+    doc.rect(105, pengesahanY + 3, 90, 30);
+
+    doc.setFontSize(8);
+    doc.text("TANDA TANGAN LURAH/KEPALA DESA", 60, pengesahanY + 8, { align: "center" });
+    doc.text("TANDA TANGAN MAHASISWA", 150, pengesahanY + 8, { align: "center" });
+
+    doc.text(`(${student.lurah_head_name || "...................................."})`, 60, pengesahanY + 29, { align: "center" });
+    doc.text(`(${student.full_name})`, 150, pengesahanY + 29, { align: "center" });
   });
 
-  // Section B. CATATAN PENTING HARIAN
-  const finalY = (doc as any).lastAutoTable?.finalY || 140;
-  const notesStartY = Math.min(finalY + 8, 200);
+  let fileName = "";
+  if (bundles.length === 1) {
+    fileName = `LOGBOOK_KKN_MINGGU_${bundles[0].weekNumber}_${student.student_id || "MAHASISWA"}.pdf`;
+  } else if (bundles.length === 5) {
+    fileName = `LOGBOOK_KKN_SEMUA_MINGGU_${student.student_id || "MAHASISWA"}.pdf`;
+  } else {
+    const weekNums = bundles.map((b) => b.weekNumber).join("_");
+    fileName = `LOGBOOK_KKN_MINGGU_${weekNums}_${student.student_id || "MAHASISWA"}.pdf`;
+  }
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("B. CATATAN PENTING HARIAN", 15, notesStartY);
-
-  doc.rect(15, notesStartY + 3, 180, 25);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text(`1. ${weeklyNotes[0] || "-"}`, 18, notesStartY + 9);
-  doc.text(`2. ${weeklyNotes[1] || "-"}`, 18, notesStartY + 15);
-  doc.text(`3. ${weeklyNotes[2] || "-"}`, 18, notesStartY + 21);
-
-  // Section D. PENGESAHAN
-  const pengesahanY = notesStartY + 33;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("D. PENGESAHAN", 15, pengesahanY);
-
-  doc.rect(15, pengesahanY + 3, 90, 30);
-  doc.rect(105, pengesahanY + 3, 90, 30);
-
-  doc.setFontSize(8);
-  doc.text("TANDA TANGAN LURAH/KEPALA DESA", 60, pengesahanY + 8, { align: "center" });
-  doc.text("TANDA TANGAN MAHASISWA", 150, pengesahanY + 8, { align: "center" });
-
-  doc.text(`(${student.lurah_head_name || "...................................."})`, 60, pengesahanY + 29, { align: "center" });
-  doc.text(`(${student.full_name})`, 150, pengesahanY + 29, { align: "center" });
-
-  const fileName = `LOGBOOK_KKN_MINGGU_${weekNumber}_${student.student_id}.pdf`;
   doc.save(fileName);
 }
