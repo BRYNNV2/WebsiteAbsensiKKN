@@ -37,21 +37,6 @@ export interface WeekBundleData {
 
 const ROMAN_WEEKS = ["I (PERTAMA)", "II (KEDUA)", "III (KETIGA)", "IV (KEEMPAT)", "V (KELIMA)"];
 
-function findTableStart(xmlText: string, fromIdx: number) {
-  const idx1 = xmlText.lastIndexOf("<w:tbl>", fromIdx);
-  const idx2 = xmlText.lastIndexOf("<w:tbl ", fromIdx);
-  return Math.max(idx1, idx2);
-}
-
-function extractPage2Block(xmlText: string) {
-  const clean = xmlText.replace(/<\?xml[\s\S]*?\?>/g, "");
-  const idx = clean.indexOf("MINGGU ");
-  const tblStart = findTableStart(clean, idx);
-  const pengIdx = clean.indexOf("D. PENGESAHAN");
-  const tblEnd = clean.indexOf("</w:tbl>", pengIdx) + "</w:tbl>".length;
-  return clean.substring(tblStart, tblEnd);
-}
-
 export async function exportLogbookToDocx(
   student: StudentLogbookProfile,
   entriesOrBundles: LogbookEntryItem[] | WeekBundleData[],
@@ -110,101 +95,69 @@ export async function exportLogbookToDocx(
       }
     }
 
-    let documentXml = "";
+    // Gabungkan seluruh entri dari seluruh minggu pilihan dalam 1 tabel kontinu & urutkan kronologis
+    const allRawEntries: LogbookEntryItem[] = [];
+    const allNotesList: string[] = [];
 
+    bundles.forEach((bundle) => {
+      allRawEntries.push(...(bundle.entries || []));
+      if (Array.isArray(bundle.weeklyNotes)) {
+        bundle.weeklyNotes.forEach((n) => {
+          if (n && n.trim()) {
+            allNotesList.push(n.trim());
+          }
+        });
+      }
+    });
+
+    const sortedEntries = allRawEntries.sort(
+      (a, b) => new Date(a.entry_date || "").getTime() - new Date(b.entry_date || "").getTime()
+    );
+
+    const formattedEntries = sortedEntries.map((item, index) => ({
+      no: index + 1,
+      day_name: item.day_name || "",
+      entry_date: item.entry_date
+        ? format(new Date(item.entry_date), "dd/MM/yyyy")
+        : "",
+      time_range: item.time_range || "",
+      activity_description: item.activity_description || item.activity_name || "",
+      documentation: item.documentation_url ? "Ada Dokumentasi" : "-",
+    }));
+
+    let weekLabelText = "";
     if (bundles.length === 1) {
-      const zip = new PizZip(content);
-      const bundle = bundles[0];
-      const weekText = ROMAN_WEEKS[bundle.weekNumber - 1] || `${bundle.weekNumber}`;
-      const sortedEntries = [...bundle.entries].sort(
-        (a, b) => new Date(a.entry_date || "").getTime() - new Date(b.entry_date || "").getTime()
-      );
-      const formattedEntries = sortedEntries.map((item, index) => ({
-        no: index + 1,
-        day_name: item.day_name || "",
-        entry_date: item.entry_date
-          ? format(new Date(item.entry_date), "dd/MM/yyyy")
-          : "",
-        time_range: item.time_range || "",
-        activity_description: item.activity_description || item.activity_name || "",
-        documentation: item.documentation_url ? "Ada Dokumentasi" : "-",
-      }));
-
-      const doc = new Docxtemplater(zip, {
-        paragraphLoop: true,
-        linebreaks: true,
-      });
-
-      doc.render({
-        full_name: student.full_name || "",
-        student_id: student.student_id || "",
-        faculty_prodi: student.faculty_prodi || "FTTK / Teknik Informatika",
-        group_location: student.group_location || student.group_name || "-",
-        dosen_name: student.dosen_name || "-",
-        year: new Date().getFullYear().toString(),
-        week_label: `MINGGU ${weekText}`,
-        group_info: `${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
-        entries: formattedEntries,
-        note_1: bundle.weeklyNotes[0] || "-",
-        note_2: bundle.weeklyNotes[1] || "-",
-        note_3: bundle.weeklyNotes[2] || "-",
-      });
-
-      documentXml = doc.getZip().file("word/document.xml")?.asText() || "";
+      const wText = ROMAN_WEEKS[bundles[0].weekNumber - 1] || `${bundles[0].weekNumber}`;
+      weekLabelText = `MINGGU ${wText}`;
+    } else if (bundles.length === 5) {
+      weekLabelText = "KESELURUHAN (MINGGU I - V)";
     } else {
-      const weekXmls = bundles.map((bundle) => {
-        const weekZip = new PizZip(content);
-        const weekDoc = new Docxtemplater(weekZip, {
-          paragraphLoop: true,
-          linebreaks: true,
-        });
-
-        const weekText = ROMAN_WEEKS[bundle.weekNumber - 1] || `${bundle.weekNumber}`;
-        const sortedEntries = [...bundle.entries].sort(
-          (a, b) => new Date(a.entry_date || "").getTime() - new Date(b.entry_date || "").getTime()
-        );
-        const formattedEntries = sortedEntries.map((item, index) => ({
-          no: index + 1,
-          day_name: item.day_name || "",
-          entry_date: item.entry_date
-            ? format(new Date(item.entry_date), "dd/MM/yyyy")
-            : "",
-          time_range: item.time_range || "",
-          activity_description: item.activity_description || item.activity_name || "",
-          documentation: item.documentation_url ? "Ada Dokumentasi" : "-",
-        }));
-
-        weekDoc.render({
-          full_name: student.full_name || "",
-          student_id: student.student_id || "",
-          faculty_prodi: student.faculty_prodi || "FTTK / Teknik Informatika",
-          group_location: student.group_location || student.group_name || "-",
-          dosen_name: student.dosen_name || "-",
-          year: new Date().getFullYear().toString(),
-          week_label: `MINGGU ${weekText}`,
-          group_info: `${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
-          entries: formattedEntries,
-          note_1: bundle.weeklyNotes[0] || "-",
-          note_2: bundle.weeklyNotes[1] || "-",
-          note_3: bundle.weeklyNotes[2] || "-",
-        });
-
-        return weekDoc.getZip().file("word/document.xml")?.asText() || "";
-      });
-
-      const firstXml = weekXmls[0];
-      const p2Start = findTableStart(firstXml, firstXml.indexOf("MINGGU "));
-      const headPart = firstXml.substring(0, p2Start);
-
-      const blocks = weekXmls.map((xmlText) => extractPage2Block(xmlText));
-      const pageBreakXml = '<w:p w:rsidR="005B4DB3" w:rsidRDefault="005B4DB3"><w:r><w:br w:type="page"/></w:r></w:p>';
-
-      const pengIdx = firstXml.indexOf("D. PENGESAHAN");
-      const lastTblEnd = firstXml.indexOf("</w:tbl>", pengIdx) + "</w:tbl>".length;
-      const footerPart = firstXml.substring(lastTblEnd);
-
-      documentXml = headPart + blocks.join(pageBreakXml) + footerPart;
+      const wList = bundles.map((b) => ROMAN_WEEKS[b.weekNumber - 1] || `${b.weekNumber}`).join(", ");
+      weekLabelText = `MINGGU ${wList}`;
     }
+
+    const zip = new PizZip(content);
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+    });
+
+    doc.render({
+      full_name: student.full_name || "",
+      student_id: student.student_id || "",
+      faculty_prodi: student.faculty_prodi || "FTTK / Teknik Informatika",
+      group_location: student.group_location || student.group_name || "-",
+      dosen_name: student.dosen_name || "-",
+      year: new Date().getFullYear().toString(),
+      week_label: weekLabelText,
+      group_info: `${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
+      entries: formattedEntries,
+      note_1: allNotesList[0] || "-",
+      note_2: allNotesList[1] || "-",
+      note_3: allNotesList[2] || "-",
+    });
+
+    let documentXml = doc.getZip().file("word/document.xml")?.asText() || "";
 
     const renderedZip = new PizZip(content);
 
@@ -351,106 +304,126 @@ export async function exportLogbookToPdf(
   doc.setFontSize(10);
   doc.text(new Date().getFullYear().toString(), 105, 264, { align: "center" });
 
-  // --- HALAMAN MINGGU (Satu Halaman per Minggu) ---
+  // --- HALAMAN ISI LOGBOOK (Tabel Tunggal Berkelanjutan) ---
+  doc.addPage();
+  const allRawEntries: LogbookEntryItem[] = [];
+  const allNotesList: string[] = [];
+
   bundles.forEach((bundle) => {
-    doc.addPage();
-    const weekText = ROMAN_WEEKS[bundle.weekNumber - 1] || `${bundle.weekNumber}`;
-
-    // Header Box Logbook Halaman
-    doc.setLineWidth(0.5);
-    doc.rect(15, 15, 180, 28);
-    doc.line(140, 15, 140, 43);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("LOGBOOK KULIAH KERJA NYATA", 50, 24);
-    doc.text("UNIVERSITAS MARITIM RAJA ALI HAJI", 50, 31);
-
-    doc.setFontSize(9);
-    doc.text(`MINGGU ${weekText}`, 165, 27, { align: "center" });
-
-    // Bar Identitas Singkat
-    doc.rect(15, 43, 180, 8);
-    doc.setFontSize(8.5);
-    doc.text(
-      `NAMA MAHASISWA/NIM/KELOMPOK: ${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
-      18,
-      48.5
-    );
-
-    // Section A. JADWAL
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text("A. JADWAL:", 15, 57);
-
-    const sortedEntries = [...bundle.entries].sort(
-      (a, b) => new Date(a.entry_date || "").getTime() - new Date(b.entry_date || "").getTime()
-    );
-
-    const tableBody = sortedEntries.map((item) => [
-      item.day_name || "",
-      item.entry_date
-        ? format(new Date(item.entry_date), "dd/MM/yyyy", { locale: localeID })
-        : "",
-      item.time_range || "",
-      item.activity_description || item.activity_name || "",
-      item.documentation_url ? "Ada Dokumentasi" : "-",
-    ]);
-
-    autoTable(doc, {
-      startY: 60,
-      margin: { left: 15, right: 15 },
-      theme: "grid",
-      head: [["HARI", "TANGGAL", "JAM", "KEGIATAN", "Dokumentasi"]],
-      body: tableBody.length > 0 ? tableBody : [["-", "-", "-", "Belum ada kegiatan", "-"]],
-      headStyles: {
-        fillColor: [230, 230, 230],
-        textColor: [0, 0, 0],
-        fontStyle: "bold",
-        fontSize: 8.5,
-        halign: "center",
-      },
-      styles: { fontSize: 8, cellPadding: 3 },
-      columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 25 },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 75 },
-        4: { cellWidth: 30, halign: "center" },
-      },
-    });
-
-    // Section B. CATATAN PENTING HARIAN
-    const finalY = (doc as any).lastAutoTable?.finalY || 140;
-    const notesStartY = Math.min(finalY + 8, 200);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.text("B. CATATAN PENTING HARIAN", 15, notesStartY);
-
-    doc.rect(15, notesStartY + 3, 180, 25);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text(`1. ${bundle.weeklyNotes[0] || "-"}`, 18, notesStartY + 9);
-    doc.text(`2. ${bundle.weeklyNotes[1] || "-"}`, 18, notesStartY + 15);
-    doc.text(`3. ${bundle.weeklyNotes[2] || "-"}`, 18, notesStartY + 21);
-
-    // Section D. PENGESAHAN
-    const pengesahanY = notesStartY + 33;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.text("D. PENGESAHAN", 15, pengesahanY);
-
-    doc.rect(15, pengesahanY + 3, 90, 30);
-    doc.rect(105, pengesahanY + 3, 90, 30);
-
-    doc.setFontSize(8);
-    doc.text("TANDA TANGAN LURAH/KEPALA DESA", 60, pengesahanY + 8, { align: "center" });
-    doc.text("TANDA TANGAN MAHASISWA", 150, pengesahanY + 8, { align: "center" });
-
-    doc.text(`(${student.lurah_head_name || "...................................."})`, 60, pengesahanY + 29, { align: "center" });
-    doc.text(`(${student.full_name})`, 150, pengesahanY + 29, { align: "center" });
+    allRawEntries.push(...(bundle.entries || []));
+    if (Array.isArray(bundle.weeklyNotes)) {
+      bundle.weeklyNotes.forEach((n) => {
+        if (n && n.trim()) {
+          allNotesList.push(n.trim());
+        }
+      });
+    }
   });
+
+  const sortedEntries = allRawEntries.sort(
+    (a, b) => new Date(a.entry_date || "").getTime() - new Date(b.entry_date || "").getTime()
+  );
+
+  let weekText = "";
+  if (bundles.length === 1) {
+    weekText = `MINGGU ${ROMAN_WEEKS[bundles[0].weekNumber - 1] || bundles[0].weekNumber}`;
+  } else if (bundles.length === 5) {
+    weekText = "KESELURUHAN (MINGGU I - V)";
+  } else {
+    const wList = bundles.map((b) => ROMAN_WEEKS[b.weekNumber - 1] || `${b.weekNumber}`).join(", ");
+    weekText = `MINGGU ${wList}`;
+  }
+
+  // Header Box Logbook Halaman
+  doc.setLineWidth(0.5);
+  doc.rect(15, 15, 180, 28);
+  doc.line(140, 15, 140, 43);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("LOGBOOK KULIAH KERJA NYATA", 50, 24);
+  doc.text("UNIVERSITAS MARITIM RAJA ALI HAJI", 50, 31);
+
+  doc.setFontSize(9);
+  doc.text(weekText, 165, 27, { align: "center" });
+
+  // Bar Identitas Singkat
+  doc.rect(15, 43, 180, 8);
+  doc.setFontSize(8.5);
+  doc.text(
+    `NAMA MAHASISWA/NIM/KELOMPOK: ${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
+    18,
+    48.5
+  );
+
+  // Section A. JADWAL
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("A. JADWAL:", 15, 57);
+
+  const tableBody = sortedEntries.map((item) => [
+    item.day_name || "",
+    item.entry_date
+      ? format(new Date(item.entry_date), "dd/MM/yyyy", { locale: localeID })
+      : "",
+    item.time_range || "",
+    item.activity_description || item.activity_name || "",
+    item.documentation_url ? "Ada Dokumentasi" : "-",
+  ]);
+
+  autoTable(doc, {
+    startY: 60,
+    margin: { left: 15, right: 15 },
+    theme: "grid",
+    head: [["HARI", "TANGGAL", "JAM", "KEGIATAN", "Dokumentasi"]],
+    body: tableBody.length > 0 ? tableBody : [["-", "-", "-", "Belum ada kegiatan", "-"]],
+    headStyles: {
+      fillColor: [230, 230, 230],
+      textColor: [0, 0, 0],
+      fontStyle: "bold",
+      fontSize: 8.5,
+      halign: "center",
+    },
+    styles: { fontSize: 8, cellPadding: 3 },
+    columnStyles: {
+      0: { cellWidth: 20 },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 30 },
+      3: { cellWidth: 75 },
+      4: { cellWidth: 30, halign: "center" },
+    },
+  });
+
+  // Section B. CATATAN PENTING HARIAN
+  const finalY = (doc as any).lastAutoTable?.finalY || 140;
+  const notesStartY = Math.min(finalY + 8, 200);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("B. CATATAN PENTING HARIAN", 15, notesStartY);
+
+  doc.rect(15, notesStartY + 3, 180, 25);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(`1. ${allNotesList[0] || "-"}`, 18, notesStartY + 9);
+  doc.text(`2. ${allNotesList[1] || "-"}`, 18, notesStartY + 15);
+  doc.text(`3. ${allNotesList[2] || "-"}`, 18, notesStartY + 21);
+
+  // Section D. PENGESAHAN
+  const pengesahanY = notesStartY + 33;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("D. PENGESAHAN", 15, pengesahanY);
+
+  doc.rect(15, pengesahanY + 3, 90, 30);
+  doc.rect(105, pengesahanY + 3, 90, 30);
+
+  doc.setFontSize(8);
+  doc.text("TANDA TANGAN LURAH/KEPALA DESA", 60, pengesahanY + 8, { align: "center" });
+  doc.text("TANDA TANGAN MAHASISWA", 150, pengesahanY + 8, { align: "center" });
+
+  doc.text(`(${student.lurah_head_name || "...................................."})`, 60, pengesahanY + 29, { align: "center" });
+  doc.text(`(${student.full_name})`, 150, pengesahanY + 29, { align: "center" });
 
   let fileName = "";
   if (bundles.length === 1) {
