@@ -226,10 +226,6 @@ export async function exportLogbookToDocx(
     }
 
     renderedZip.file("word/document.xml", documentXml);
-      } catch (xmlErr) {
-        console.warn("Gagal menyisipkan pas foto 4x6:", xmlErr);
-      }
-    }
 
     const out = renderedZip.generate({
       type: "blob",
