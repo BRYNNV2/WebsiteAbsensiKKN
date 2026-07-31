@@ -66,7 +66,6 @@ import {
   BookOpen,
   Plus,
   FileSpreadsheet,
-  FileText,
   Calendar,
   Clock3,
   Edit2,
