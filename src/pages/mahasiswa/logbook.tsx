@@ -292,10 +292,17 @@ export function MahasiswaLogbookPage() {
       const { data: authUserData } = await supabase.auth.getUser();
       const currentUserId = authUserData.user?.id || profile.id;
 
+      let entryWeekNumber = Number(selectedWeek);
+      if (entryWeekNumber === 0) {
+        entryWeekNumber = editingId
+          ? (entries.find((e) => e.id === editingId)?.week_number || 1)
+          : 1;
+      }
+
       const payload = {
         student_id: currentUserId,
         group_id: profile.group_id || null,
-        week_number: Number(selectedWeek),
+        week_number: entryWeekNumber,
         entry_date: formDate,
         day_name: formDay,
         time_range: formTime,
@@ -487,29 +494,48 @@ export function MahasiswaLogbookPage() {
       const { data: authUserData } = await supabase.auth.getUser();
       const currentUserId = authUserData.user?.id || profile.id;
 
-      // 1. Ambil seluruh entri kegiatan minggu pilihan
-      const { data: entriesData, error: entriesErr } = await supabase
+      // 1. Ambil seluruh entri kegiatan mahasiswa
+      let entriesQuery = supabase
         .from("kkn_logbook_entries")
         .select("*")
-        .eq("student_id", currentUserId)
-        .in("week_number", targetWeeks)
-        .order("entry_date", { ascending: true });
+        .eq("student_id", currentUserId);
 
+      if (exportScope === "current" && selectedWeek !== 0) {
+        entriesQuery = entriesQuery.eq("week_number", selectedWeek);
+      } else if (exportScope === "custom") {
+        entriesQuery = entriesQuery.in("week_number", targetWeeks);
+      }
+
+      const { data: entriesData, error: entriesErr } = await entriesQuery.order("entry_date", { ascending: true });
       if (entriesErr) throw entriesErr;
 
-      // 2. Ambil catatan mingguan minggu pilihan
-      const { data: notesData, error: notesErr } = await supabase
+      // 2. Ambil catatan mingguan mahasiswa
+      let notesQuery = supabase
         .from("kkn_logbook_weekly_notes")
         .select("*")
-        .eq("student_id", currentUserId)
-        .in("week_number", targetWeeks);
+        .eq("student_id", currentUserId);
 
+      if (exportScope === "current" && selectedWeek !== 0) {
+        notesQuery = notesQuery.eq("week_number", selectedWeek);
+      } else if (exportScope === "custom") {
+        notesQuery = notesQuery.in("week_number", targetWeeks);
+      }
+
+      const { data: notesData, error: notesErr } = await notesQuery;
       if (notesErr) console.warn("Fetch notes warning:", notesErr);
 
       // Susun data per minggu (WeekBundleData[])
-      const weekBundles: WeekBundleData[] = targetWeeks.map((weekNum) => {
+      const effectiveWeeks = (exportScope === "all" || (exportScope === "current" && selectedWeek === 0))
+        ? [1, 2, 3, 4, 5]
+        : targetWeeks;
+
+      const weekBundles: WeekBundleData[] = effectiveWeeks.map((weekNum) => {
         const weekEntries = ((entriesData as LogbookEntryItem[]) || [])
-          .filter((e) => Number(e.week_number) === weekNum)
+          .filter(
+            (e) =>
+              Number(e.week_number) === weekNum ||
+              (Number(e.week_number) === 0 && weekNum === 1)
+          )
           .sort((a, b) => new Date(a.entry_date || "").getTime() - new Date(b.entry_date || "").getTime());
 
         const matchNote = (notesData || []).find(
