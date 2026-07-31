@@ -37,6 +37,21 @@ export interface WeekBundleData {
 
 const ROMAN_WEEKS = ["I (PERTAMA)", "II (KEDUA)", "III (KETIGA)", "IV (KEEMPAT)", "V (KELIMA)"];
 
+function findTableStart(xmlText: string, fromIdx: number) {
+  const idx1 = xmlText.lastIndexOf("<w:tbl>", fromIdx);
+  const idx2 = xmlText.lastIndexOf("<w:tbl ", fromIdx);
+  return Math.max(idx1, idx2);
+}
+
+function extractPage2Block(xmlText: string) {
+  const clean = xmlText.replace(/<\?xml[\s\S]*?\?>/g, "");
+  const idx = clean.indexOf("MINGGU ");
+  const tblStart = findTableStart(clean, idx);
+  const pengIdx = clean.indexOf("D. PENGESAHAN");
+  const tblEnd = clean.indexOf("</w:tbl>", pengIdx) + "</w:tbl>".length;
+  return clean.substring(tblStart, tblEnd);
+}
+
 export async function exportLogbookToDocx(
   student: StudentLogbookProfile,
   entriesOrBundles: LogbookEntryItem[] | WeekBundleData[],
@@ -74,9 +89,7 @@ export async function exportLogbookToDocx(
     }
 
     const content = await response.arrayBuffer();
-    const zip = new PizZip(content);
 
-    // Embed Pas Foto 4x6: tambah file gambar baru + relationship baru + paragraf anchor baru
     let hasPhoto = false;
     let photoBuffer: ArrayBuffer | null = null;
     if (photo) {
@@ -97,12 +110,11 @@ export async function exportLogbookToDocx(
       }
     }
 
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-    });
+    let documentXml = "";
 
-    const formattedWeeks = bundles.map((bundle) => {
+    if (bundles.length === 1) {
+      const zip = new PizZip(content);
+      const bundle = bundles[0];
       const weekText = ROMAN_WEEKS[bundle.weekNumber - 1] || `${bundle.weekNumber}`;
       const formattedEntries = bundle.entries.map((item, index) => ({
         no: index + 1,
@@ -115,31 +127,82 @@ export async function exportLogbookToDocx(
         documentation: item.documentation_url ? "Ada Dokumentasi" : "-",
       }));
 
-      return {
-        week_number: bundle.weekNumber,
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+      });
+
+      doc.render({
+        full_name: student.full_name || "",
+        student_id: student.student_id || "",
+        faculty_prodi: student.faculty_prodi || "FTTK / Teknik Informatika",
+        group_location: student.group_location || student.group_name || "-",
+        dosen_name: student.dosen_name || "-",
+        year: new Date().getFullYear().toString(),
         week_label: `MINGGU ${weekText}`,
         group_info: `${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
         entries: formattedEntries,
         note_1: bundle.weeklyNotes[0] || "-",
         note_2: bundle.weeklyNotes[1] || "-",
         note_3: bundle.weeklyNotes[2] || "-",
-      };
-    });
+      });
 
-    const data = {
-      full_name: student.full_name || "",
-      student_id: student.student_id || "",
-      faculty_prodi: student.faculty_prodi || "FTTK / Teknik Informatika",
-      group_location: student.group_location || student.group_name || "-",
-      dosen_name: student.dosen_name || "-",
-      year: new Date().getFullYear().toString(),
-      weeks: formattedWeeks,
-    };
+      documentXml = doc.getZip().file("word/document.xml")?.asText() || "";
+    } else {
+      const weekXmls = bundles.map((bundle) => {
+        const weekZip = new PizZip(content);
+        const weekDoc = new Docxtemplater(weekZip, {
+          paragraphLoop: true,
+          linebreaks: true,
+        });
 
-    doc.render(data);
+        const weekText = ROMAN_WEEKS[bundle.weekNumber - 1] || `${bundle.weekNumber}`;
+        const formattedEntries = bundle.entries.map((item, index) => ({
+          no: index + 1,
+          day_name: item.day_name || "",
+          entry_date: item.entry_date
+            ? format(new Date(item.entry_date), "dd/MM/yyyy")
+            : "",
+          time_range: item.time_range || "",
+          activity_description: item.activity_description || item.activity_name || "",
+          documentation: item.documentation_url ? "Ada Dokumentasi" : "-",
+        }));
 
-    // Tambah gambar pas foto 4x6 sebagai elemen BARU di posisi kotak bingkai
-    const renderedZip = doc.getZip();
+        weekDoc.render({
+          full_name: student.full_name || "",
+          student_id: student.student_id || "",
+          faculty_prodi: student.faculty_prodi || "FTTK / Teknik Informatika",
+          group_location: student.group_location || student.group_name || "-",
+          dosen_name: student.dosen_name || "-",
+          year: new Date().getFullYear().toString(),
+          week_label: `MINGGU ${weekText}`,
+          group_info: `${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
+          entries: formattedEntries,
+          note_1: bundle.weeklyNotes[0] || "-",
+          note_2: bundle.weeklyNotes[1] || "-",
+          note_3: bundle.weeklyNotes[2] || "-",
+        });
+
+        return weekDoc.getZip().file("word/document.xml")?.asText() || "";
+      });
+
+      const firstXml = weekXmls[0];
+      const p2Start = findTableStart(firstXml, firstXml.indexOf("MINGGU "));
+      const headPart = firstXml.substring(0, p2Start);
+
+      const blocks = weekXmls.map((xmlText) => extractPage2Block(xmlText));
+      const pageBreakXml = '<w:p w:rsidR="005B4DB3" w:rsidRDefault="005B4DB3"><w:r><w:br w:type="page"/></w:r></w:p>';
+
+      const pengIdx = firstXml.indexOf("D. PENGESAHAN");
+      const lastTblEnd = firstXml.indexOf("</w:tbl>", pengIdx) + "</w:tbl>".length;
+      const footerPart = firstXml.substring(lastTblEnd);
+
+      documentXml = headPart + blocks.join(pageBreakXml) + footerPart;
+    }
+
+    const renderedZip = new PizZip(content);
+
+    // Embed Pas Foto 4x6 jika ada
     if (hasPhoto && photoBuffer) {
       try {
         renderedZip.file("word/media/image3.png", photoBuffer);
@@ -153,13 +216,16 @@ export async function exportLogbookToDocx(
 
         const newPhotoParagraph = '<w:p><w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:anchor distT="0" distB="180000" distL="0" distR="0" simplePos="0" relativeHeight="251661312" behindDoc="0" locked="0" layoutInCell="1" hidden="0" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:posOffset>2336800</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="1270000" cy="1546225"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapTopAndBottom distT="0" distB="180000"/><wp:docPr id="9999" name="PasFoto4x6"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="9999" name="pasfoto4x6.png"/><pic:cNvPicPr preferRelativeResize="0"/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId10"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1270000" cy="1546225"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:ln/></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>';
 
-        let docXml = renderedZip.file("word/document.xml")?.asText() || "";
-        const tblIdx = docXml.indexOf("<w:tbl>");
+        const tblIdx = documentXml.indexOf("<w:tbl>");
         if (tblIdx !== -1) {
-          docXml = docXml.substring(0, tblIdx) + newPhotoParagraph + docXml.substring(tblIdx);
+          documentXml = documentXml.substring(0, tblIdx) + newPhotoParagraph + documentXml.substring(tblIdx);
         }
+      } catch (xmlErr) {
+        console.warn("Gagal menyisipkan pas foto 4x6:", xmlErr);
+      }
+    }
 
-        renderedZip.file("word/document.xml", docXml);
+    renderedZip.file("word/document.xml", documentXml);
       } catch (xmlErr) {
         console.warn("Gagal menyisipkan pas foto 4x6:", xmlErr);
       }
