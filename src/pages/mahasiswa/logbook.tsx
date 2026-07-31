@@ -1,7 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import Lottie, { type LottieRefCurrentProps } from "lottie-react";
-import error404Animation from "@/assets/error404.json";
 import { supabase } from "@/lib/supabase";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -64,45 +62,7 @@ import { id as localeID } from "date-fns/locale";
 
 const DAYS_LIST = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 
-// ============================================================
-// FLAG: Set ke false untuk mengaktifkan kembali fitur Logbook
-const UNDER_DEVELOPMENT = true;
-// ============================================================
-
 export function MahasiswaLogbookPage() {
-  const lottieRef = useRef<LottieRefCurrentProps>(null);
-
-  useEffect(() => {
-    lottieRef.current?.setSpeed(1);
-  }, []);
-
-  // ---------- OVERLAY "FITUR DALAM PENGEMBANGAN" ----------
-  if (UNDER_DEVELOPMENT) {
-    return (
-      <div className="relative min-h-[80vh] flex flex-col items-center justify-center text-center p-6 rounded-2xl overflow-hidden backdrop-blur-md bg-background/60 border border-border/40">
-        {/* Lottie Animation 404 */}
-        <div className="w-64 h-64 md:w-72 md:h-72">
-          <Lottie
-            lottieRef={lottieRef}
-            animationData={error404Animation}
-            loop={true}
-            className="w-full h-full drop-shadow-md"
-          />
-        </div>
-
-        {/* Text Informasi */}
-        <div className="max-w-md space-y-2 mt-2">
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            Fitur Logbook KKN
-          </h2>
-          <p className="text-base font-medium text-muted-foreground leading-relaxed">
-            Fitur dalam pengembangan harap menunggu ya 🙏
-          </p>
-        </div>
-      </div>
-    );
-  }
-  // ---------- END OVERLAY -------------
   const { profile } = useAuth();
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [entries, setEntries] = useState<LogbookEntryItem[]>([]);
