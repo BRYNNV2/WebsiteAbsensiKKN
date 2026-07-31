@@ -76,7 +76,6 @@ import {
   ImageIcon,
   Upload,
   User,
-  ArrowUpDown,
   ChevronDown,
   Filter,
   Check,
