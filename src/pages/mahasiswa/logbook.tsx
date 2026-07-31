@@ -561,33 +561,19 @@ export function MahasiswaLogbookPage() {
         description="Kelola rekap kegiatan harian KKN Anda dan ekspor secara otomatis ke dalam bentuk Word (.docx) berstandar UMRAH maupun PDF."
       />
 
-      {/* Control Bar: Select Week & Export Buttons */}
+      {/* Control Bar: Header Info & Export Action Buttons */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-4 rounded-2xl bg-card border border-border/60 shadow-2xs">
-        {/* Selector Minggu */}
         <div className="flex items-center gap-3">
           <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
             <BookOpen className="size-5" />
           </div>
           <div>
-            <span className="text-[11px] font-semibold text-muted-foreground block uppercase tracking-wider">
-              Pilih Minggu KKN
+            <span className="text-sm font-bold text-foreground block">
+              Rekap Kegiatan Logbook KKN
             </span>
-            <Select
-              value={selectedWeek.toString()}
-              onValueChange={(val: string) => setSelectedWeek(parseInt(val))}
-            >
-              <SelectTrigger className="w-[210px] h-9 text-xs font-bold rounded-lg border-border/80">
-                <SelectValue placeholder="Pilih Minggu" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">✨ Lihat Semua Data (Semua Minggu)</SelectItem>
-                <SelectItem value="1">Minggu I (Pertama)</SelectItem>
-                <SelectItem value="2">Minggu II (Kedua)</SelectItem>
-                <SelectItem value="3">Minggu III (Ketiga)</SelectItem>
-                <SelectItem value="4">Minggu IV (Keempat)</SelectItem>
-                <SelectItem value="5">Minggu V (Kelima)</SelectItem>
-              </SelectContent>
-            </Select>
+            <span className="text-[11px] text-muted-foreground">
+              Catat kegiatan harian &amp; ekspor dokumen resmi KKN
+            </span>
           </div>
         </div>
 
