@@ -85,8 +85,7 @@ export async function exportLogbookToDocx(
         ? format(new Date(item.entry_date), "dd/MM/yyyy")
         : "",
       time_range: item.time_range || "",
-      activity_name: item.activity_name || "",
-      activity_description: item.activity_description || "",
+      activity_description: item.activity_description || item.activity_name || "",
       documentation: item.documentation_url ? "Ada Dokumentasi" : "-",
     }));
 
