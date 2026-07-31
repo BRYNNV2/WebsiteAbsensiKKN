@@ -46,6 +46,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
@@ -69,6 +77,9 @@ import {
   Upload,
   User,
   ArrowUpDown,
+  ChevronDown,
+  Filter,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -673,7 +684,7 @@ export function MahasiswaLogbookPage() {
       <div className="grid gap-6 lg:grid-cols-12 items-start">
         {/* Left Column (8 cols): Tabel Jadwal & Kegiatan */}
         <Card className="lg:col-span-8 border-border/60 shadow-2xs">
-          <CardHeader className="pb-3 space-y-3">
+          <CardHeader className="pb-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -686,56 +697,86 @@ export function MahasiswaLogbookPage() {
                     : `Daftar kegiatan harian pada Minggu ke-${selectedWeek}`}
                 </CardDescription>
               </div>
+
+              {/* Bar Dropdown (v) Filter & Urutkan Data */}
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
-                  className="h-8 px-2.5 text-xs font-semibold rounded-xl border-border/80 gap-1.5 hover:bg-muted"
-                  title="Klik untuk mengubah urutan tanggal"
-                >
-                  <ArrowUpDown className="size-3.5 text-primary" />
-                  <span>
-                    {sortOrder === "asc" ? "Urut: Tanggal 1 → Akhir" : "Urut: Terbaru → Terlama"}
-                  </span>
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-3 text-xs font-semibold rounded-xl border-border/80 gap-2 hover:bg-muted bg-background shadow-2xs"
+                    >
+                      <Filter className="size-3.5 text-primary" />
+                      <span>
+                        {selectedWeek === 0
+                          ? "✨ Semua Minggu"
+                          : `Minggu ke-${selectedWeek}`}{" "}
+                        • {sortOrder === "asc" ? "Tgl 1 → Akhir" : "Terbaru"}
+                      </span>
+                      <ChevronDown className="size-3.5 text-muted-foreground transition-transform duration-200" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5 shadow-xl border-border/80">
+                    <DropdownMenuLabel className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-1">
+                      Filter Minggu KKN
+                    </DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => setSelectedWeek(0)}
+                      className={cn(
+                        "text-xs font-medium rounded-lg px-2 py-1.5 cursor-pointer justify-between",
+                        selectedWeek === 0 && "bg-primary/10 text-primary font-bold"
+                      )}
+                    >
+                      <span>✨ Lihat Semua Data</span>
+                      {selectedWeek === 0 && <Check className="size-3.5 text-primary" />}
+                    </DropdownMenuItem>
+                    {[1, 2, 3, 4, 5].map((wNum) => (
+                      <DropdownMenuItem
+                        key={wNum}
+                        onClick={() => setSelectedWeek(wNum)}
+                        className={cn(
+                          "text-xs font-medium rounded-lg px-2 py-1.5 cursor-pointer justify-between",
+                          selectedWeek === wNum && "bg-primary/10 text-primary font-bold"
+                        )}
+                      >
+                        <span>Minggu {wNum}</span>
+                        {selectedWeek === wNum && <Check className="size-3.5 text-primary" />}
+                      </DropdownMenuItem>
+                    ))}
+
+                    <DropdownMenuSeparator className="my-1" />
+
+                    <DropdownMenuLabel className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-1">
+                      Urutan Tanggal
+                    </DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => setSortOrder("asc")}
+                      className={cn(
+                        "text-xs font-medium rounded-lg px-2 py-1.5 cursor-pointer justify-between",
+                        sortOrder === "asc" && "bg-primary/10 text-primary font-bold"
+                      )}
+                    >
+                      <span>⬆ Tanggal 1 → Akhir</span>
+                      {sortOrder === "asc" && <Check className="size-3.5 text-primary" />}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setSortOrder("desc")}
+                      className={cn(
+                        "text-xs font-medium rounded-lg px-2 py-1.5 cursor-pointer justify-between",
+                        sortOrder === "desc" && "bg-primary/10 text-primary font-bold"
+                      )}
+                    >
+                      <span>⬇ Tanggal Terbaru → Terlama</span>
+                      {sortOrder === "desc" && <Check className="size-3.5 text-primary" />}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 <Badge variant="outline" className="text-xs font-semibold px-2.5 py-1">
                   {sortedEntries.length} Kegiatan
                 </Badge>
               </div>
-            </div>
-
-            {/* Quick Pills Selector Tab */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-t border-border/40 pt-2.5">
-              <Button
-                variant={selectedWeek === 0 ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedWeek(0)}
-                className={cn(
-                  "h-7 text-xs font-bold rounded-lg px-3 transition-all shrink-0 gap-1",
-                  selectedWeek === 0
-                    ? "bg-primary text-primary-foreground shadow-2xs"
-                    : "border-border/60 hover:bg-muted text-muted-foreground"
-                )}
-              >
-                <span>✨ Lihat Semua Data</span>
-              </Button>
-              {[1, 2, 3, 4, 5].map((wNum) => (
-                <Button
-                  key={wNum}
-                  variant={selectedWeek === wNum ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedWeek(wNum)}
-                  className={cn(
-                    "h-7 text-xs font-semibold rounded-lg px-3 transition-all shrink-0",
-                    selectedWeek === wNum
-                      ? "bg-primary text-primary-foreground shadow-2xs"
-                      : "border-border/60 hover:bg-muted text-muted-foreground"
-                  )}
-                >
-                  Minggu {wNum}
-                </Button>
-              ))}
             </div>
           </CardHeader>
           <CardContent className="p-0">
