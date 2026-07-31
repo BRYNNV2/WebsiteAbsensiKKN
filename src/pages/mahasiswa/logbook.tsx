@@ -84,6 +84,7 @@ export function MahasiswaLogbookPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [isSavingNotes, setIsSavingNotes] = useState<boolean>(false);
 
   // Group & DPL info
   const [studentProfile, setStudentProfile] = useState<StudentLogbookProfile>({
@@ -157,49 +158,43 @@ export function MahasiswaLogbookPage() {
     });
   }
 
-  async function loadLogbookData() {
+  async function loadLogbookData(showLoading = true) {
     if (!profile) return;
-    setLoading(true);
+    if (showLoading) setLoading(true);
 
     try {
       const { data: authUserData } = await supabase.auth.getUser();
       const currentUserId = authUserData.user?.id || profile.id;
       const currentWeekNum = Number(selectedWeek);
 
-      // 1. Load entries for student
+      // 1. Load entries for student (filtered by student_id & week_number)
       const { data: entriesData, error: entriesErr } = await supabase
         .from("kkn_logbook_entries")
-        .select("*");
+        .select("*")
+        .eq("student_id", currentUserId)
+        .eq("week_number", currentWeekNum);
 
       if (entriesErr) {
         console.error("Error fetching logbook entries:", entriesErr);
         toast.error("Gagal memuat kegiatan: " + entriesErr.message);
       } else {
-        const filtered = (entriesData as LogbookEntryItem[] || []).filter(
-          (item: any) =>
-            (item.student_id === currentUserId || item.student_id === profile.id) &&
-            Number(item.week_number) === currentWeekNum
-        );
-        setEntries(filtered);
+        setEntries((entriesData as LogbookEntryItem[]) || []);
       }
 
-      // 2. Load weekly notes for student
+      // 2. Load weekly notes for student (filtered by student_id & week_number)
       const { data: notesData, error: notesErr } = await supabase
         .from("kkn_logbook_weekly_notes")
-        .select("*");
+        .select("*")
+        .eq("student_id", currentUserId)
+        .eq("week_number", currentWeekNum)
+        .maybeSingle();
 
       if (notesErr) {
         console.error("Error fetching weekly notes:", notesErr);
       }
 
-      const matchNote = (notesData || []).find(
-        (n: any) =>
-          (n.student_id === currentUserId || n.student_id === profile.id) &&
-          Number(n.week_number) === currentWeekNum
-      );
-
-      if (matchNote && Array.isArray(matchNote.important_notes)) {
-        const arr = matchNote.important_notes;
+      if (notesData && Array.isArray(notesData.important_notes)) {
+        const arr = notesData.important_notes;
         setWeeklyNotes([arr[0] || "", arr[1] || "", arr[2] || ""]);
       } else {
         setWeeklyNotes(["", "", ""]);
@@ -208,7 +203,7 @@ export function MahasiswaLogbookPage() {
       console.error("Error loading logbook:", err);
       toast.error("Gagal memuat data logbook: " + (err?.message || ""));
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }
 
@@ -289,7 +284,7 @@ export function MahasiswaLogbookPage() {
       }
 
       setDialogOpen(false);
-      await loadLogbookData();
+      await loadLogbookData(false);
     } catch (err: any) {
       console.error("Error saving logbook entry:", err);
       toast.error("Gagal menyimpan kegiatan: " + (err?.message || ""));
@@ -313,7 +308,7 @@ export function MahasiswaLogbookPage() {
       if (error) throw error;
       setEntries((prev) => prev.filter((e) => e.id !== deletingId));
       toast.success("Kegiatan logbook berhasil dihapus.");
-      await loadLogbookData();
+      await loadLogbookData(false);
     } catch (err) {
       console.error("Error deleting entry:", err);
       toast.error("Gagal menghapus kegiatan logbook.");
@@ -326,6 +321,7 @@ export function MahasiswaLogbookPage() {
 
   async function handleSaveWeeklyNotes() {
     if (!profile) return;
+    setIsSavingNotes(true);
     try {
       const { data: authUserData } = await supabase.auth.getUser();
       const currentUserId = authUserData.user?.id || profile.id;
@@ -380,10 +376,11 @@ export function MahasiswaLogbookPage() {
       }
 
       toast.success("Catatan penting mingguan berhasil disimpan.");
-      await loadLogbookData();
     } catch (err: any) {
       console.error("Error saving weekly notes:", err);
       toast.error(err?.message || "Gagal menyimpan catatan penting.");
+    } finally {
+      setIsSavingNotes(false);
     }
   }
 
@@ -725,10 +722,11 @@ export function MahasiswaLogbookPage() {
 
             <Button
               onClick={handleSaveWeeklyNotes}
+              disabled={isSavingNotes}
               className="w-full h-9 bg-primary text-primary-foreground font-semibold text-xs rounded-xl shadow-xs gap-1.5 mt-2"
             >
               <Save className="size-3.5" />
-              <span>Simpan Catatan Mingguan</span>
+              <span>{isSavingNotes ? "Menyimpan..." : "Simpan Catatan Mingguan"}</span>
             </Button>
           </CardContent>
         </Card>
