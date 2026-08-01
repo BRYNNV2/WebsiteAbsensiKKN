@@ -572,7 +572,7 @@ export function MahasiswaLogbookPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 w-full max-w-full overflow-x-hidden">
       <PageHeader
         title="Buku Catatan Harian (Logbook KKN)"
         description="Kelola rekap kegiatan harian KKN Anda dan ekspor secara otomatis ke dalam dokumen Word (.docx) resmi berstandar UMRAH."
@@ -673,9 +673,9 @@ export function MahasiswaLogbookPage() {
       </Card>
 
       {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-12 items-start">
+      <div className="grid gap-6 lg:grid-cols-12 items-start w-full min-w-0 max-w-full">
         {/* Left Column (8 cols): Tabel Jadwal & Kegiatan */}
-        <Card className="lg:col-span-8 border-border/60 shadow-2xs">
+        <Card className="lg:col-span-8 border-border/60 shadow-2xs w-full min-w-0 max-w-full overflow-hidden">
           <CardHeader className="pb-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -771,7 +771,7 @@ export function MahasiswaLogbookPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 w-full min-w-0 max-w-full overflow-hidden">
             {loading ? (
               <div className="p-8 text-center text-xs text-muted-foreground animate-pulse">
                 Memuat catatan kegiatan harian...
@@ -791,11 +791,14 @@ export function MahasiswaLogbookPage() {
                 </p>
               </div>
             ) : (
-              <div className="w-full overflow-x-auto max-w-full touch-pan-x scrollbar-thin">
+              <div
+                className="w-full overflow-x-auto max-w-full touch-pan-x scrollbar-thin overflow-y-hidden"
+                style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
+              >
                 <div className="flex items-center justify-between px-4 py-2 bg-primary/5 border-b border-border/40 text-[11px] font-medium text-primary sm:hidden">
                   <span>👈 Geser tabel ke samping untuk melihat detail lengkap</span>
                 </div>
-                <Table className="w-full min-w-[650px]">
+                <Table className="w-full min-w-[620px]">
                   <TableHeader>
                     <TableRow className="bg-muted/40">
                       <TableHead className="w-12 min-w-[48px] text-center text-xs font-bold">No</TableHead>
