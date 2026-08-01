@@ -175,13 +175,30 @@ export function MahasiswaLogbookPage() {
       }
     }
 
+    const localCoverKey = `logbook_cover_info_${profile.id}`;
+    let savedCover: any = {};
+    try {
+      const savedStr = localStorage.getItem(localCoverKey);
+      if (savedStr) savedCover = JSON.parse(savedStr);
+    } catch (e) {}
+
+    const defaultFacProdi =
+      savedCover.faculty_prodi ||
+      (profile as any).department ||
+      (profile as any).prodi ||
+      (profile as any).faculty ||
+      "FTTK / Teknik Informatika";
+
+    const defaultGroupLoc = savedCover.group_location || groupLoc || "";
+    const defaultDosenName = savedCover.dosen_name || dosenName || "";
+
     setStudentProfile({
       full_name: profile.full_name || "",
       student_id: profile.student_id || "",
-      faculty_prodi: "FTTK / Teknik Informatika",
+      faculty_prodi: defaultFacProdi,
       group_name: groupName,
-      group_location: groupLoc,
-      dosen_name: dosenName,
+      group_location: defaultGroupLoc,
+      dosen_name: defaultDosenName,
     });
   }
 
@@ -559,6 +576,18 @@ export function MahasiswaLogbookPage() {
       });
 
       const photo = photoUrl || profile?.avatar_url || null;
+
+      // Save current cover info to localStorage for future downloads
+      if (profile?.id) {
+        localStorage.setItem(
+          `logbook_cover_info_${profile.id}`,
+          JSON.stringify({
+            faculty_prodi: studentProfile.faculty_prodi,
+            group_location: studentProfile.group_location,
+            dosen_name: studentProfile.dosen_name,
+          })
+        );
+      }
 
       await exportLogbookToDocx(studentProfile, weekBundles, photo);
       toast.success("File Word Logbook KKN (.docx) berhasil diunduh!");
@@ -1298,6 +1327,58 @@ export function MahasiswaLogbookPage() {
                     })}
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Informasi Cover Halaman 1 (Customizable) */}
+            <div className="p-3.5 rounded-xl border border-border/80 bg-muted/20 space-y-2.5 mt-3">
+              <span className="text-xs font-bold text-foreground block flex items-center justify-between">
+                <span>Informasi Cover Halaman 1 (Word)</span>
+                <span className="text-[10px] text-muted-foreground font-normal">Dapat disesuaikan</span>
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground block">
+                    Fakultas / Prodi
+                  </label>
+                  <Input
+                    value={studentProfile.faculty_prodi || ""}
+                    onChange={(e) =>
+                      setStudentProfile((prev) => ({ ...prev, faculty_prodi: e.target.value }))
+                    }
+                    placeholder="Contoh: FTTK / Teknik Nuklir"
+                    className="h-8 text-xs rounded-lg"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground block">
+                    Nama Lokasi KKN
+                  </label>
+                  <Input
+                    value={studentProfile.group_location || ""}
+                    onChange={(e) =>
+                      setStudentProfile((prev) => ({ ...prev, group_location: e.target.value }))
+                    }
+                    placeholder="Contoh: Desa Senggarang"
+                    className="h-8 text-xs rounded-lg"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground block">
+                  Nama Dosen Pendamping (DPL)
+                </label>
+                <Input
+                  value={studentProfile.dosen_name || ""}
+                  onChange={(e) =>
+                    setStudentProfile((prev) => ({ ...prev, dosen_name: e.target.value }))
+                  }
+                  placeholder="Contoh: Dr. Budi Santoso, M.T."
+                  className="h-8 text-xs rounded-lg"
+                />
               </div>
             </div>
           </div>
