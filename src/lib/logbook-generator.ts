@@ -170,6 +170,17 @@ export async function exportLogbookToDocx(
 
     const imageOpts = {
       centered: false,
+      setParser: function (tag: string) {
+        if (tag === "documentation") {
+          return {
+            type: "placeholder",
+            value: "documentation",
+            module: "open-xml-templating/docxtemplater-image-module",
+            centered: false,
+          };
+        }
+        return null;
+      },
       getImage: function (tagValue: any) {
         if (typeof tagValue === "string" && tagValue.startsWith("data:image/")) {
           const base64Data = tagValue.includes(",") ? tagValue.split(",")[1] : tagValue;
