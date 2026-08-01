@@ -230,14 +230,14 @@ export async function exportLogbookToDocx(
     }
 
     const imageOpts = {
-      centered: false,
+      centered: true,
       setParser: function (tag: string) {
         if (tag === "documentation") {
           return {
             type: "placeholder",
             value: "documentation",
             module: "open-xml-templating/docxtemplater-image-module",
-            centered: false,
+            centered: true,
           };
         }
         return null;
