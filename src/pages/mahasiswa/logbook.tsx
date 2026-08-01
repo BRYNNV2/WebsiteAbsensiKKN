@@ -838,10 +838,33 @@ export function MahasiswaLogbookPage() {
                             {item.activity_description}
                           </p>
                           {item.documentation_url && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium pt-0.5">
-                              <ImageIcon className="size-3" />
-                              Ada Dokumentasi
-                            </span>
+                            <div className="pt-1">
+                              {item.documentation_url.startsWith("data:image/") || item.documentation_url.match(/\.(jpg|jpeg|png|webp|gif)/i) ? (
+                                <a
+                                  href={item.documentation_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold px-2 py-1 rounded-lg border border-emerald-500/20 hover:bg-emerald-500/20 transition-all"
+                                >
+                                  <img
+                                    src={item.documentation_url}
+                                    alt="Dokumentasi"
+                                    className="size-4 rounded object-cover border border-emerald-600/30 shrink-0"
+                                  />
+                                  <span>Lihat Foto Dokumentasi</span>
+                                </a>
+                              ) : (
+                                <a
+                                  href={item.documentation_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold hover:underline bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20"
+                                >
+                                  <ImageIcon className="size-3" />
+                                  <span>Buka Link Dokumentasi ↗</span>
+                                </a>
+                              )}
+                            </div>
                           )}
                         </TableCell>
                         <TableCell className="text-center whitespace-nowrap">
@@ -1000,16 +1023,89 @@ export function MahasiswaLogbookPage() {
               />
             </div>
 
-            <div className="space-y-1">
-              <span className="font-semibold text-muted-foreground block">
-                Link Foto Dokumentasi (Opsional)
+            {/* Upload Gambar / Link Dokumentasi */}
+            <div className="space-y-2 pt-1 border-t border-border/40">
+              <span className="font-semibold text-muted-foreground block text-xs">
+                Foto / Link Dokumentasi Kegiatan (Opsional)
               </span>
-              <Input
-                value={formDocUrl}
-                onChange={(e) => setFormDocUrl(e.target.value)}
-                placeholder="https://drive.google.com/..."
-                className="h-9 text-xs rounded-lg"
-              />
+
+              {formDocUrl ? (
+                <div className="relative rounded-xl border border-border/80 p-2.5 bg-muted/30 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {formDocUrl.startsWith("data:image/") || formDocUrl.match(/\.(jpg|jpeg|png|webp|gif)/i) ? (
+                      <img
+                        src={formDocUrl}
+                        alt="Dokumentasi"
+                        className="size-12 rounded-lg object-cover border border-border/60 shrink-0 shadow-xs"
+                      />
+                    ) : (
+                      <div className="size-10 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                        <ImageIcon className="size-5" />
+                      </div>
+                    )}
+                    <div className="min-w-0 space-y-0.5">
+                      <span className="text-xs font-bold text-foreground block truncate">
+                        {formDocUrl.startsWith("data:image/") ? "Foto Terunggah" : formDocUrl}
+                      </span>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block">
+                        ✓ Dokumentasi Siap Disimpan
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFormDocUrl("")}
+                    className="h-7 text-xs text-rose-500 hover:text-rose-700 hover:bg-rose-500/10 px-2 rounded-lg shrink-0"
+                  >
+                    <Trash2 className="size-3.5 mr-1" />
+                    Hapus
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {/* Option A: Upload File Gambar */}
+                  <label className="flex flex-col items-center justify-center p-3 rounded-xl border border-dashed border-border/80 hover:border-primary/60 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-all text-center group">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (!file.type.startsWith("image/")) {
+                          toast.error("File harus berupa gambar (JPG, PNG, WebP).");
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          const res = evt.target?.result as string;
+                          setFormDocUrl(res);
+                          toast.success("Foto dokumentasi berhasil dipilih!");
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                    <Upload className="size-5 text-primary mb-1 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-bold text-foreground block">Unggah Gambar</span>
+                    <span className="text-[10px] text-muted-foreground">Pilih foto (JPG, PNG)</span>
+                  </label>
+
+                  {/* Option B: Input Link URL */}
+                  <div className="flex flex-col justify-center p-3 rounded-xl border border-border/60 bg-muted/20 space-y-1.5">
+                    <span className="text-[11px] font-semibold text-muted-foreground block">
+                      Atau Tempel Link URL
+                    </span>
+                    <Input
+                      value={formDocUrl}
+                      onChange={(e) => setFormDocUrl(e.target.value)}
+                      placeholder="https://drive.google.com/..."
+                      className="h-8 text-xs rounded-lg"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

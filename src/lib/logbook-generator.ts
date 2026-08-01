@@ -122,7 +122,11 @@ export async function exportLogbookToDocx(
         : "",
       time_range: item.time_range || "",
       activity_description: item.activity_description || item.activity_name || "",
-      documentation: item.documentation_url ? "Ada Dokumentasi" : "-",
+      documentation: item.documentation_url
+        ? item.documentation_url.startsWith("data:image/")
+          ? "Ada Foto Dokumentasi"
+          : `Ada Dokumentasi (${item.documentation_url})`
+        : "-",
     }));
 
     let weekLabelText = "";
