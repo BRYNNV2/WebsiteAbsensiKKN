@@ -284,34 +284,34 @@ export async function exportLogbookToDocx(
       note_3: allNotesList[2] || "-",
     });
 
-    let documentXml = doc.getZip().file("word/document.xml")?.asText() || "";
-
-    const renderedZip = new PizZip(content);
+    const renderedZip = doc.getZip();
+    let documentXml = renderedZip.file("word/document.xml")?.asText() || "";
 
     // Embed Pas Foto 4x6 jika ada
     if (hasPhoto && photoBuffer) {
       try {
-        renderedZip.file("word/media/image3.png", photoBuffer);
+        renderedZip.file("word/media/pasfoto_profile.png", photoBuffer);
 
         let relsXml = renderedZip.file("word/_rels/document.xml.rels")?.asText() || "";
-        relsXml = relsXml.replace(
-          "</Relationships>",
-          '<Relationship Id="rId10" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image3.png"/></Relationships>'
-        );
-        renderedZip.file("word/_rels/document.xml.rels", relsXml);
+        if (!relsXml.includes('Id="rIdPasFoto4x6"')) {
+          relsXml = relsXml.replace(
+            "</Relationships>",
+            '<Relationship Id="rIdPasFoto4x6" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/pasfoto_profile.png"/></Relationships>'
+          );
+          renderedZip.file("word/_rels/document.xml.rels", relsXml);
+        }
 
-        const newPhotoParagraph = '<w:p><w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:anchor distT="0" distB="180000" distL="0" distR="0" simplePos="0" relativeHeight="251661312" behindDoc="0" locked="0" layoutInCell="1" hidden="0" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:posOffset>2336800</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="1270000" cy="1546225"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapTopAndBottom distT="0" distB="180000"/><wp:docPr id="9999" name="PasFoto4x6"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="9999" name="pasfoto4x6.png"/><pic:cNvPicPr preferRelativeResize="0"/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId10"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1270000" cy="1546225"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:ln/></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>';
+        const newPhotoParagraph = '<w:p><w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:anchor distT="0" distB="180000" distL="0" distR="0" simplePos="0" relativeHeight="251661312" behindDoc="0" locked="0" layoutInCell="1" hidden="0" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:posOffset>2336800</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="1270000" cy="1546225"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapTopAndBottom distT="0" distB="180000"/><wp:docPr id="9999" name="PasFoto4x6"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="9999" name="pasfoto4x6.png"/><pic:cNvPicPr preferRelativeResize="0"/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdPasFoto4x6"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1270000" cy="1546225"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:ln/></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>';
 
         const tblIdx = documentXml.indexOf("<w:tbl>");
         if (tblIdx !== -1) {
           documentXml = documentXml.substring(0, tblIdx) + newPhotoParagraph + documentXml.substring(tblIdx);
         }
+        renderedZip.file("word/document.xml", documentXml);
       } catch (xmlErr) {
         console.warn("Gagal menyisipkan pas foto 4x6:", xmlErr);
       }
     }
-
-    renderedZip.file("word/document.xml", documentXml);
 
     const out = renderedZip.generate({
       type: "blob",
