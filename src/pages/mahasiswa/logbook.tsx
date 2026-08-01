@@ -791,15 +791,18 @@ export function MahasiswaLogbookPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
+              <div className="w-full overflow-x-auto max-w-full touch-pan-x scrollbar-thin">
+                <div className="flex items-center justify-between px-4 py-2 bg-primary/5 border-b border-border/40 text-[11px] font-medium text-primary sm:hidden">
+                  <span>👈 Geser tabel ke samping untuk melihat detail lengkap</span>
+                </div>
+                <Table className="w-full min-w-[650px]">
                   <TableHeader>
                     <TableRow className="bg-muted/40">
-                      <TableHead className="w-12 text-center text-xs font-bold">No</TableHead>
-                      <TableHead className="w-28 text-xs font-bold">Hari &amp; Tanggal</TableHead>
-                      <TableHead className="w-28 text-xs font-bold">Jam</TableHead>
-                      <TableHead className="text-xs font-bold">Rincian Kegiatan</TableHead>
-                      <TableHead className="w-24 text-center text-xs font-bold">Aksi</TableHead>
+                      <TableHead className="w-12 min-w-[48px] text-center text-xs font-bold">No</TableHead>
+                      <TableHead className="w-28 min-w-[120px] text-xs font-bold">Hari &amp; Tanggal</TableHead>
+                      <TableHead className="w-28 min-w-[120px] text-xs font-bold">Jam</TableHead>
+                      <TableHead className="min-w-[260px] text-xs font-bold">Rincian Kegiatan</TableHead>
+                      <TableHead className="w-24 min-w-[90px] text-center text-xs font-bold">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -808,7 +811,7 @@ export function MahasiswaLogbookPage() {
                         <TableCell className="text-center text-xs font-semibold">
                           {idx + 1}
                         </TableCell>
-                        <TableCell className="text-xs space-y-0.5">
+                        <TableCell className="text-xs space-y-0.5 whitespace-nowrap">
                           <span className="font-bold text-foreground block flex items-center gap-1.5">
                             {item.day_name}
                             {selectedWeek === 0 && (
@@ -821,24 +824,24 @@ export function MahasiswaLogbookPage() {
                             {format(new Date(item.entry_date), "dd/MM/yyyy")}
                           </span>
                         </TableCell>
-                        <TableCell className="text-xs font-medium text-muted-foreground">
+                        <TableCell className="text-xs font-medium text-muted-foreground whitespace-nowrap">
                           {item.time_range}
                         </TableCell>
-                        <TableCell className="text-xs space-y-1">
-                          <p className="font-bold text-foreground">
+                        <TableCell className="text-xs space-y-1 min-w-[260px] whitespace-normal">
+                          <p className="font-bold text-foreground leading-snug">
                             {item.activity_name}
                           </p>
-                          <p className="text-muted-foreground text-[11px] leading-relaxed line-clamp-2">
+                          <p className="text-muted-foreground text-[11px] leading-relaxed">
                             {item.activity_description}
                           </p>
                           {item.documentation_url && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium pt-0.5">
                               <ImageIcon className="size-3" />
                               Ada Dokumentasi
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1">
                             <Button
                               size="icon"
