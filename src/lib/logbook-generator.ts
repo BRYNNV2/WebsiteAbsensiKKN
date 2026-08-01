@@ -275,6 +275,7 @@ export async function exportLogbookToDocx(
       faculty_prodi: student.faculty_prodi || "FTTK / Teknik Informatika",
       group_location: student.group_location || student.group_name || "-",
       dosen_name: student.dosen_name || "-",
+      lurah_head_name: student.lurah_head_name || "....................................",
       year: new Date().getFullYear().toString(),
       week_label: weekLabelText,
       group_info: `${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,

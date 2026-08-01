@@ -113,6 +113,7 @@ export function MahasiswaLogbookPage() {
     group_name: "",
     group_location: "",
     dosen_name: "",
+    lurah_head_name: "",
   });
 
   // Modal Dialog Form State
@@ -191,6 +192,7 @@ export function MahasiswaLogbookPage() {
 
     const defaultGroupLoc = savedCover.group_location || groupLoc || "";
     const defaultDosenName = savedCover.dosen_name || dosenName || "";
+    const defaultLurahName = savedCover.lurah_head_name || "";
 
     setStudentProfile({
       full_name: profile.full_name || "",
@@ -199,6 +201,7 @@ export function MahasiswaLogbookPage() {
       group_name: groupName,
       group_location: defaultGroupLoc,
       dosen_name: defaultDosenName,
+      lurah_head_name: defaultLurahName,
     });
   }
 
@@ -585,6 +588,7 @@ export function MahasiswaLogbookPage() {
             faculty_prodi: studentProfile.faculty_prodi,
             group_location: studentProfile.group_location,
             dosen_name: studentProfile.dosen_name,
+            lurah_head_name: studentProfile.lurah_head_name,
           })
         );
       }
@@ -1330,10 +1334,10 @@ export function MahasiswaLogbookPage() {
               </div>
             </div>
 
-            {/* Informasi Cover Halaman 1 (Customizable) */}
+            {/* Informasi Cover Halaman 1 & Kolom Pengesahan (Customizable) */}
             <div className="p-3.5 rounded-xl border border-border/80 bg-muted/20 space-y-2.5 mt-3">
               <span className="text-xs font-bold text-foreground block flex items-center justify-between">
-                <span>Informasi Cover Halaman 1 (Word)</span>
+                <span>Informasi Cover & Pengesahan (Word)</span>
                 <span className="text-[10px] text-muted-foreground font-normal">Dapat disesuaikan</span>
               </span>
 
@@ -1367,18 +1371,34 @@ export function MahasiswaLogbookPage() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground block">
-                  Nama Dosen Pendamping (DPL)
-                </label>
-                <Input
-                  value={studentProfile.dosen_name || ""}
-                  onChange={(e) =>
-                    setStudentProfile((prev) => ({ ...prev, dosen_name: e.target.value }))
-                  }
-                  placeholder="Contoh: Dr. Budi Santoso, M.T."
-                  className="h-8 text-xs rounded-lg"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground block">
+                    Nama Dosen Pendamping (DPL)
+                  </label>
+                  <Input
+                    value={studentProfile.dosen_name || ""}
+                    onChange={(e) =>
+                      setStudentProfile((prev) => ({ ...prev, dosen_name: e.target.value }))
+                    }
+                    placeholder="Contoh: Dr. Budi Santoso, M.T."
+                    className="h-8 text-xs rounded-lg"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground block">
+                    Lurah / Kepala Desa / Pihak Berwenang
+                  </label>
+                  <Input
+                    value={studentProfile.lurah_head_name || ""}
+                    onChange={(e) =>
+                      setStudentProfile((prev) => ({ ...prev, lurah_head_name: e.target.value }))
+                    }
+                    placeholder="Contoh: Bapak Ahmad Yani, S.Sos."
+                    className="h-8 text-xs rounded-lg"
+                  />
+                </div>
               </div>
             </div>
           </div>
