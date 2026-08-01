@@ -39,6 +39,66 @@ export interface WeekBundleData {
 
 const ROMAN_WEEKS = ["I (PERTAMA)", "II (KEDUA)", "III (KETIGA)", "IV (KEEMPAT)", "V (KELIMA)"];
 
+export function cropImageToAspectRatio(
+  dataUrl: string,
+  targetRatio: number = 4 / 3,
+  targetWidth: number = 800,
+  targetHeight: number = 600
+): Promise<string> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined" || !dataUrl || !dataUrl.startsWith("data:image/")) {
+      return resolve(dataUrl);
+    }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(dataUrl);
+
+        const sourceWidth = img.width;
+        const sourceHeight = img.height;
+        const sourceRatio = sourceWidth / sourceHeight;
+
+        let drawWidth = sourceWidth;
+        let drawHeight = sourceHeight;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (sourceRatio > targetRatio) {
+          drawWidth = sourceHeight * targetRatio;
+          offsetX = (sourceWidth - drawWidth) / 2;
+        } else {
+          drawHeight = sourceWidth / targetRatio;
+          offsetY = (sourceHeight - drawHeight) / 2;
+        }
+
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        ctx.drawImage(
+          img,
+          offsetX,
+          offsetY,
+          drawWidth,
+          drawHeight,
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
+
+        resolve(canvas.toDataURL("image/jpeg", 0.88));
+      } catch (e) {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 export async function exportLogbookToDocx(
   student: StudentLogbookProfile,
   entriesOrBundles: LogbookEntryItem[] | WeekBundleData[],
@@ -122,17 +182,18 @@ export async function exportLogbookToDocx(
 
         if (item.documentation_url) {
           if (item.documentation_url.startsWith("data:image/")) {
-            docVal = item.documentation_url;
+            docVal = await cropImageToAspectRatio(item.documentation_url, 4 / 3, 800, 600);
           } else if (item.documentation_url.startsWith("http")) {
             try {
               const res = await fetch(item.documentation_url);
               if (res.ok) {
                 const blob = await res.blob();
                 const reader = new FileReader();
-                docVal = await new Promise<string>((resolve) => {
+                const rawData = await new Promise<string>((resolve) => {
                   reader.onloadend = () => resolve(reader.result as string);
                   reader.readAsDataURL(blob);
                 });
+                docVal = await cropImageToAspectRatio(rawData, 4 / 3, 800, 600);
               } else {
                 docVal = `Dokumentasi: ${item.documentation_url}`;
               }
@@ -195,7 +256,7 @@ export async function exportLogbookToDocx(
         return null;
       },
       getSize: function () {
-        return [130, 90];
+        return [132, 99];
       },
     };
 

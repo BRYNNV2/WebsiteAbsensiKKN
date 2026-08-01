@@ -58,6 +58,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
   exportLogbookToDocx,
+  cropImageToAspectRatio,
   type LogbookEntryItem,
   type StudentLogbookProfile,
   type WeekBundleData,
@@ -1079,10 +1080,11 @@ export function MahasiswaLogbookPage() {
                           return;
                         }
                         const reader = new FileReader();
-                        reader.onload = (evt) => {
+                        reader.onload = async (evt) => {
                           const res = evt.target?.result as string;
-                          setFormDocUrl(res);
-                          toast.success("Foto dokumentasi berhasil dipilih!");
+                          const cropped = await cropImageToAspectRatio(res, 4 / 3, 800, 600);
+                          setFormDocUrl(cropped);
+                          toast.success("Foto dokumentasi berhasil dipilih & disesuaikan!");
                         };
                         reader.readAsDataURL(file);
                       }}
