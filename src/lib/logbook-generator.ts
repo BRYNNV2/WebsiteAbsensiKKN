@@ -21,6 +21,12 @@ export interface LogbookEntryItem {
   dosen_notes?: string | null;
 }
 
+export interface AuthorityItem {
+  id: string;
+  title: string;
+  name: string;
+}
+
 export interface StudentLogbookProfile {
   full_name: string;
   student_id: string; // NIM
@@ -29,6 +35,7 @@ export interface StudentLogbookProfile {
   group_location?: string;
   dosen_name?: string;
   lurah_head_name?: string;
+  authorities?: AuthorityItem[];
 }
 
 export interface WeekBundleData {
@@ -269,13 +276,30 @@ export async function exportLogbookToDocx(
       linebreaks: true,
     });
 
+    let lurahHeadText = "";
+    if (student.authorities && student.authorities.length > 0) {
+      lurahHeadText = student.authorities
+        .map((auth, idx) => {
+          const t = auth.title ? auth.title.toUpperCase() : "PIHAK BERWENANG";
+          const n = auth.name ? auth.name.trim() : "....................................";
+          if (idx === 0) {
+            return `${n}`;
+          } else {
+            return `\n\n\nTANDA TANGAN ${t}\n\n\n( ${n} )`;
+          }
+        })
+        .join("");
+    } else {
+      lurahHeadText = student.lurah_head_name || "....................................";
+    }
+
     doc.render({
       full_name: student.full_name || "",
       student_id: student.student_id || "",
       faculty_prodi: student.faculty_prodi || "FTTK / Teknik Informatika",
       group_location: student.group_location || student.group_name || "-",
       dosen_name: student.dosen_name || "-",
-      lurah_head_name: student.lurah_head_name || "....................................",
+      lurah_head_name: lurahHeadText,
       year: new Date().getFullYear().toString(),
       week_label: weekLabelText,
       group_info: `${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,

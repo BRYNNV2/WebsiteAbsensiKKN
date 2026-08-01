@@ -62,6 +62,7 @@ import {
   type LogbookEntryItem,
   type StudentLogbookProfile,
   type WeekBundleData,
+  type AuthorityItem,
 } from "@/lib/logbook-generator";
 import {
   BookOpen,
@@ -194,6 +195,14 @@ export function MahasiswaLogbookPage() {
     const defaultDosenName = savedCover.dosen_name || dosenName || "";
     const defaultLurahName = savedCover.lurah_head_name || "";
 
+    let defaultAuthorities: AuthorityItem[] = [
+      { id: "1", title: "Lurah / Kepala Desa", name: defaultLurahName }
+    ];
+
+    if (Array.isArray(savedCover.authorities) && savedCover.authorities.length > 0) {
+      defaultAuthorities = savedCover.authorities;
+    }
+
     setStudentProfile({
       full_name: profile.full_name || "",
       student_id: profile.student_id || "",
@@ -202,6 +211,43 @@ export function MahasiswaLogbookPage() {
       group_location: defaultGroupLoc,
       dosen_name: defaultDosenName,
       lurah_head_name: defaultLurahName,
+      authorities: defaultAuthorities,
+    });
+  }
+
+  function handleAddAuthority() {
+    setStudentProfile((prev) => {
+      const currentAuths = prev.authorities || [];
+      const newAuth: AuthorityItem = {
+        id: Date.now().toString(),
+        title: "Pihak Berwenang",
+        name: "",
+      };
+      return {
+        ...prev,
+        authorities: [...currentAuths, newAuth],
+      };
+    });
+  }
+
+  function handleRemoveAuthority(id: string) {
+    setStudentProfile((prev) => {
+      const currentAuths = prev.authorities || [];
+      if (currentAuths.length <= 1) return prev;
+      return {
+        ...prev,
+        authorities: currentAuths.filter((a) => a.id !== id),
+      };
+    });
+  }
+
+  function handleUpdateAuthority(id: string, field: "title" | "name", value: string) {
+    setStudentProfile((prev) => {
+      const currentAuths = prev.authorities || [];
+      return {
+        ...prev,
+        authorities: currentAuths.map((a) => (a.id === id ? { ...a, [field]: value } : a)),
+      };
     });
   }
 
@@ -580,15 +626,17 @@ export function MahasiswaLogbookPage() {
 
       const photo = photoUrl || profile?.avatar_url || null;
 
-      // Save current cover info to localStorage for future downloads
+      // Save current cover info & authorities to localStorage for future downloads
       if (profile?.id) {
+        const firstAuthName = studentProfile.authorities?.[0]?.name || studentProfile.lurah_head_name || "";
         localStorage.setItem(
           `logbook_cover_info_${profile.id}`,
           JSON.stringify({
             faculty_prodi: studentProfile.faculty_prodi,
             group_location: studentProfile.group_location,
             dosen_name: studentProfile.dosen_name,
-            lurah_head_name: studentProfile.lurah_head_name,
+            lurah_head_name: firstAuthName,
+            authorities: studentProfile.authorities,
           })
         );
       }
@@ -1371,33 +1419,77 @@ export function MahasiswaLogbookPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-muted-foreground block">
-                    Nama Dosen Pendamping (DPL)
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground block">
+                  Nama Dosen Pendamping (DPL)
+                </label>
+                <Input
+                  value={studentProfile.dosen_name || ""}
+                  onChange={(e) =>
+                    setStudentProfile((prev) => ({ ...prev, dosen_name: e.target.value }))
+                  }
+                  placeholder="Contoh: Dr. Budi Santoso, M.T."
+                  className="h-8 text-xs rounded-lg"
+                />
+              </div>
+
+              {/* Dynamic List of Approval Authorities */}
+              <div className="space-y-2 pt-2 border-t border-border/40">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
+                    <span>Penandatangan Pengesahan (Pihak Berwenang)</span>
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
+                      {(studentProfile.authorities || []).length} Kolom
+                    </Badge>
                   </label>
-                  <Input
-                    value={studentProfile.dosen_name || ""}
-                    onChange={(e) =>
-                      setStudentProfile((prev) => ({ ...prev, dosen_name: e.target.value }))
-                    }
-                    placeholder="Contoh: Dr. Budi Santoso, M.T."
-                    className="h-8 text-xs rounded-lg"
-                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddAuthority}
+                    className="h-6 text-[10px] px-2 rounded-lg border-primary/40 text-primary hover:bg-primary/10 gap-1 font-bold"
+                  >
+                    <Plus className="size-3" />
+                    Tambah Kolom
+                  </Button>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-muted-foreground block">
-                    Lurah / Kepala Desa / Pihak Berwenang
-                  </label>
-                  <Input
-                    value={studentProfile.lurah_head_name || ""}
-                    onChange={(e) =>
-                      setStudentProfile((prev) => ({ ...prev, lurah_head_name: e.target.value }))
-                    }
-                    placeholder="Contoh: Bapak Ahmad Yani, S.Sos."
-                    className="h-8 text-xs rounded-lg"
-                  />
+                <div className="space-y-2">
+                  {(studentProfile.authorities || [
+                    { id: "1", title: "Lurah / Kepala Desa", name: studentProfile.lurah_head_name || "" },
+                  ]).map((auth, idx) => (
+                    <div
+                      key={auth.id || idx}
+                      className="flex items-center gap-2 bg-background/80 p-2 rounded-xl border border-border/60 shadow-2xs"
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1 text-xs">
+                        <Input
+                          value={auth.title}
+                          onChange={(e) => handleUpdateAuthority(auth.id, "title", e.target.value)}
+                          placeholder="Jabatan (cth: Lurah / Kepala Desa)"
+                          className="h-7 text-[11px] rounded-lg font-medium"
+                        />
+                        <Input
+                          value={auth.name}
+                          onChange={(e) => handleUpdateAuthority(auth.id, "name", e.target.value)}
+                          placeholder="Nama Lengkap & Gelar (cth: Bapak Ahmad Yani, S.Sos.)"
+                          className="h-7 text-[11px] rounded-lg"
+                        />
+                      </div>
+                      {(studentProfile.authorities || []).length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveAuthority(auth.id)}
+                          className="size-7 rounded-lg text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 shrink-0"
+                          title="Hapus Kolom Penandatangan"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
