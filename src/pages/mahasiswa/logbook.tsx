@@ -127,6 +127,7 @@ export function MahasiswaLogbookPage() {
   const [formActivityName, setFormActivityName] = useState<string>("");
   const [formActivityDesc, setFormActivityDesc] = useState<string>("");
   const [formDocUrls, setFormDocUrls] = useState<string[]>([]);
+  const [formDocLinkInput, setFormDocLinkInput] = useState<string>("");
 
   useEffect(() => {
     if (!profile) return;
@@ -334,6 +335,7 @@ export function MahasiswaLogbookPage() {
     setFormActivityName("");
     setFormActivityDesc("");
     setFormDocUrls([]);
+    setFormDocLinkInput("");
     setDialogOpen(true);
   }
 
@@ -346,6 +348,7 @@ export function MahasiswaLogbookPage() {
     setFormActivityName(item.activity_name);
     setFormActivityDesc(item.activity_description);
     setFormDocUrls(parseDocumentationPhotos(item.documentation_url));
+    setFormDocLinkInput("");
     setDialogOpen(true);
   }
 
@@ -367,11 +370,16 @@ export function MahasiswaLogbookPage() {
           : 1;
       }
 
+      let finalUrls = [...formDocUrls];
+      if (formDocLinkInput.trim()) {
+        finalUrls.push(formDocLinkInput.trim());
+      }
+
       let docUrlToSave: string | null = null;
-      if (formDocUrls.length === 1) {
-        docUrlToSave = formDocUrls[0];
-      } else if (formDocUrls.length > 1) {
-        docUrlToSave = JSON.stringify(formDocUrls);
+      if (finalUrls.length === 1) {
+        docUrlToSave = finalUrls[0];
+      } else if (finalUrls.length > 1) {
+        docUrlToSave = JSON.stringify(finalUrls);
       }
 
       const payload = {
@@ -1217,21 +1225,39 @@ export function MahasiswaLogbookPage() {
                     <span className="text-[11px] font-semibold text-muted-foreground block">
                       Atau Tempel Link URL Dokumentasi
                     </span>
-                    <Input
-                      placeholder="https://... lalu Tekan Enter"
-                      className="h-8 text-xs bg-background rounded-lg"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          const target = e.currentTarget as HTMLInputElement;
-                          if (target.value.trim()) {
-                            setFormDocUrls((prev) => [...prev, target.value.trim()]);
-                            target.value = "";
+                    <div className="flex gap-1.5">
+                      <Input
+                        placeholder="https://..."
+                        value={formDocLinkInput}
+                        onChange={(e) => setFormDocLinkInput(e.target.value)}
+                        className="h-8 text-xs bg-background rounded-lg flex-1"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (formDocLinkInput.trim()) {
+                              setFormDocUrls((prev) => [...prev, formDocLinkInput.trim()]);
+                              setFormDocLinkInput("");
+                              toast.success("Link dokumentasi ditambahkan!");
+                            }
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          if (formDocLinkInput.trim()) {
+                            setFormDocUrls((prev) => [...prev, formDocLinkInput.trim()]);
+                            setFormDocLinkInput("");
                             toast.success("Link dokumentasi ditambahkan!");
                           }
-                        }
-                      }}
-                    />
+                        }}
+                        className="h-8 text-xs px-2.5 rounded-lg shrink-0 font-semibold"
+                      >
+                        + Tambah
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
