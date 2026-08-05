@@ -121,6 +121,67 @@ export function parseDocumentationPhotos(rawUrl?: string | null): string[] {
 }
 
 const imageSizeMap = new Map<string, [number, number]>();
+const urlLinkMap = new Map<string, string>();
+
+export function createLinkCanvasImage(url: string): Promise<string> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      return resolve("");
+    }
+
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 800;
+      canvas.height = 600;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve("");
+
+      // Card background
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(0, 0, 800, 600);
+
+      // Card border
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 6;
+      ctx.strokeRect(30, 30, 740, 540);
+
+      // Link button badge
+      ctx.fillStyle = "#0284c7";
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(100, 150, 600, 160, 24);
+      } else {
+        ctx.rect(100, 150, 600, 160);
+      }
+      ctx.fill();
+
+      // Button Text
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 34px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🔗  Buka Link Dokumentasi ↗", 400, 230);
+
+      // URL Subtext
+      ctx.fillStyle = "#475569";
+      ctx.font = "24px sans-serif";
+      ctx.textAlign = "center";
+      const displayUrl = url.length > 46 ? url.substring(0, 43) + "..." : url;
+      ctx.fillText(displayUrl, 400, 410);
+
+      ctx.fillStyle = "#0284c7";
+      ctx.font = "bold 20px sans-serif";
+      ctx.fillText("(Klik link biru di bawah untuk membuka)", 400, 470);
+
+      const linkDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+      imageSizeMap.set(linkDataUrl, [132, 99]);
+      urlLinkMap.set(linkDataUrl, url);
+      resolve(linkDataUrl);
+    } catch (e) {
+      resolve("");
+    }
+  });
+}
 
 export function combineImagesToCollage(
   images: string[],
@@ -330,6 +391,8 @@ export async function exportLogbookToDocx(
             const validPhotos = processedPhotos.filter((p) => p && p.startsWith("data:image/"));
             if (validPhotos.length > 0) {
               docVal = await combineImagesToCollage(validPhotos, 800, 600);
+            } else if (photos[0] && (photos[0].startsWith("http://") || photos[0].startsWith("https://"))) {
+              docVal = await createLinkCanvasImage(photos[0]);
             } else if (photos[0]) {
               docVal = `Dokumentasi: ${photos.join(", ")}`;
             }
@@ -438,6 +501,15 @@ export async function exportLogbookToDocx(
 
     const renderedZip = doc.getZip();
     let documentXml = renderedZip.file("word/document.xml")?.asText() || "";
+
+    if (urlLinkMap.size > 0) {
+      urlLinkMap.forEach((originalUrl) => {
+        const escapedUrl = originalUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+        const hyperlinkXml = `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:fldSimple w:instr="HYPERLINK &quot;${escapedUrl}&quot;"><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:color w:val="0563C1"/><w:u w:val="single"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr><w:t>Klik di sini untuk buka link ↗</w:t></w:r></w:fldSimple></w:r></w:p>`;
+        documentXml = documentXml.replace(/<\/w:drawing>/g, `</w:drawing>${hyperlinkXml}`);
+      });
+      renderedZip.file("word/document.xml", documentXml);
+    }
 
     // Embed Pas Foto 4x6 jika ada
     if (hasPhoto && photoBuffer) {
