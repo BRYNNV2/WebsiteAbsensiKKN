@@ -59,6 +59,7 @@ import { cn } from "@/lib/utils";
 import {
   exportLogbookToDocx,
   cropImageToAspectRatio,
+  parseDocumentationPhotos,
   type LogbookEntryItem,
   type StudentLogbookProfile,
   type WeekBundleData,
