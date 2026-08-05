@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { PageHeader } from "@/components/page-header";
@@ -80,6 +80,11 @@ import {
   ChevronDown,
   Filter,
   Check,
+  PenTool,
+  Eraser,
+  RotateCcw,
+  FileSignature,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -128,6 +133,112 @@ export function MahasiswaLogbookPage() {
   const [formActivityDesc, setFormActivityDesc] = useState<string>("");
   const [formDocUrls, setFormDocUrls] = useState<string[]>([]);
   const [formDocLinkInput, setFormDocLinkInput] = useState<string>("");
+
+  // Digital Signature Modal State & Canvas Ref
+  const [sigModalOpen, setSigModalOpen] = useState(false);
+  const [sigTarget, setSigTarget] = useState<{ type: "student" } | { type: "authority"; id: string } | null>(null);
+  const [sigTab, setSigTab] = useState<"draw" | "upload">("draw");
+  const [isDrawing, setIsDrawing] = useState(false);
+  const sigCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  function startDrawing(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    setIsDrawing(true);
+    const rect = canvas.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+    ctx.beginPath();
+    ctx.moveTo(clientX - rect.left, clientY - rect.top);
+  }
+
+  function draw(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    if (!isDrawing) return;
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineTo(clientX - rect.left, clientY - rect.top);
+    ctx.stroke();
+  }
+
+  function stopDrawing() {
+    setIsDrawing(false);
+  }
+
+  function clearCanvas() {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+
+  function handleSaveSignature(dataUrl: string) {
+    if (!sigTarget) return;
+
+    if (sigTarget.type === "student") {
+      setStudentProfile((prev) => ({
+        ...prev,
+        student_signature_url: dataUrl,
+      }));
+    } else if (sigTarget.type === "authority") {
+      setStudentProfile((prev) => ({
+        ...prev,
+        authorities: (prev.authorities || []).map((a) =>
+          a.id === sigTarget.id ? { ...a, signature_url: dataUrl } : a
+        ),
+      }));
+    }
+
+    setSigModalOpen(false);
+    setSigTarget(null);
+    toast.success("Tanda tangan digital berhasil disimpan!");
+  }
+
+  function handleRemoveSignature(target: { type: "student" } | { type: "authority"; id: string }) {
+    if (target.type === "student") {
+      setStudentProfile((prev) => ({
+        ...prev,
+        student_signature_url: null,
+      }));
+    } else {
+      setStudentProfile((prev) => ({
+        ...prev,
+        authorities: (prev.authorities || []).map((a) =>
+          a.id === target.id ? { ...a, signature_url: null } : a
+        ),
+      }));
+    }
+    toast.info("Tanda tangan dihapus.");
+  }
+
+  function handleFileUploadSig(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const res = event.target?.result as string;
+      if (res) {
+        handleSaveSignature(res);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
 
   useEffect(() => {
     if (!profile) return;
@@ -1505,6 +1616,70 @@ export function MahasiswaLogbookPage() {
                 />
               </div>
 
+              {/* Digital Signature for Student */}
+              <div className="space-y-1.5 pt-2 border-t border-border/40">
+                <label className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                  <span>Tanda Tangan Mahasiswa (Pembuat Logbook)</span>
+                  {studentProfile.student_signature_url && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-emerald-500/40 bg-emerald-50 text-emerald-700">
+                      TTD Terpasang
+                    </Badge>
+                  )}
+                </label>
+
+                {studentProfile.student_signature_url ? (
+                  <div className="flex items-center justify-between gap-2 bg-background p-2 rounded-xl border border-border/60 shadow-2xs">
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={studentProfile.student_signature_url}
+                        alt="TTD Mahasiswa"
+                        className="h-9 w-auto object-contain bg-white rounded border border-border/40 p-1"
+                      />
+                      <span className="text-[11px] font-medium text-muted-foreground">Tanda tangan digital aktif</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSigTarget({ type: "student" });
+                          setSigModalOpen(true);
+                        }}
+                        className="h-7 text-[11px] px-2.5 rounded-lg border-primary/40 text-primary hover:bg-primary/10 gap-1 font-semibold"
+                      >
+                        <PenTool className="size-3" />
+                        <span>Ubah</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveSignature({ type: "student" })}
+                        className="size-7 rounded-lg text-rose-500 hover:bg-rose-500/10"
+                        title="Hapus Tanda Tangan"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSigTarget({ type: "student" });
+                      setSigModalOpen(true);
+                    }}
+                    className="w-full h-8 text-xs rounded-xl border-dashed border-primary/40 text-primary hover:bg-primary/10 gap-1.5 font-bold"
+                  >
+                    <PenTool className="size-3.5" />
+                    <span>+ Unggah / Gambar TTD Digital Mahasiswa</span>
+                  </Button>
+                )}
+              </div>
+
               {/* Dynamic List of Approval Authorities */}
               <div className="space-y-2 pt-2 border-t border-border/40">
                 <div className="flex items-center justify-between">
@@ -1532,9 +1707,9 @@ export function MahasiswaLogbookPage() {
                   ]).map((auth, idx) => (
                     <div
                       key={auth.id || idx}
-                      className="flex items-center gap-2 bg-background/80 p-2 rounded-xl border border-border/60 shadow-2xs"
+                      className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-background/80 p-2.5 rounded-xl border border-border/60 shadow-2xs"
                     >
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1 w-full text-xs">
                         <Input
                           value={auth.title}
                           onChange={(e) => handleUpdateAuthority(auth.id, "title", e.target.value)}
@@ -1548,18 +1723,65 @@ export function MahasiswaLogbookPage() {
                           className="h-7 text-[11px] rounded-lg"
                         />
                       </div>
-                      {(studentProfile.authorities || []).length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveAuthority(auth.id)}
-                          className="size-7 rounded-lg text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 shrink-0"
-                          title="Hapus Kolom Penandatangan"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      )}
+
+                      {/* Signature Action per Authority */}
+                      <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                        {auth.signature_url ? (
+                          <div className="flex items-center gap-1 bg-white border border-border/40 px-2 py-0.5 rounded-lg shadow-2xs">
+                            <img src={auth.signature_url} alt="TTD" className="h-6 w-auto object-contain" />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSigTarget({ type: "authority", id: auth.id });
+                                setSigModalOpen(true);
+                              }}
+                              className="size-5 rounded text-muted-foreground hover:text-primary"
+                              title="Ubah TTD"
+                            >
+                              <Edit2 className="size-3" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveSignature({ type: "authority", id: auth.id })}
+                              className="size-5 rounded text-rose-500 hover:bg-rose-500/10"
+                              title="Hapus TTD"
+                            >
+                              <X className="size-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSigTarget({ type: "authority", id: auth.id });
+                              setSigModalOpen(true);
+                            }}
+                            className="h-7 text-[11px] px-2 rounded-lg border-dashed border-primary/40 text-primary hover:bg-primary/10 gap-1 font-semibold"
+                          >
+                            <PenTool className="size-3" />
+                            <span>+ TTD</span>
+                          </Button>
+                        )}
+
+                        {(studentProfile.authorities || []).length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveAuthority(auth.id)}
+                            className="size-7 rounded-lg text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 shrink-0"
+                            title="Hapus Kolom Penandatangan"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1589,6 +1811,115 @@ export function MahasiswaLogbookPage() {
               <span>{isExporting ? "Proses Mengunduh..." : "Unduh Word (.docx)"}</span>
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Dialog Tanda Tangan Digital */}
+      <Dialog open={sigModalOpen} onOpenChange={setSigModalOpen}>
+        <DialogContent className="max-w-md rounded-2xl sm:rounded-3xl p-5 border-border/80 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+              <PenTool className="size-4 text-primary" />
+              <span>Tambah / Edit Tanda Tangan Digital</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Gambar tanda tangan langsung di layar atau unggah file gambar tanda tangan (PNG/JPG).
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Sub Navigation Tabs */}
+          <div className="flex border-b border-border/60 gap-4 mt-1 text-xs font-semibold select-none">
+            <button
+              type="button"
+              onClick={() => setSigTab("draw")}
+              className={cn(
+                "pb-2 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer",
+                sigTab === "draw"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <PenTool className="size-3.5" />
+              <span>Gambar Langsung (Canvas)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSigTab("upload")}
+              className={cn(
+                "pb-2 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer",
+                sigTab === "upload"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Upload className="size-3.5" />
+              <span>Unggah File Gambar</span>
+            </button>
+          </div>
+
+          {/* Tab 1: Draw Canvas */}
+          {sigTab === "draw" && (
+            <div className="space-y-3 py-2">
+              <div className="relative border-2 border-dashed border-border/80 rounded-2xl bg-white overflow-hidden shadow-inner">
+                <canvas
+                  ref={sigCanvasRef}
+                  width={380}
+                  height={160}
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
+                  className="w-full h-40 touch-none cursor-crosshair"
+                />
+                <span className="absolute bottom-2 right-2 text-[10px] text-slate-400 pointer-events-none select-none">
+                  Area Coret-Coret TTD
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={clearCanvas}
+                  className="h-8 text-xs rounded-xl gap-1 text-muted-foreground hover:bg-muted"
+                >
+                  <Eraser className="size-3.5" />
+                  <span>Bersihkan</span>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    const canvas = sigCanvasRef.current;
+                    if (canvas) {
+                      const dataUrl = canvas.toDataURL("image/png");
+                      handleSaveSignature(dataUrl);
+                    }
+                  }}
+                  className="h-8 text-xs rounded-xl bg-primary text-primary-foreground font-semibold gap-1.5 shadow-xs"
+                >
+                  <Check className="size-3.5" />
+                  <span>Gunakan Tanda Tangan</span>
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: Upload File */}
+          {sigTab === "upload" && (
+            <div className="space-y-3 py-3 text-center">
+              <label className="border-2 border-dashed border-primary/40 hover:border-primary/80 rounded-2xl p-6 bg-primary/5 hover:bg-primary/10 transition-all flex flex-col items-center justify-center gap-2 cursor-pointer">
+                <Upload className="size-8 text-primary/70" />
+                <span className="text-xs font-bold text-foreground">Klik untuk memilih file TTD (PNG/JPG)</span>
+                <span className="text-[11px] text-muted-foreground">Disarankan gambar berlatar belakang transparan/putih</span>
+                <input type="file" accept="image/*" onChange={handleFileUploadSig} className="hidden" />
+              </label>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -25,6 +25,7 @@ export interface AuthorityItem {
   id: string;
   title: string;
   name: string;
+  signature_url?: string | null;
 }
 
 export interface StudentLogbookProfile {
@@ -35,6 +36,7 @@ export interface StudentLogbookProfile {
   group_location?: string;
   dosen_name?: string;
   lurah_head_name?: string;
+  student_signature_url?: string | null;
   authorities?: AuthorityItem[];
 }
 
@@ -363,10 +365,14 @@ export async function exportLogbookToDocx(
     const imageOpts = {
       centered: true,
       setParser: function (tag: string) {
-        if (tag === "documentation") {
+        if (
+          tag === "documentation" ||
+          tag === "student_signature" ||
+          tag.startsWith("auth_sig_")
+        ) {
           return {
             type: "placeholder",
-            value: "documentation",
+            value: tag,
             module: "open-xml-templating/docxtemplater-image-module",
             centered: true,
           };
@@ -386,7 +392,10 @@ export async function exportLogbookToDocx(
         }
         return null;
       },
-      getSize: function (_imgBuffer: any, tagValue: any) {
+      getSize: function (_imgBuffer: any, tagValue: any, tagName: string) {
+        if (tagName === "student_signature" || tagName?.startsWith("auth_sig_")) {
+          return [105, 52];
+        }
         if (typeof tagValue === "string" && imageSizeMap.has(tagValue)) {
           return imageSizeMap.get(tagValue)!;
         }
@@ -433,22 +442,48 @@ export async function exportLogbookToDocx(
     let lurahHeadTitle = "TANDA TANGAN LURAH / KEPALA DESA";
     let lurahHeadName = "( .................................... )";
 
+    const renderPayload: Record<string, any> = {
+      full_name: student.full_name || "",
+      student_id: student.student_id || "",
+      faculty_prodi: student.faculty_prodi || "FTTK / Teknik Informatika",
+      group_location: student.group_location || student.group_name || "-",
+      dosen_name: student.dosen_name || "-",
+      student_signature: student.student_signature_url || "",
+      year: new Date().getFullYear().toString(),
+      week_label: weekLabelText,
+      group_info: `${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
+      entries: formattedEntries,
+      note_1: allNotesList[0] || "-",
+      note_2: allNotesList[1] || "-",
+      note_3: allNotesList[2] || "-",
+    };
+
     if (student.authorities && student.authorities.length > 0) {
       const firstAuth = student.authorities[0];
       const firstTitle = firstAuth.title ? firstAuth.title.trim().toUpperCase() : "LURAH / KEPALA DESA";
       const firstName = firstAuth.name ? firstAuth.name.trim() : "....................................";
 
       lurahHeadTitle = firstTitle.startsWith("TANDA TANGAN") ? firstTitle : `TANDA TANGAN ${firstTitle}`;
-      lurahHeadName = `( ${firstName} )`;
+      const firstSig = firstAuth.signature_url ? `{auth_sig_0}\n` : "";
+      lurahHeadName = `${firstSig}( ${firstName} )`;
+
+      if (firstAuth.signature_url) {
+        renderPayload["auth_sig_0"] = firstAuth.signature_url;
+      }
 
       if (student.authorities.length > 1) {
         const extraAuthoritiesText = student.authorities
           .slice(1)
-          .map((auth) => {
+          .map((auth, idx) => {
+            const realIdx = idx + 1;
             const t = auth.title ? auth.title.trim().toUpperCase() : "PIHAK BERWENANG";
             const fullT = t.startsWith("TANDA TANGAN") ? t : `TANDA TANGAN ${t}`;
             const n = auth.name ? auth.name.trim() : "....................................";
-            return `\n\n\n\n${fullT}\n\n\n\n( ${n} )`;
+            const sigTag = auth.signature_url ? `{auth_sig_${realIdx}}\n` : "";
+            if (auth.signature_url) {
+              renderPayload[`auth_sig_${realIdx}`] = auth.signature_url;
+            }
+            return `\n\n\n\n${fullT}\n\n\n\n${sigTag}( ${n} )`;
           })
           .join("");
 
@@ -458,22 +493,10 @@ export async function exportLogbookToDocx(
       lurahHeadName = `( ${student.lurah_head_name.trim()} )`;
     }
 
-    doc.render({
-      full_name: student.full_name || "",
-      student_id: student.student_id || "",
-      faculty_prodi: student.faculty_prodi || "FTTK / Teknik Informatika",
-      group_location: student.group_location || student.group_name || "-",
-      dosen_name: student.dosen_name || "-",
-      lurah_head_title: lurahHeadTitle,
-      lurah_head_name: lurahHeadName,
-      year: new Date().getFullYear().toString(),
-      week_label: weekLabelText,
-      group_info: `${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
-      entries: formattedEntries,
-      note_1: allNotesList[0] || "-",
-      note_2: allNotesList[1] || "-",
-      note_3: allNotesList[2] || "-",
-    });
+    renderPayload.lurah_head_title = lurahHeadTitle;
+    renderPayload.lurah_head_name = lurahHeadName;
+
+    doc.render(renderPayload);
 
     const renderedZip = doc.getZip();
     let documentXml = renderedZip.file("word/document.xml")?.asText() || "";
