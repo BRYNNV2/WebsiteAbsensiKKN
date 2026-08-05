@@ -106,6 +106,141 @@ export function cropImageToAspectRatio(
   });
 }
 
+export function parseDocumentationPhotos(rawUrl?: string | null): string[] {
+  if (!rawUrl || !rawUrl.trim()) return [];
+  const trimmed = rawUrl.trim();
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    try {
+      const arr = JSON.parse(trimmed);
+      if (Array.isArray(arr)) {
+        return arr.filter((x) => typeof x === "string" && x.trim());
+      }
+    } catch (e) {}
+  }
+  return [trimmed];
+}
+
+export function combineImagesToCollage(
+  images: string[],
+  targetWidth: number = 800,
+  targetHeight: number = 600
+): Promise<string> {
+  return new Promise((resolve) => {
+    if (!images || images.length === 0) return resolve("");
+    if (images.length === 1) {
+      return cropImageToAspectRatio(images[0], 4 / 3, targetWidth, targetHeight).then(resolve);
+    }
+
+    if (typeof window === "undefined") {
+      return resolve(images[0]);
+    }
+
+    const count = Math.min(images.length, 4);
+    const loadedImages: HTMLImageElement[] = [];
+    let loadedCount = 0;
+
+    images.slice(0, count).forEach((src, idx) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        loadedImages[idx] = img;
+        loadedCount++;
+        if (loadedCount === count) {
+          drawCollage();
+        }
+      };
+      img.onerror = () => {
+        loadedCount++;
+        if (loadedCount === count) {
+          drawCollage();
+        }
+      };
+      img.src = src;
+    });
+
+    function drawCollage() {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(images[0]);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+        const gap = 6;
+
+        if (count === 2) {
+          const cellW = (targetWidth - gap) / 2;
+          const cellH = targetHeight;
+          const coords = [
+            { x: 0, y: 0, w: cellW, h: cellH },
+            { x: cellW + gap, y: 0, w: cellW, h: cellH },
+          ];
+          coords.forEach((c, i) => {
+            if (loadedImages[i]) drawCover(ctx, loadedImages[i], c.x, c.y, c.w, c.h);
+          });
+        } else if (count === 3) {
+          const leftW = (targetWidth - gap) * 0.55;
+          const rightW = (targetWidth - gap) * 0.45;
+          const rightH = (targetHeight - gap) / 2;
+          const coords = [
+            { x: 0, y: 0, w: leftW, h: targetHeight },
+            { x: leftW + gap, y: 0, w: rightW, h: rightH },
+            { x: leftW + gap, y: rightH + gap, w: rightW, h: rightH },
+          ];
+          coords.forEach((c, i) => {
+            if (loadedImages[i]) drawCover(ctx, loadedImages[i], c.x, c.y, c.w, c.h);
+          });
+        } else {
+          const cellW = (targetWidth - gap) / 2;
+          const cellH = (targetHeight - gap) / 2;
+          const coords = [
+            { x: 0, y: 0, w: cellW, h: cellH },
+            { x: cellW + gap, y: 0, w: cellW, h: cellH },
+            { x: 0, y: cellH + gap, w: cellW, h: cellH },
+            { x: cellW + gap, y: cellH + gap, w: cellW, h: cellH },
+          ];
+          coords.forEach((c, i) => {
+            if (loadedImages[i]) drawCover(ctx, loadedImages[i], c.x, c.y, c.w, c.h);
+          });
+        }
+
+        resolve(canvas.toDataURL("image/jpeg", 0.88));
+      } catch (e) {
+        resolve(images[0]);
+      }
+    }
+
+    function drawCover(
+      ctx: CanvasRenderingContext2D,
+      img: HTMLImageElement,
+      x: number,
+      y: number,
+      w: number,
+      h: number
+    ) {
+      const imgRatio = img.width / img.height;
+      const cellRatio = w / h;
+      let sW = img.width;
+      let sH = img.height;
+      let sX = 0;
+      let sY = 0;
+
+      if (imgRatio > cellRatio) {
+        sW = img.height * cellRatio;
+        sX = (img.width - sW) / 2;
+      } else {
+        sH = img.width / cellRatio;
+        sY = (img.height - sH) / 2;
+      }
+
+      ctx.drawImage(img, sX, sY, sW, sH, x, y, w, h);
+    }
+  });
+}
+
 export async function exportLogbookToDocx(
   student: StudentLogbookProfile,
   entriesOrBundles: LogbookEntryItem[] | WeekBundleData[],
@@ -188,27 +323,35 @@ export async function exportLogbookToDocx(
         let docVal: any = "-";
 
         if (item.documentation_url) {
-          if (item.documentation_url.startsWith("data:image/")) {
-            docVal = await cropImageToAspectRatio(item.documentation_url, 4 / 3, 800, 600);
-          } else if (item.documentation_url.startsWith("http")) {
-            try {
-              const res = await fetch(item.documentation_url);
-              if (res.ok) {
-                const blob = await res.blob();
-                const reader = new FileReader();
-                const rawData = await new Promise<string>((resolve) => {
-                  reader.onloadend = () => resolve(reader.result as string);
-                  reader.readAsDataURL(blob);
-                });
-                docVal = await cropImageToAspectRatio(rawData, 4 / 3, 800, 600);
-              } else {
-                docVal = `Dokumentasi: ${item.documentation_url}`;
-              }
-            } catch {
-              docVal = `Dokumentasi: ${item.documentation_url}`;
+          const photos = parseDocumentationPhotos(item.documentation_url);
+          if (photos.length > 0) {
+            const processedPhotos = await Promise.all(
+              photos.map(async (photo) => {
+                if (photo.startsWith("data:image/")) {
+                  return photo;
+                } else if (photo.startsWith("http")) {
+                  try {
+                    const res = await fetch(photo);
+                    if (res.ok) {
+                      const blob = await res.blob();
+                      return await new Promise<string>((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result as string);
+                        reader.readAsDataURL(blob);
+                      });
+                    }
+                  } catch (e) {}
+                }
+                return photo;
+              })
+            );
+
+            const validPhotos = processedPhotos.filter((p) => p && p.startsWith("data:image/"));
+            if (validPhotos.length > 0) {
+              docVal = await combineImagesToCollage(validPhotos, 800, 600);
+            } else if (photos[0]) {
+              docVal = `Dokumentasi: ${photos.join(", ")}`;
             }
-          } else {
-            docVal = item.documentation_url;
           }
         }
 

@@ -125,7 +125,7 @@ export function MahasiswaLogbookPage() {
   const [formTime, setFormTime] = useState<string>("08:00 - 12:00 WIB");
   const [formActivityName, setFormActivityName] = useState<string>("");
   const [formActivityDesc, setFormActivityDesc] = useState<string>("");
-  const [formDocUrl, setFormDocUrl] = useState<string>("");
+  const [formDocUrls, setFormDocUrls] = useState<string[]>([]);
 
   useEffect(() => {
     if (!profile) return;
@@ -332,7 +332,7 @@ export function MahasiswaLogbookPage() {
     setFormTime("08:00 - 12:00 WIB");
     setFormActivityName("");
     setFormActivityDesc("");
-    setFormDocUrl("");
+    setFormDocUrls([]);
     setDialogOpen(true);
   }
 
@@ -344,7 +344,7 @@ export function MahasiswaLogbookPage() {
     setFormTime(item.time_range);
     setFormActivityName(item.activity_name);
     setFormActivityDesc(item.activity_description);
-    setFormDocUrl(item.documentation_url || "");
+    setFormDocUrls(parseDocumentationPhotos(item.documentation_url));
     setDialogOpen(true);
   }
 
@@ -366,6 +366,13 @@ export function MahasiswaLogbookPage() {
           : 1;
       }
 
+      let docUrlToSave: string | null = null;
+      if (formDocUrls.length === 1) {
+        docUrlToSave = formDocUrls[0];
+      } else if (formDocUrls.length > 1) {
+        docUrlToSave = JSON.stringify(formDocUrls);
+      }
+
       const payload = {
         student_id: currentUserId,
         group_id: profile.group_id || null,
@@ -375,7 +382,7 @@ export function MahasiswaLogbookPage() {
         time_range: formTime,
         activity_name: formActivityName.trim(),
         activity_description: formActivityDesc.trim(),
-        documentation_url: formDocUrl.trim() || null,
+        documentation_url: docUrlToSave,
         status: "pending",
       };
 
@@ -920,32 +927,41 @@ export function MahasiswaLogbookPage() {
                             {item.activity_description}
                           </p>
                           {item.documentation_url && (
-                            <div className="pt-1">
-                              {item.documentation_url.startsWith("data:image/") || item.documentation_url.match(/\.(jpg|jpeg|png|webp|gif)/i) ? (
-                                <a
-                                  href={item.documentation_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold px-2 py-1 rounded-lg border border-emerald-500/20 hover:bg-emerald-500/20 transition-all"
-                                >
-                                  <img
-                                    src={item.documentation_url}
-                                    alt="Dokumentasi"
-                                    className="size-4 rounded object-cover border border-emerald-600/30 shrink-0"
-                                  />
-                                  <span>Lihat Foto Dokumentasi</span>
-                                </a>
-                              ) : (
-                                <a
-                                  href={item.documentation_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold hover:underline bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20"
-                                >
-                                  <ImageIcon className="size-3" />
-                                  <span>Buka Link Dokumentasi ↗</span>
-                                </a>
-                              )}
+                            <div className="pt-1 flex flex-wrap items-center gap-1.5">
+                              {parseDocumentationPhotos(item.documentation_url).map((photo, pIdx) => {
+                                const isImg = photo.startsWith("data:image/") || photo.match(/\.(jpg|jpeg|png|webp|gif)/i);
+                                if (isImg) {
+                                  return (
+                                    <a
+                                      key={pIdx}
+                                      href={photo}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold px-2 py-1 rounded-lg border border-emerald-500/20 hover:bg-emerald-500/20 transition-all shrink-0"
+                                    >
+                                      <img
+                                        src={photo}
+                                        alt={`Dokumentasi ${pIdx + 1}`}
+                                        className="size-4 rounded object-cover border border-emerald-600/30 shrink-0"
+                                      />
+                                      <span>Foto #{pIdx + 1}</span>
+                                    </a>
+                                  );
+                                } else {
+                                  return (
+                                    <a
+                                      key={pIdx}
+                                      href={photo}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold hover:underline bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 shrink-0"
+                                    >
+                                      <ImageIcon className="size-3" />
+                                      <span>Link #{pIdx + 1} ↗</span>
+                                    </a>
+                                  );
+                                }
+                              })}
                             </div>
                           )}
                         </TableCell>
@@ -1103,92 +1119,121 @@ export function MahasiswaLogbookPage() {
                 rows={4}
                 className="text-xs resize-none rounded-xl"
               />
-            </div>
 
-            {/* Upload Gambar / Link Dokumentasi */}
-            <div className="space-y-2 pt-1 border-t border-border/40">
-              <span className="font-semibold text-muted-foreground block text-xs">
-                Foto / Link Dokumentasi Kegiatan (Opsional)
-              </span>
-
-              {formDocUrl ? (
-                <div className="relative rounded-xl border border-border/80 p-2.5 bg-muted/30 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {formDocUrl.startsWith("data:image/") || formDocUrl.match(/\.(jpg|jpeg|png|webp|gif)/i) ? (
-                      <img
-                        src={formDocUrl}
-                        alt="Dokumentasi"
-                        className="size-12 rounded-lg object-cover border border-border/60 shrink-0 shadow-xs"
-                      />
-                    ) : (
-                      <div className="size-10 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-500/20">
-                        <ImageIcon className="size-5" />
-                      </div>
-                    )}
-                    <div className="min-w-0 space-y-0.5">
-                      <span className="text-xs font-bold text-foreground block truncate">
-                        {formDocUrl.startsWith("data:image/") ? "Foto Terunggah" : formDocUrl}
-                      </span>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block">
-                        ✓ Dokumentasi Siap Disimpan
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setFormDocUrl("")}
-                    className="h-7 text-xs text-rose-500 hover:text-rose-700 hover:bg-rose-500/10 px-2 rounded-lg shrink-0"
-                  >
-                    <Trash2 className="size-3.5 mr-1" />
-                    Hapus
-                  </Button>
+              {/* Upload Gambar / Link Dokumentasi */}
+              <div className="space-y-2 pt-1 border-t border-border/40">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-muted-foreground block text-xs">
+                    Foto / Link Dokumentasi Kegiatan (Bisa Upload Lebih dari 1 Foto)
+                  </span>
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
+                    {formDocUrls.length} Foto
+                  </Badge>
                 </div>
-              ) : (
+
+                {/* Uploaded Photos Grid Preview */}
+                {formDocUrls.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 my-2">
+                    {formDocUrls.map((url, index) => (
+                      <div
+                        key={index}
+                        className="relative group rounded-xl border border-border/80 p-1.5 bg-muted/30 flex flex-col items-center justify-between gap-1 text-center overflow-hidden"
+                      >
+                        {url.startsWith("data:image/") || url.match(/\.(jpg|jpeg|png|webp|gif)/i) ? (
+                          <img
+                            src={url}
+                            alt={`Foto ${index + 1}`}
+                            className="w-full h-16 rounded-lg object-cover border border-border/60 shadow-2xs"
+                          />
+                        ) : (
+                          <div className="w-full h-16 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                            <ImageIcon className="size-6" />
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between w-full px-1">
+                          <span className="text-[10px] font-bold text-muted-foreground">
+                            Foto #{index + 1}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setFormDocUrls((prev) => prev.filter((_, i) => i !== index))}
+                            className="size-5 text-rose-500 hover:text-rose-700 hover:bg-rose-500/10 rounded-md"
+                            title="Hapus foto ini"
+                          >
+                            <Trash2 className="size-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input Buttons for Adding Photos / Link */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {/* Option A: Upload File Gambar */}
+                  {/* Option A: Upload File Gambar (Multiple) */}
                   <label className="flex flex-col items-center justify-center p-3 rounded-xl border border-dashed border-border/80 hover:border-primary/60 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-all text-center group">
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        if (!file.type.startsWith("image/")) {
+                      onChange={async (e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (files.length === 0) return;
+
+                        const invalid = files.find((f) => !f.type.startsWith("image/"));
+                        if (invalid) {
                           toast.error("File harus berupa gambar (JPG, PNG, WebP).");
                           return;
                         }
-                        const reader = new FileReader();
-                        reader.onload = async (evt) => {
-                          const res = evt.target?.result as string;
-                          const cropped = await cropImageToAspectRatio(res, 4 / 3, 800, 600);
-                          setFormDocUrl(cropped);
-                          toast.success("Foto dokumentasi berhasil dipilih & disesuaikan!");
-                        };
-                        reader.readAsDataURL(file);
+
+                        const croppedList: string[] = [];
+                        for (const file of files) {
+                          const reader = new FileReader();
+                          const dataUrl = await new Promise<string>((resolve) => {
+                            reader.onload = (evt) => resolve(evt.target?.result as string);
+                            reader.readAsDataURL(file);
+                          });
+                          const cropped = await cropImageToAspectRatio(dataUrl, 4 / 3, 800, 600);
+                          croppedList.push(cropped);
+                        }
+
+                        setFormDocUrls((prev) => [...prev, ...croppedList].slice(0, 5));
+                        toast.success(`Berhasil memilih ${croppedList.length} foto dokumentasi!`);
                       }}
                     />
                     <Upload className="size-5 text-primary mb-1 group-hover:scale-110 transition-transform" />
-                    <span className="text-xs font-bold text-foreground block">Unggah Gambar</span>
+                    <span className="text-xs font-bold text-foreground block">
+                      {formDocUrls.length > 0 ? "+ Tambah Foto Lagi" : "Unggah Foto (Bisa Banyak)"}
+                    </span>
                     <span className="text-[10px] text-muted-foreground">Pilih foto (JPG, PNG)</span>
                   </label>
 
                   {/* Option B: Input Link URL */}
                   <div className="flex flex-col justify-center p-3 rounded-xl border border-border/60 bg-muted/20 space-y-1.5">
                     <span className="text-[11px] font-semibold text-muted-foreground block">
-                      Atau Tempel Link URL
+                      Atau Tempel Link URL Dokumentasi
                     </span>
                     <Input
-                      value={formDocUrl}
-                      onChange={(e) => setFormDocUrl(e.target.value)}
-                      placeholder="https://drive.google.com/..."
-                      className="h-8 text-xs rounded-lg"
+                      placeholder="https://... lalu Tekan Enter"
+                      className="h-8 text-xs bg-background rounded-lg"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const target = e.currentTarget as HTMLInputElement;
+                          if (target.value.trim()) {
+                            setFormDocUrls((prev) => [...prev, target.value.trim()]);
+                            target.value = "";
+                            toast.success("Link dokumentasi ditambahkan!");
+                          }
+                        }
+                      }}
                     />
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
