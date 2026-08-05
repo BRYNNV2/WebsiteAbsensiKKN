@@ -120,22 +120,27 @@ export function parseDocumentationPhotos(rawUrl?: string | null): string[] {
   return [trimmed];
 }
 
+const imageSizeMap = new Map<string, [number, number]>();
+
 export function combineImagesToCollage(
   images: string[],
   targetWidth: number = 800,
-  targetHeight: number = 600
+  singleHeight: number = 600
 ): Promise<string> {
   return new Promise((resolve) => {
     if (!images || images.length === 0) return resolve("");
     if (images.length === 1) {
-      return cropImageToAspectRatio(images[0], 4 / 3, targetWidth, targetHeight).then(resolve);
+      return cropImageToAspectRatio(images[0], 4 / 3, targetWidth, singleHeight).then((url) => {
+        imageSizeMap.set(url, [132, 99]);
+        return url;
+      }).then(resolve);
     }
 
     if (typeof window === "undefined") {
       return resolve(images[0]);
     }
 
-    const count = Math.min(images.length, 4);
+    const count = Math.min(images.length, 5);
     const loadedImages: HTMLImageElement[] = [];
     let loadedCount = 0;
 
@@ -160,54 +165,30 @@ export function combineImagesToCollage(
 
     function drawCollage() {
       try {
+        const gap = 12;
+        const totalHeight = count * singleHeight + (count - 1) * gap;
+
         const canvas = document.createElement("canvas");
         canvas.width = targetWidth;
-        canvas.height = targetHeight;
+        canvas.height = totalHeight;
         const ctx = canvas.getContext("2d");
         if (!ctx) return resolve(images[0]);
 
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, targetWidth, targetHeight);
+        ctx.fillRect(0, 0, targetWidth, totalHeight);
 
-        const gap = 6;
-
-        if (count === 2) {
-          const cellW = (targetWidth - gap) / 2;
-          const cellH = targetHeight;
-          const coords = [
-            { x: 0, y: 0, w: cellW, h: cellH },
-            { x: cellW + gap, y: 0, w: cellW, h: cellH },
-          ];
-          coords.forEach((c, i) => {
-            if (loadedImages[i]) drawCover(ctx, loadedImages[i], c.x, c.y, c.w, c.h);
-          });
-        } else if (count === 3) {
-          const leftW = (targetWidth - gap) * 0.55;
-          const rightW = (targetWidth - gap) * 0.45;
-          const rightH = (targetHeight - gap) / 2;
-          const coords = [
-            { x: 0, y: 0, w: leftW, h: targetHeight },
-            { x: leftW + gap, y: 0, w: rightW, h: rightH },
-            { x: leftW + gap, y: rightH + gap, w: rightW, h: rightH },
-          ];
-          coords.forEach((c, i) => {
-            if (loadedImages[i]) drawCover(ctx, loadedImages[i], c.x, c.y, c.w, c.h);
-          });
-        } else {
-          const cellW = (targetWidth - gap) / 2;
-          const cellH = (targetHeight - gap) / 2;
-          const coords = [
-            { x: 0, y: 0, w: cellW, h: cellH },
-            { x: cellW + gap, y: 0, w: cellW, h: cellH },
-            { x: 0, y: cellH + gap, w: cellW, h: cellH },
-            { x: cellW + gap, y: cellH + gap, w: cellW, h: cellH },
-          ];
-          coords.forEach((c, i) => {
-            if (loadedImages[i]) drawCover(ctx, loadedImages[i], c.x, c.y, c.w, c.h);
-          });
+        for (let i = 0; i < count; i++) {
+          if (loadedImages[i]) {
+            const currentY = i * (singleHeight + gap);
+            drawCover(ctx, loadedImages[i], 0, currentY, targetWidth, singleHeight);
+          }
         }
 
-        resolve(canvas.toDataURL("image/jpeg", 0.88));
+        const collageUrl = canvas.toDataURL("image/jpeg", 0.88);
+        const cellHeight = Math.round(132 * (totalHeight / targetWidth));
+        imageSizeMap.set(collageUrl, [132, cellHeight]);
+
+        resolve(collageUrl);
       } catch (e) {
         resolve(images[0]);
       }
@@ -405,7 +386,10 @@ export async function exportLogbookToDocx(
         }
         return null;
       },
-      getSize: function () {
+      getSize: function (imgBuffer: any, tagValue: any) {
+        if (typeof tagValue === "string" && imageSizeMap.has(tagValue)) {
+          return imageSizeMap.get(tagValue)!;
+        }
         return [132, 99];
       },
     };
