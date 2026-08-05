@@ -82,8 +82,6 @@ import {
   Check,
   PenTool,
   Eraser,
-  RotateCcw,
-  FileSignature,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
