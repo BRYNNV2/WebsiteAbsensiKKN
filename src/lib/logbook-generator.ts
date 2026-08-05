@@ -386,7 +386,7 @@ export async function exportLogbookToDocx(
         }
         return null;
       },
-      getSize: function (imgBuffer: any, tagValue: any) {
+      getSize: function (_imgBuffer: any, tagValue: any) {
         if (typeof tagValue === "string" && imageSizeMap.has(tagValue)) {
           return imageSizeMap.get(tagValue)!;
         }
