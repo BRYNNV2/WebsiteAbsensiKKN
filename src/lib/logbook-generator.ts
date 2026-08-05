@@ -431,7 +431,7 @@ export async function exportLogbookToDocx(
     });
 
     let lurahHeadTitle = "TANDA TANGAN LURAH / KEPALA DESA";
-    let lurahHeadName = "( .................................... )";
+    let lurahHeadName = `<w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t xml:space="preserve">&#10;&#10;&#10;( .................................... )</w:t></w:r>`;
 
     if (student.authorities && student.authorities.length > 0) {
       const firstAuth = student.authorities[0];
@@ -439,23 +439,21 @@ export async function exportLogbookToDocx(
       const firstName = firstAuth.name ? firstAuth.name.trim() : "....................................";
 
       lurahHeadTitle = firstTitle.startsWith("TANDA TANGAN") ? firstTitle : `TANDA TANGAN ${firstTitle}`;
-      lurahHeadName = `( ${firstName} )`;
+      
+      let rawContent = `<w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t xml:space="preserve">&#10;&#10;&#10;( ${firstName} )</w:t></w:r>`;
 
       if (student.authorities.length > 1) {
-        const extraAuthoritiesText = student.authorities
-          .slice(1)
-          .map((auth) => {
-            const t = auth.title ? auth.title.trim().toUpperCase() : "PIHAK BERWENANG";
-            const fullT = t.startsWith("TANDA TANGAN") ? t : `TANDA TANGAN ${t}`;
-            const n = auth.name ? auth.name.trim() : "....................................";
-            return `\n\n\n\n${fullT}\n\n\n\n( ${n} )`;
-          })
-          .join("");
-
-        lurahHeadName += extraAuthoritiesText;
+        student.authorities.slice(1).forEach((auth) => {
+          const t = auth.title ? auth.title.trim().toUpperCase() : "PIHAK BERWENANG";
+          const fullT = t.startsWith("TANDA TANGAN") ? t : `TANDA TANGAN ${t}`;
+          const n = auth.name ? auth.name.trim() : "....................................";
+          rawContent += `</w:p><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="000000"/></w:rPr><w:t xml:space="preserve">&#10;&#10;&#10;${fullT}</w:t></w:r></w:p><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t xml:space="preserve">&#10;&#10;&#10;( ${n} )</w:t></w:r>`;
+        });
       }
+
+      lurahHeadName = rawContent;
     } else if (student.lurah_head_name) {
-      lurahHeadName = `( ${student.lurah_head_name.trim()} )`;
+      lurahHeadName = `<w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t xml:space="preserve">&#10;&#10;&#10;( ${student.lurah_head_name.trim()} )</w:t></w:r>`;
     }
 
     doc.render({
