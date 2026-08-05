@@ -165,7 +165,7 @@ export function combineImagesToCollage(
 
     function drawCollage() {
       try {
-        const gap = 12;
+        const gap = 36;
         const totalHeight = count * singleHeight + (count - 1) * gap;
 
         const canvas = document.createElement("canvas");
