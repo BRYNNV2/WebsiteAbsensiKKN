@@ -430,21 +430,32 @@ export async function exportLogbookToDocx(
       linebreaks: true,
     });
 
-    let lurahHeadText = "";
+    let lurahHeadTitle = "TANDA TANGAN LURAH / KEPALA DESA";
+    let lurahHeadName = "( .................................... )";
+
     if (student.authorities && student.authorities.length > 0) {
-      lurahHeadText = student.authorities
-        .map((auth, idx) => {
-          const t = auth.title ? auth.title.toUpperCase() : "PIHAK BERWENANG";
-          const n = auth.name ? auth.name.trim() : "....................................";
-          if (idx === 0) {
-            return `${n}`;
-          } else {
-            return `\n\n\nTANDA TANGAN ${t}\n\n\n( ${n} )`;
-          }
-        })
-        .join("");
-    } else {
-      lurahHeadText = student.lurah_head_name || "....................................";
+      const firstAuth = student.authorities[0];
+      const firstTitle = firstAuth.title ? firstAuth.title.trim().toUpperCase() : "LURAH / KEPALA DESA";
+      const firstName = firstAuth.name ? firstAuth.name.trim() : "....................................";
+
+      lurahHeadTitle = firstTitle.startsWith("TANDA TANGAN") ? firstTitle : `TANDA TANGAN ${firstTitle}`;
+      lurahHeadName = `( ${firstName} )`;
+
+      if (student.authorities.length > 1) {
+        const extraAuthoritiesText = student.authorities
+          .slice(1)
+          .map((auth) => {
+            const t = auth.title ? auth.title.trim().toUpperCase() : "PIHAK BERWENANG";
+            const fullT = t.startsWith("TANDA TANGAN") ? t : `TANDA TANGAN ${t}`;
+            const n = auth.name ? auth.name.trim() : "....................................";
+            return `\n\n\n\n${fullT}\n\n\n\n( ${n} )`;
+          })
+          .join("");
+
+        lurahHeadName += extraAuthoritiesText;
+      }
+    } else if (student.lurah_head_name) {
+      lurahHeadName = `( ${student.lurah_head_name.trim()} )`;
     }
 
     doc.render({
@@ -453,7 +464,8 @@ export async function exportLogbookToDocx(
       faculty_prodi: student.faculty_prodi || "FTTK / Teknik Informatika",
       group_location: student.group_location || student.group_name || "-",
       dosen_name: student.dosen_name || "-",
-      lurah_head_name: lurahHeadText,
+      lurah_head_title: lurahHeadTitle,
+      lurah_head_name: lurahHeadName,
       year: new Date().getFullYear().toString(),
       week_label: weekLabelText,
       group_info: `${student.full_name} / ${student.student_id} / ${student.group_name || "-"}`,
