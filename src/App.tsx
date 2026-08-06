@@ -26,7 +26,7 @@ import { FeedbackPage } from "@/pages/feedback";
  * Ubah menjadi `true` untuk mematikan akses pengguna saat perbaikan,
  * atau `false` untuk mengaktifkan kembali website.
  */
-const IS_MAINTENANCE_MODE = true;
+const IS_MAINTENANCE_MODE = false;
 
 function MaintenancePage() {
   return (
