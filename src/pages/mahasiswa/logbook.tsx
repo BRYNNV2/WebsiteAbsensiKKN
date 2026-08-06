@@ -1159,18 +1159,18 @@ export function MahasiswaLogbookPage() {
 
       {/* Dialog Form Tambah / Edit Kegiatan */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold">
+        <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto rounded-2xl p-4 sm:p-6 shadow-2xl">
+          <DialogHeader className="space-y-1 text-left">
+            <DialogTitle className="text-base sm:text-lg font-bold pr-6">
               {editingId ? "Edit Kegiatan Logbook" : "Tambah Kegiatan Logbook Baru"}
             </DialogTitle>
-            <DialogDescription className="text-xs">
+            <DialogDescription className="text-xs text-muted-foreground">
               Isi data pelaksanaan kegiatan harian KKN Anda untuk Minggu ke-{selectedWeek}.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 py-2 text-xs">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
               <div className="space-y-1">
                 <span className="font-semibold text-muted-foreground block">
                   Tanggal Kegiatan
@@ -1234,12 +1234,12 @@ export function MahasiswaLogbookPage() {
                 value={formActivityDesc}
                 onChange={(e) => setFormActivityDesc(e.target.value)}
                 placeholder="Jelaskan alur, target peserta, serta hasil dari kegiatan yang telah dilakukan..."
-                rows={4}
+                rows={3}
                 className="text-xs resize-none rounded-xl"
               />
 
               {/* Upload Gambar / Link Dokumentasi */}
-              <div className="space-y-2 pt-1 border-t border-border/40">
+              <div className="space-y-2 pt-2 border-t border-border/40">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-muted-foreground block text-xs">
                     Foto / Link Dokumentasi Kegiatan (Bisa Upload Lebih dari 1 Foto)
@@ -1373,17 +1373,19 @@ export function MahasiswaLogbookPage() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-border/40">
             <Button
+              type="button"
               variant="outline"
               onClick={() => setDialogOpen(false)}
-              className="h-9 text-xs rounded-xl"
+              className="h-9 text-xs rounded-xl font-semibold w-full sm:w-auto"
             >
               Batal
             </Button>
             <Button
+              type="button"
               onClick={handleSaveEntry}
-              className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl"
+              className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl w-full sm:w-auto shadow-xs"
             >
               Simpan Kegiatan
             </Button>
@@ -1428,7 +1430,7 @@ export function MahasiswaLogbookPage() {
 
       {/* Dialog Opsi Ekspor Logbook Word (.docx) */}
       <Dialog open={exportModalOpen} onOpenChange={setExportModalOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-2xl p-6 border-border/80 shadow-2xl">
+        <DialogContent className="w-[95vw] sm:max-w-[520px] max-h-[90vh] overflow-y-auto rounded-2xl p-4 sm:p-6 border-border/80 shadow-2xl">
           <DialogHeader className="space-y-2 text-left">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-lg font-bold text-foreground">
@@ -1814,7 +1816,7 @@ export function MahasiswaLogbookPage() {
 
       {/* Modal Dialog Tanda Tangan Digital */}
       <Dialog open={sigModalOpen} onOpenChange={setSigModalOpen}>
-        <DialogContent className="max-w-md rounded-2xl sm:rounded-3xl p-5 border-border/80 shadow-2xl">
+        <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-3xl p-4 sm:p-5 border-border/80 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground">
               <PenTool className="size-4 text-primary" />
