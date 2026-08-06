@@ -1159,7 +1159,7 @@ export function MahasiswaLogbookPage() {
 
       {/* Dialog Form Tambah / Edit Kegiatan */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="w-[92vw] sm:max-w-[500px] max-h-[85vh] flex flex-col rounded-2xl p-0 shadow-2xl border-border/80 overflow-hidden">
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
           <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-border/60 shrink-0 bg-background space-y-1 text-left">
             <DialogTitle className="text-base sm:text-lg font-bold pr-6">
               {editingId ? "Edit Kegiatan Logbook" : "Tambah Kegiatan Logbook Baru"}
@@ -1430,7 +1430,7 @@ export function MahasiswaLogbookPage() {
 
       {/* Dialog Opsi Ekspor Logbook Word (.docx) */}
       <Dialog open={exportModalOpen} onOpenChange={setExportModalOpen}>
-        <DialogContent className="w-[92vw] sm:max-w-[520px] max-h-[85vh] flex flex-col rounded-2xl p-0 shadow-2xl border-border/80 overflow-hidden">
+        <DialogContent className="sm:max-w-[520px] p-0 overflow-hidden">
           <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-border/60 shrink-0 bg-background space-y-2 text-left">
             <div className="flex items-center justify-between pr-6">
               <DialogTitle className="text-base sm:text-lg font-bold text-foreground">
@@ -1816,7 +1816,7 @@ export function MahasiswaLogbookPage() {
 
       {/* Modal Dialog Tanda Tangan Digital */}
       <Dialog open={sigModalOpen} onOpenChange={setSigModalOpen}>
-        <DialogContent className="w-[92vw] sm:max-w-md max-h-[85vh] flex flex-col rounded-2xl sm:rounded-3xl p-0 border-border/80 shadow-2xl overflow-hidden">
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
           <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-border/60 shrink-0 bg-background space-y-1 text-left">
             <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground pr-6">
               <PenTool className="size-4 text-primary" />
