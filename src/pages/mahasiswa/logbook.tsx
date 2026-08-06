@@ -758,7 +758,7 @@ export function MahasiswaLogbookPage() {
       return;
     }
 
-    const MAX_MB = 5;
+    const MAX_MB = 2;
     if (file.size > MAX_MB * 1024 * 1024) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
       toast.error(`Ukuran foto terlalu besar (${sizeMB} MB). Maksimal ukuran foto adalah ${MAX_MB} MB.`);
@@ -1446,7 +1446,7 @@ export function MahasiswaLogbookPage() {
                           return;
                         }
 
-                        const MAX_MB = 5;
+                        const MAX_MB = 2;
                         const oversized = files.find((f) => f.size > MAX_MB * 1024 * 1024);
                         if (oversized) {
                           const sizeMB = (oversized.size / (1024 * 1024)).toFixed(1);
@@ -1473,7 +1473,7 @@ export function MahasiswaLogbookPage() {
                     <span className="text-xs font-bold text-foreground block">
                       {formDocUrls.length > 0 ? "+ Tambah Foto Lagi" : "Unggah Foto (Bisa Banyak)"}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">Maksimal 5 MB per foto (JPG, PNG)</span>
+                    <span className="text-[10px] text-muted-foreground">Maksimal 2 MB per foto (JPG, PNG)</span>
                   </label>
 
                   {/* Option B: Input Link URL */}
