@@ -1131,8 +1131,8 @@ export function MahasiswaLogbookPage() {
               </div>
             ) : (
               <div
-                className="w-full overflow-x-auto max-w-full touch-pan-x scrollbar-thin overflow-y-hidden"
-                style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
+                className="w-full overflow-x-auto max-w-full touch-auto scrollbar-thin"
+                style={{ WebkitOverflowScrolling: "touch" }}
               >
                 <div className="flex items-center justify-between px-4 py-2 bg-primary/5 border-b border-border/40 text-[11px] font-medium text-primary sm:hidden">
                   <span>👈 Geser tabel ke samping untuk melihat detail lengkap</span>
