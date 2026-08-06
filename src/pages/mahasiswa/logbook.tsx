@@ -1,6 +1,13 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase, safeSupabaseCall } from "@/lib/supabase";
+import {
+  saveOfflineEntry,
+  getOfflineEntries,
+  deleteOfflineEntry,
+  syncPendingEntries,
+  type OfflineLogbookEntry,
+} from "@/lib/offline-db";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -246,6 +253,21 @@ export function MahasiswaLogbookPage() {
   useEffect(() => {
     if (!profile) return;
     loadLogbookData();
+
+    // Sinkronisasi latar belakang otomatis setiap 6 detik untuk mengirim entri IndexedDB yang tertunda
+    const syncInterval = setInterval(() => {
+      const { data: authUserData } = supabase.auth.getUser() as any;
+      const currentUserId = authUserData?.user?.id || profile.id;
+      if (currentUserId) {
+        syncPendingEntries(currentUserId).then((syncedCount) => {
+          if (syncedCount > 0) {
+            loadLogbookData(false);
+          }
+        });
+      }
+    }, 6000);
+
+    return () => clearInterval(syncInterval);
   }, [profile, selectedWeek]);
 
   const sortedEntries = useMemo(() => {
@@ -362,30 +384,6 @@ export function MahasiswaLogbookPage() {
     });
   }
 
-  // Helper fungsi untuk Cermin Cadangan Lokal (Offline Mirror & Zero-Data-Loss Protection)
-  function getLocalBackupEntriesKey(studentId: string) {
-    return `kkn_logbook_backup_entries_${studentId}`;
-  }
-
-  function getLocalBackupEntries(studentId: string): LogbookEntryItem[] {
-    try {
-      const raw = localStorage.getItem(getLocalBackupEntriesKey(studentId));
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-
-  function saveLocalBackupEntries(studentId: string, items: LogbookEntryItem[]) {
-    try {
-      localStorage.setItem(getLocalBackupEntriesKey(studentId), JSON.stringify(items));
-    } catch (e) {
-      console.warn("Kapasitas localStorage penuh, abaikan backup lokal:", e);
-    }
-  }
-
   async function loadLogbookData(showLoading = true) {
     if (!profile) return;
     if (showLoading) setLoading(true);
@@ -395,7 +393,7 @@ export function MahasiswaLogbookPage() {
       const currentUserId = authUserData.user?.id || profile.id;
       const currentWeekNum = Number(selectedWeek);
 
-      // 1. Load entries dari Supabase DB
+      // 1. Ambil data dari Supabase DB
       let entriesQuery = supabase
         .from("kkn_logbook_entries")
         .select("*")
@@ -413,22 +411,28 @@ export function MahasiswaLogbookPage() {
         console.error("Error fetching logbook entries from DB:", entriesErr);
       }
 
-      // 2. Gabungkan data remote Supabase dengan cadangan lokal (Local Mirror) agar data TIDAK PERNAH HILANG saat refresh
-      const localList = getLocalBackupEntries(currentUserId);
+      // 2. Baca data dari IndexedDB (Kapasitas Tak Terbatas) untuk perlindungan Zero-Data-Loss
+      const offlineList = await getOfflineEntries(currentUserId);
       const remoteIds = new Set(remoteList.map((item) => item.id).filter(Boolean));
       const mergedEntries = [...remoteList];
 
-      // Tambahkan item lokal yang belum ter-sinkronisasi ke Supabase
-      localList.forEach((localItem) => {
-        if (localItem.id && !remoteIds.has(localItem.id)) {
-          if (currentWeekNum === 0 || localItem.week_number === currentWeekNum) {
-            mergedEntries.push(localItem);
+      // Sisipkan item lokal IndexedDB yang belum ter-sinkronisasi atau belum ada di server
+      offlineList.forEach((offlineItem) => {
+        if (offlineItem.id && !remoteIds.has(offlineItem.id)) {
+          if (currentWeekNum === 0 || offlineItem.week_number === currentWeekNum) {
+            mergedEntries.push(offlineItem as LogbookEntryItem);
           }
         }
       });
 
       setEntries(mergedEntries);
-      saveLocalBackupEntries(currentUserId, mergedEntries);
+
+      // Simpan seluruh data yang tersinkronisasi ke IndexedDB sebagai cermin cadangan
+      remoteList.forEach((rItem) => {
+        if (rItem.id) {
+          saveOfflineEntry({ ...rItem, sync_status: "synced" } as OfflineLogbookEntry);
+        }
+      });
 
       // 3. Load weekly notes for student
       if (currentWeekNum === 0) {
@@ -524,11 +528,11 @@ export function MahasiswaLogbookPage() {
         rawUrls.push(formDocLinkInput.trim());
       }
 
-      // Kompresi ulang gambar Base64 besar untuk menghemat bandwidth & kapasitas Supabase DB
+      // Kompresi super-ringan gambar Base64 (~10KB/foto) untuk performa ekstrim saat trafik padat
       const finalUrls: string[] = [];
       for (const url of rawUrls) {
-        if (url.startsWith("data:image/") && url.length > 50000) {
-          const compressed = await cropImageToAspectRatio(url, 4 / 3, 600, 450, 0.65);
+        if (url.startsWith("data:image/") && url.length > 20000) {
+          const compressed = await cropImageToAspectRatio(url, 4 / 3, 400, 300, 0.5);
           finalUrls.push(compressed);
         } else {
           finalUrls.push(url);
@@ -555,77 +559,91 @@ export function MahasiswaLogbookPage() {
         status: "pending",
       };
 
-      let savedItem: LogbookEntryItem | null = null;
+      const tempId = editingId || `local-${Date.now()}`;
+      const offlinePayload: OfflineLogbookEntry = {
+        id: tempId,
+        ...payload,
+        sync_status: "pending",
+      };
 
-      if (editingId) {
-        let { data: updated, error: updateErr } = await safeSupabaseCall(async () =>
-          supabase
-            .from("kkn_logbook_entries")
-            .update(payload)
-            .eq("id", editingId)
-            .select()
-        );
+      // Simpan langsung ke IndexedDB secara instan (0 ms delay)
+      await saveOfflineEntry(offlinePayload);
 
-        if (updateErr && updateErr.code === "23503" && updateErr.message?.includes("group_id")) {
-          const { data: retryUpdated, error: retryErr } = await supabase
-            .from("kkn_logbook_entries")
-            .update({ ...payload, group_id: null })
-            .eq("id", editingId)
-            .select();
-          updated = retryUpdated;
-          updateErr = retryErr;
+      setEntries((prev) => {
+        const existsIdx = prev.findIndex((e) => e.id === tempId);
+        if (existsIdx >= 0) {
+          return prev.map((e, idx) => (idx === existsIdx ? (offlinePayload as any) : e));
         }
+        return [...prev, offlinePayload as any];
+      });
 
-        if (updateErr) throw updateErr;
-        if (updated && updated.length > 0) {
-          savedItem = updated[0] as LogbookEntryItem;
+      let savedServerItem: LogbookEntryItem | null = null;
+
+      try {
+        if (editingId) {
+          let { data: updated, error: updateErr } = await safeSupabaseCall(async () =>
+            supabase
+              .from("kkn_logbook_entries")
+              .update(payload)
+              .eq("id", editingId)
+              .select()
+          );
+
+          if (updateErr && updateErr.code === "23503" && updateErr.message?.includes("group_id")) {
+            const { data: retryUpdated } = await supabase
+              .from("kkn_logbook_entries")
+              .update({ ...payload, group_id: null })
+              .eq("id", editingId)
+              .select();
+            updated = retryUpdated;
+          }
+
+          if (updated && updated.length > 0) {
+            savedServerItem = updated[0] as LogbookEntryItem;
+          }
         } else {
-          savedItem = { id: editingId, ...payload } as LogbookEntryItem;
-        }
-        toast.success("Kegiatan logbook berhasil diperbarui.");
-      } else {
-        let { data: inserted, error: insertErr } = await safeSupabaseCall(async () =>
-          supabase
-            .from("kkn_logbook_entries")
-            .insert(payload)
-            .select()
-        );
+          let { data: inserted, error: insertErr } = await safeSupabaseCall(async () =>
+            supabase
+              .from("kkn_logbook_entries")
+              .insert(payload)
+              .select()
+          );
 
-        if (insertErr && insertErr.code === "23503" && insertErr.message?.includes("group_id")) {
-          const { data: retryInserted, error: retryErr } = await supabase
-            .from("kkn_logbook_entries")
-            .insert({ ...payload, group_id: null })
-            .select();
-          inserted = retryInserted;
-          insertErr = retryErr;
-        }
+          if (insertErr && insertErr.code === "23503" && insertErr.message?.includes("group_id")) {
+            const { data: retryInserted } = await supabase
+              .from("kkn_logbook_entries")
+              .insert({ ...payload, group_id: null })
+              .select();
+            inserted = retryInserted;
+          }
 
-        if (insertErr) throw insertErr;
-        if (inserted && inserted.length > 0) {
-          savedItem = inserted[0] as LogbookEntryItem;
-        } else {
-          savedItem = { id: `local-${Date.now()}`, ...payload } as LogbookEntryItem;
+          if (inserted && inserted.length > 0) {
+            savedServerItem = inserted[0] as LogbookEntryItem;
+          }
         }
-        toast.success("Kegiatan logbook baru berhasil ditambahkan.");
+      } catch (netErr) {
+        console.warn("Koneksi Supabase sibuk, entri akan disinkronkan di latar belakang:", netErr);
       }
 
-      if (savedItem) {
-        const itemToSave = savedItem;
-        setEntries((prev) => {
-          const existsIdx = prev.findIndex((e) => e.id === itemToSave.id);
-          const newList = existsIdx >= 0
-            ? prev.map((e, idx) => (idx === existsIdx ? itemToSave : e))
-            : [...prev, itemToSave];
-          saveLocalBackupEntries(currentUserId, newList);
-          return newList;
-        });
+      if (savedServerItem && savedServerItem.id) {
+        // Apabila pembuatan temp ID di-update ke ID server resmi
+        if (!editingId && tempId.startsWith("local-")) {
+          await deleteOfflineEntry(tempId);
+        }
+        await saveOfflineEntry({ ...(savedServerItem as any), sync_status: "synced" });
+
+        setEntries((prev) =>
+          prev.map((e) => (e.id === tempId ? (savedServerItem as LogbookEntryItem) : e))
+        );
+        toast.success("Kegiatan logbook berhasil disimpan ke server.");
+      } else {
+        toast.success("Kegiatan disimpan di HP/Browser dan sedang disinkronkan ke server.");
       }
 
       setDialogOpen(false);
-      await loadLogbookData(false);
     } catch (err: any) {
       console.error("Error saving logbook entry:", err);
-      toast.error("Gagal menyimpan kegiatan: " + (err?.message || "Terjadi kendala jaringan. Silakan coba lagi."));
+      toast.error("Gagal menyimpan kegiatan: " + (err?.message || "Terjadi kendala jaringan."));
     }
   }
 
@@ -638,22 +656,16 @@ export function MahasiswaLogbookPage() {
     if (!deletingId) return;
     setIsDeleting(true);
     try {
+      await deleteOfflineEntry(deletingId);
+      setEntries((prev) => prev.filter((e) => e.id !== deletingId));
+
       const { error: deleteErr } = await supabase
         .from("kkn_logbook_entries")
         .delete()
         .eq("id", deletingId);
 
-      if (deleteErr) throw deleteErr;
+      if (deleteErr) console.warn("Notice: Gagal menghapus dari server:", deleteErr);
 
-      setEntries((prev) => {
-        const newList = prev.filter((e) => e.id !== deletingId);
-        if (profile) {
-          const { data: authUserData } = supabase.auth.getUser() as any;
-          const currentUserId = authUserData?.user?.id || profile.id;
-          saveLocalBackupEntries(currentUserId, newList);
-        }
-        return newList;
-      });
       toast.success("Kegiatan logbook berhasil dihapus.");
     } catch (err: any) {
       console.error("Error deleting logbook entry:", err);
