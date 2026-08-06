@@ -516,13 +516,23 @@ export function MahasiswaLogbookPage() {
       };
 
       if (editingId) {
-        const { data: updated, error: updateErr } = await safeSupabaseCall(async () =>
+        let { data: updated, error: updateErr } = await safeSupabaseCall(async () =>
           supabase
             .from("kkn_logbook_entries")
             .update(payload)
             .eq("id", editingId)
             .select()
         );
+
+        if (updateErr && updateErr.code === "23503" && updateErr.message?.includes("group_id")) {
+          const { data: retryUpdated, error: retryErr } = await supabase
+            .from("kkn_logbook_entries")
+            .update({ ...payload, group_id: null })
+            .eq("id", editingId)
+            .select();
+          updated = retryUpdated;
+          updateErr = retryErr;
+        }
 
         if (updateErr) throw updateErr;
         if (updated && updated.length > 0) {
@@ -532,12 +542,21 @@ export function MahasiswaLogbookPage() {
         }
         toast.success("Kegiatan logbook berhasil diperbarui.");
       } else {
-        const { data: inserted, error: insertErr } = await safeSupabaseCall(async () =>
+        let { data: inserted, error: insertErr } = await safeSupabaseCall(async () =>
           supabase
             .from("kkn_logbook_entries")
             .insert(payload)
             .select()
         );
+
+        if (insertErr && insertErr.code === "23503" && insertErr.message?.includes("group_id")) {
+          const { data: retryInserted, error: retryErr } = await supabase
+            .from("kkn_logbook_entries")
+            .insert({ ...payload, group_id: null })
+            .select();
+          inserted = retryInserted;
+          insertErr = retryErr;
+        }
 
         if (insertErr) throw insertErr;
         if (inserted && inserted.length > 0) {
@@ -550,7 +569,7 @@ export function MahasiswaLogbookPage() {
       await loadLogbookData(false);
     } catch (err: any) {
       console.error("Error saving logbook entry:", err);
-      toast.error("Gagal menyimpan kegiatan: " + (err?.message || "Koneksi database sibuk. Silakan coba lagi."));
+      toast.error("Gagal menyimpan kegiatan: " + (err?.message || "Terjadi kendala jaringan. Silakan coba lagi."));
     }
   }
 
@@ -563,18 +582,18 @@ export function MahasiswaLogbookPage() {
     if (!deletingId) return;
     setIsDeleting(true);
     try {
-      const { error } = await supabase
+      const { error: deleteErr } = await supabase
         .from("kkn_logbook_entries")
         .delete()
         .eq("id", deletingId);
 
-      if (error) throw error;
+      if (deleteErr) throw deleteErr;
+
       setEntries((prev) => prev.filter((e) => e.id !== deletingId));
       toast.success("Kegiatan logbook berhasil dihapus.");
-      await loadLogbookData(false);
-    } catch (err) {
-      console.error("Error deleting entry:", err);
-      toast.error("Gagal menghapus kegiatan logbook.");
+    } catch (err: any) {
+      console.error("Error deleting logbook entry:", err);
+      toast.error("Gagal menghapus kegiatan: " + (err?.message || ""));
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
@@ -590,45 +609,28 @@ export function MahasiswaLogbookPage() {
       const currentUserId = authUserData.user?.id || profile.id;
       const cleanNotes = weeklyNotes.map((n) => n.trim());
 
-      const { data: existing, error: findErr } = await supabase
-        .from("kkn_logbook_weekly_notes")
-        .select("id")
-        .eq("student_id", currentUserId)
-        .eq("week_number", Number(selectedWeek))
-        .maybeSingle();
+      const notesPayload = {
+        student_id: currentUserId,
+        group_id: profile.group_id || null,
+        week_number: Number(selectedWeek),
+        important_notes: cleanNotes,
+        updated_at: new Date().toISOString(),
+      };
 
-      if (findErr) console.error("Error checking existing notes:", findErr);
+      let { data: returnedNotes, error: saveErr } = await safeSupabaseCall(async () =>
+        supabase
+          .from("kkn_logbook_weekly_notes")
+          .upsert(notesPayload, { onConflict: "student_id,week_number" })
+          .select()
+      );
 
-      let saveErr = null;
-      let returnedNotes = null;
-
-      if (existing) {
-        const { data: updated, error: updateErr } = await safeSupabaseCall(async () =>
-          supabase
-            .from("kkn_logbook_weekly_notes")
-            .update({
-              important_notes: cleanNotes,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", existing.id)
-            .select()
-        );
-        saveErr = updateErr;
-        returnedNotes = updated;
-      } else {
-        const { data: inserted, error: insertErr } = await safeSupabaseCall(async () =>
-          supabase
-            .from("kkn_logbook_weekly_notes")
-            .insert({
-              student_id: currentUserId,
-              group_id: profile.group_id || null,
-              week_number: Number(selectedWeek),
-              important_notes: cleanNotes,
-            })
-            .select()
-        );
-        saveErr = insertErr;
-        returnedNotes = inserted;
+      if (saveErr && saveErr.code === "23503" && saveErr.message?.includes("group_id")) {
+        const { data: retryNotes, error: retryErr } = await supabase
+          .from("kkn_logbook_weekly_notes")
+          .upsert({ ...notesPayload, group_id: null }, { onConflict: "student_id,week_number" })
+          .select();
+        returnedNotes = retryNotes;
+        saveErr = retryErr;
       }
 
       if (saveErr) throw saveErr;
@@ -645,7 +647,7 @@ export function MahasiswaLogbookPage() {
       toast.success("Catatan penting mingguan berhasil disimpan.");
     } catch (err: any) {
       console.error("Error saving weekly notes:", err);
-      toast.error(err?.message || "Gagal menyimpan catatan penting.");
+      toast.error("Gagal menyimpan catatan penting: " + (err?.message || "Terjadi kendala jaringan."));
     } finally {
       setIsSavingNotes(false);
     }
