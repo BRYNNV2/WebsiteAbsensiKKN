@@ -783,35 +783,58 @@ export function MahasiswaLogbookPage() {
       const { data: authUserData } = await supabase.auth.getUser();
       const currentUserId = authUserData.user?.id || profile.id;
 
-      // 1. Ambil seluruh entri kegiatan mahasiswa
-      let entriesQuery = supabase
-        .from("kkn_logbook_entries")
-        .select("*")
-        .eq("student_id", currentUserId);
+      // 1. Ambil entri kegiatan dari IndexedDB (0ms delay & bebas error statement timeout)
+      const offlineEntries = await getOfflineEntries(currentUserId);
+      let entriesData: LogbookEntryItem[] = (offlineEntries as LogbookEntryItem[]) || [];
 
-      if (exportScope === "current" && selectedWeek !== 0) {
-        entriesQuery = entriesQuery.eq("week_number", selectedWeek);
-      } else if (exportScope === "custom") {
-        entriesQuery = entriesQuery.in("week_number", targetWeeks);
+      try {
+        let entriesQuery = supabase
+          .from("kkn_logbook_entries")
+          .select("*")
+          .eq("student_id", currentUserId);
+
+        if (exportScope === "current" && selectedWeek !== 0) {
+          entriesQuery = entriesQuery.eq("week_number", selectedWeek);
+        } else if (exportScope === "custom") {
+          entriesQuery = entriesQuery.in("week_number", targetWeeks);
+        }
+
+        const { data: dbEntries, error: entriesErr } = await entriesQuery.order("entry_date", { ascending: true });
+        if (!entriesErr && dbEntries && dbEntries.length > 0) {
+          const dbIds = new Set(dbEntries.map((e: any) => e.id));
+          const merged = [...(dbEntries as LogbookEntryItem[])];
+          offlineEntries.forEach((oItem) => {
+            if (oItem.id && !dbIds.has(oItem.id)) {
+              merged.push(oItem as LogbookEntryItem);
+            }
+          });
+          entriesData = merged;
+        }
+      } catch (e) {
+        console.warn("Server timeout/busy saat mengunduh logbook, menggunakan cadangan IndexedDB:", e);
       }
-
-      const { data: entriesData, error: entriesErr } = await entriesQuery.order("entry_date", { ascending: true });
-      if (entriesErr) throw entriesErr;
 
       // 2. Ambil catatan mingguan mahasiswa
-      let notesQuery = supabase
-        .from("kkn_logbook_weekly_notes")
-        .select("*")
-        .eq("student_id", currentUserId);
+      let notesData: any[] = [];
+      try {
+        let notesQuery = supabase
+          .from("kkn_logbook_weekly_notes")
+          .select("*")
+          .eq("student_id", currentUserId);
 
-      if (exportScope === "current" && selectedWeek !== 0) {
-        notesQuery = notesQuery.eq("week_number", selectedWeek);
-      } else if (exportScope === "custom") {
-        notesQuery = notesQuery.in("week_number", targetWeeks);
+        if (exportScope === "current" && selectedWeek !== 0) {
+          notesQuery = notesQuery.eq("week_number", selectedWeek);
+        } else if (exportScope === "custom") {
+          notesQuery = notesQuery.in("week_number", targetWeeks);
+        }
+
+        const { data: dbNotes, error: notesErr } = await notesQuery;
+        if (!notesErr && dbNotes) {
+          notesData = dbNotes;
+        }
+      } catch (e) {
+        console.warn("Server timeout/busy saat mengambil catatan mingguan:", e);
       }
-
-      const { data: notesData, error: notesErr } = await notesQuery;
-      if (notesErr) console.warn("Fetch notes warning:", notesErr);
 
       // Susun data per minggu (WeekBundleData[])
       const effectiveWeeks = (exportScope === "all" || (exportScope === "current" && selectedWeek === 0))
