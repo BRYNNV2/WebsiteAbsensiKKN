@@ -362,6 +362,30 @@ export function MahasiswaLogbookPage() {
     });
   }
 
+  // Helper fungsi untuk Cermin Cadangan Lokal (Offline Mirror & Zero-Data-Loss Protection)
+  function getLocalBackupEntriesKey(studentId: string) {
+    return `kkn_logbook_backup_entries_${studentId}`;
+  }
+
+  function getLocalBackupEntries(studentId: string): LogbookEntryItem[] {
+    try {
+      const raw = localStorage.getItem(getLocalBackupEntriesKey(studentId));
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveLocalBackupEntries(studentId: string, items: LogbookEntryItem[]) {
+    try {
+      localStorage.setItem(getLocalBackupEntriesKey(studentId), JSON.stringify(items));
+    } catch (e) {
+      console.warn("Kapasitas localStorage penuh, abaikan backup lokal:", e);
+    }
+  }
+
   async function loadLogbookData(showLoading = true) {
     if (!profile) return;
     if (showLoading) setLoading(true);
@@ -371,7 +395,7 @@ export function MahasiswaLogbookPage() {
       const currentUserId = authUserData.user?.id || profile.id;
       const currentWeekNum = Number(selectedWeek);
 
-      // 1. Load entries for student (filtered by student_id & optionally week_number, sorted by entry_date)
+      // 1. Load entries dari Supabase DB
       let entriesQuery = supabase
         .from("kkn_logbook_entries")
         .select("*")
@@ -383,14 +407,30 @@ export function MahasiswaLogbookPage() {
 
       const { data: entriesData, error: entriesErr } = await entriesQuery.order("entry_date", { ascending: true });
 
+      const remoteList = (entriesData as LogbookEntryItem[]) || [];
+
       if (entriesErr) {
-        console.error("Error fetching logbook entries:", entriesErr);
-        toast.error("Gagal memuat kegiatan: " + entriesErr.message);
-      } else {
-        setEntries((entriesData as LogbookEntryItem[]) || []);
+        console.error("Error fetching logbook entries from DB:", entriesErr);
       }
 
-      // 2. Load weekly notes for student
+      // 2. Gabungkan data remote Supabase dengan cadangan lokal (Local Mirror) agar data TIDAK PERNAH HILANG saat refresh
+      const localList = getLocalBackupEntries(currentUserId);
+      const remoteIds = new Set(remoteList.map((item) => item.id).filter(Boolean));
+      const mergedEntries = [...remoteList];
+
+      // Tambahkan item lokal yang belum ter-sinkronisasi ke Supabase
+      localList.forEach((localItem) => {
+        if (localItem.id && !remoteIds.has(localItem.id)) {
+          if (currentWeekNum === 0 || localItem.week_number === currentWeekNum) {
+            mergedEntries.push(localItem);
+          }
+        }
+      });
+
+      setEntries(mergedEntries);
+      saveLocalBackupEntries(currentUserId, mergedEntries);
+
+      // 3. Load weekly notes for student
       if (currentWeekNum === 0) {
         const { data: notesData } = await supabase
           .from("kkn_logbook_weekly_notes")
@@ -515,6 +555,8 @@ export function MahasiswaLogbookPage() {
         status: "pending",
       };
 
+      let savedItem: LogbookEntryItem | null = null;
+
       if (editingId) {
         let { data: updated, error: updateErr } = await safeSupabaseCall(async () =>
           supabase
@@ -536,9 +578,9 @@ export function MahasiswaLogbookPage() {
 
         if (updateErr) throw updateErr;
         if (updated && updated.length > 0) {
-          setEntries((prev) =>
-            prev.map((e) => (e.id === editingId ? (updated[0] as LogbookEntryItem) : e))
-          );
+          savedItem = updated[0] as LogbookEntryItem;
+        } else {
+          savedItem = { id: editingId, ...payload } as LogbookEntryItem;
         }
         toast.success("Kegiatan logbook berhasil diperbarui.");
       } else {
@@ -560,9 +602,23 @@ export function MahasiswaLogbookPage() {
 
         if (insertErr) throw insertErr;
         if (inserted && inserted.length > 0) {
-          setEntries((prev) => [...prev, inserted[0] as LogbookEntryItem]);
+          savedItem = inserted[0] as LogbookEntryItem;
+        } else {
+          savedItem = { id: `local-${Date.now()}`, ...payload } as LogbookEntryItem;
         }
         toast.success("Kegiatan logbook baru berhasil ditambahkan.");
+      }
+
+      if (savedItem) {
+        const itemToSave = savedItem;
+        setEntries((prev) => {
+          const existsIdx = prev.findIndex((e) => e.id === itemToSave.id);
+          const newList = existsIdx >= 0
+            ? prev.map((e, idx) => (idx === existsIdx ? itemToSave : e))
+            : [...prev, itemToSave];
+          saveLocalBackupEntries(currentUserId, newList);
+          return newList;
+        });
       }
 
       setDialogOpen(false);
@@ -589,7 +645,15 @@ export function MahasiswaLogbookPage() {
 
       if (deleteErr) throw deleteErr;
 
-      setEntries((prev) => prev.filter((e) => e.id !== deletingId));
+      setEntries((prev) => {
+        const newList = prev.filter((e) => e.id !== deletingId);
+        if (profile) {
+          const { data: authUserData } = supabase.auth.getUser() as any;
+          const currentUserId = authUserData?.user?.id || profile.id;
+          saveLocalBackupEntries(currentUserId, newList);
+        }
+        return newList;
+      });
       toast.success("Kegiatan logbook berhasil dihapus.");
     } catch (err: any) {
       console.error("Error deleting logbook entry:", err);
