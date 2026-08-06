@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { supabase, safeSupabaseCall } from "@/lib/supabase";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -479,9 +479,20 @@ export function MahasiswaLogbookPage() {
           : 1;
       }
 
-      let finalUrls = [...formDocUrls];
+      let rawUrls = [...formDocUrls];
       if (formDocLinkInput.trim()) {
-        finalUrls.push(formDocLinkInput.trim());
+        rawUrls.push(formDocLinkInput.trim());
+      }
+
+      // Kompresi ulang gambar Base64 besar untuk menghemat bandwidth & kapasitas Supabase DB
+      const finalUrls: string[] = [];
+      for (const url of rawUrls) {
+        if (url.startsWith("data:image/") && url.length > 50000) {
+          const compressed = await cropImageToAspectRatio(url, 4 / 3, 600, 450, 0.65);
+          finalUrls.push(compressed);
+        } else {
+          finalUrls.push(url);
+        }
       }
 
       let docUrlToSave: string | null = null;
@@ -505,11 +516,13 @@ export function MahasiswaLogbookPage() {
       };
 
       if (editingId) {
-        const { data: updated, error: updateErr } = await supabase
-          .from("kkn_logbook_entries")
-          .update(payload)
-          .eq("id", editingId)
-          .select();
+        const { data: updated, error: updateErr } = await safeSupabaseCall(async () =>
+          supabase
+            .from("kkn_logbook_entries")
+            .update(payload)
+            .eq("id", editingId)
+            .select()
+        );
 
         if (updateErr) throw updateErr;
         if (updated && updated.length > 0) {
@@ -519,10 +532,12 @@ export function MahasiswaLogbookPage() {
         }
         toast.success("Kegiatan logbook berhasil diperbarui.");
       } else {
-        const { data: inserted, error: insertErr } = await supabase
-          .from("kkn_logbook_entries")
-          .insert(payload)
-          .select();
+        const { data: inserted, error: insertErr } = await safeSupabaseCall(async () =>
+          supabase
+            .from("kkn_logbook_entries")
+            .insert(payload)
+            .select()
+        );
 
         if (insertErr) throw insertErr;
         if (inserted && inserted.length > 0) {
@@ -535,7 +550,7 @@ export function MahasiswaLogbookPage() {
       await loadLogbookData(false);
     } catch (err: any) {
       console.error("Error saving logbook entry:", err);
-      toast.error("Gagal menyimpan kegiatan: " + (err?.message || ""));
+      toast.error("Gagal menyimpan kegiatan: " + (err?.message || "Koneksi database sibuk. Silakan coba lagi."));
     }
   }
 
@@ -588,26 +603,30 @@ export function MahasiswaLogbookPage() {
       let returnedNotes = null;
 
       if (existing) {
-        const { data: updated, error: updateErr } = await supabase
-          .from("kkn_logbook_weekly_notes")
-          .update({
-            important_notes: cleanNotes,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id)
-          .select();
+        const { data: updated, error: updateErr } = await safeSupabaseCall(async () =>
+          supabase
+            .from("kkn_logbook_weekly_notes")
+            .update({
+              important_notes: cleanNotes,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existing.id)
+            .select()
+        );
         saveErr = updateErr;
         returnedNotes = updated;
       } else {
-        const { data: inserted, error: insertErr } = await supabase
-          .from("kkn_logbook_weekly_notes")
-          .insert({
-            student_id: currentUserId,
-            group_id: profile.group_id || null,
-            week_number: Number(selectedWeek),
-            important_notes: cleanNotes,
-          })
-          .select();
+        const { data: inserted, error: insertErr } = await safeSupabaseCall(async () =>
+          supabase
+            .from("kkn_logbook_weekly_notes")
+            .insert({
+              student_id: currentUserId,
+              group_id: profile.group_id || null,
+              week_number: Number(selectedWeek),
+              important_notes: cleanNotes,
+            })
+            .select()
+        );
         saveErr = insertErr;
         returnedNotes = inserted;
       }

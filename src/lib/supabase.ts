@@ -17,6 +17,47 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 })
 
+/**
+ * Helper untuk melakukan eksekusi Supabase query dengan mekanisme Retry & Error Catching
+ * saat trafik tinggi atau banyak pengguna menyimpan data bersamaan (High Concurrency).
+ */
+export async function safeSupabaseCall<T>(
+  queryFn: () => Promise<{ data: T | null; error: any }>,
+  retries = 2,
+  delayMs = 800
+): Promise<{ data: T | null; error: any }> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await queryFn()
+      if (!res.error) return res
+
+      const status = res.error?.status
+      const msg = String(res.error?.message || "").toLowerCase()
+
+      const isRetryable =
+        status === 503 ||
+        status === 504 ||
+        status === 429 ||
+        status === 413 ||
+        msg.includes("fetch") ||
+        msg.includes("network") ||
+        msg.includes("lock") ||
+        msg.includes("timeout") ||
+        msg.includes("connection")
+
+      if (!isRetryable || attempt === retries) {
+        return res
+      }
+    } catch (err: any) {
+      if (attempt === retries) {
+        return { data: null, error: err }
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, delayMs * (attempt + 1)))
+  }
+  return { data: null, error: new Error("Metode gagal setelah beberapa kali percobaan.") }
+}
+
 export type Role = "dosen" | "mahasiswa"
 
 export type Profile = {
@@ -98,5 +139,4 @@ export type FeedbackItem = {
   updated_at: string
   user_name?: string
   user_role?: string
-  user_avatar?: string | null
 }

@@ -51,8 +51,9 @@ const ROMAN_WEEKS = ["I (PERTAMA)", "II (KEDUA)", "III (KETIGA)", "IV (KEEMPAT)"
 export function cropImageToAspectRatio(
   dataUrl: string,
   targetRatio: number = 4 / 3,
-  targetWidth: number = 800,
-  targetHeight: number = 600
+  targetWidth: number = 600,
+  targetHeight: number = 450,
+  quality: number = 0.65
 ): Promise<string> {
   return new Promise((resolve) => {
     if (typeof window === "undefined" || !dataUrl || !dataUrl.startsWith("data:image/")) {
@@ -98,7 +99,7 @@ export function cropImageToAspectRatio(
           canvas.height
         );
 
-        resolve(canvas.toDataURL("image/jpeg", 0.88));
+        resolve(canvas.toDataURL("image/jpeg", quality));
       } catch (e) {
         resolve(dataUrl);
       }
