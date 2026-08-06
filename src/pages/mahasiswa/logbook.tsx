@@ -386,14 +386,28 @@ export function MahasiswaLogbookPage() {
 
   async function loadLogbookData(showLoading = true) {
     if (!profile) return;
-    if (showLoading) setLoading(true);
+
+    const currentUserId = profile.id;
+    const currentWeekNum = Number(selectedWeek);
+
+    // 1. Muat data instan dari IndexedDB HP/Browser (0 ms delay - Layar tidak akan pernah blank!)
+    try {
+      const offlineList = await getOfflineEntries(currentUserId);
+      if (offlineList.length > 0) {
+        const filteredOffline = offlineList.filter((item) =>
+          currentWeekNum === 0 ? true : item.week_number === currentWeekNum
+        );
+        setEntries(filteredOffline as LogbookEntryItem[]);
+        if (showLoading) setLoading(false);
+      } else if (showLoading) {
+        setLoading(true);
+      }
+    } catch (e) {
+      if (showLoading) setLoading(true);
+    }
 
     try {
-      const { data: authUserData } = await supabase.auth.getUser();
-      const currentUserId = authUserData.user?.id || profile.id;
-      const currentWeekNum = Number(selectedWeek);
-
-      // 1. Ambil data dari Supabase DB
+      // 2. Ambil data latar belakang dari Supabase DB tanpa memblokir antarmuka pengguna
       let entriesQuery = supabase
         .from("kkn_logbook_entries")
         .select("*")
@@ -408,31 +422,30 @@ export function MahasiswaLogbookPage() {
       const remoteList = (entriesData as LogbookEntryItem[]) || [];
 
       if (entriesErr) {
-        console.error("Error fetching logbook entries from DB:", entriesErr);
-      }
+        console.warn("Notice: Kendala pengambilan DB Supabase, menggunakan cadangan lokal:", entriesErr.message);
+      } else {
+        // Gabungkan data remote Supabase dengan cadangan IndexedDB lokal secara mulus
+        const offlineList = await getOfflineEntries(currentUserId);
+        const remoteIds = new Set(remoteList.map((item) => item.id).filter(Boolean));
+        const mergedEntries = [...remoteList];
 
-      // 2. Baca data dari IndexedDB (Kapasitas Tak Terbatas) untuk perlindungan Zero-Data-Loss
-      const offlineList = await getOfflineEntries(currentUserId);
-      const remoteIds = new Set(remoteList.map((item) => item.id).filter(Boolean));
-      const mergedEntries = [...remoteList];
-
-      // Sisipkan item lokal IndexedDB yang belum ter-sinkronisasi atau belum ada di server
-      offlineList.forEach((offlineItem) => {
-        if (offlineItem.id && !remoteIds.has(offlineItem.id)) {
-          if (currentWeekNum === 0 || offlineItem.week_number === currentWeekNum) {
-            mergedEntries.push(offlineItem as LogbookEntryItem);
+        offlineList.forEach((offlineItem) => {
+          if (offlineItem.id && !remoteIds.has(offlineItem.id)) {
+            if (currentWeekNum === 0 || offlineItem.week_number === currentWeekNum) {
+              mergedEntries.push(offlineItem as LogbookEntryItem);
+            }
           }
-        }
-      });
+        });
 
-      setEntries(mergedEntries);
+        setEntries(mergedEntries);
 
-      // Simpan seluruh data yang tersinkronisasi ke IndexedDB sebagai cermin cadangan
-      remoteList.forEach((rItem) => {
-        if (rItem.id) {
-          saveOfflineEntry({ ...rItem, sync_status: "synced" } as OfflineLogbookEntry);
-        }
-      });
+        // Simpan seluruh entri resmi server ke IndexedDB
+        remoteList.forEach((rItem) => {
+          if (rItem.id) {
+            saveOfflineEntry({ ...rItem, sync_status: "synced" } as OfflineLogbookEntry);
+          }
+        });
+      }
 
       // 3. Load weekly notes for student
       if (currentWeekNum === 0) {
@@ -460,7 +473,7 @@ export function MahasiswaLogbookPage() {
           .maybeSingle();
 
         if (notesErr) {
-          console.error("Error fetching weekly notes:", notesErr);
+          console.warn("Notice: Error fetching weekly notes:", notesErr.message);
         }
 
         if (notesData && Array.isArray(notesData.important_notes)) {
@@ -471,8 +484,7 @@ export function MahasiswaLogbookPage() {
         }
       }
     } catch (err: any) {
-      console.error("Error loading logbook:", err);
-      toast.error("Gagal memuat data logbook: " + (err?.message || ""));
+      console.warn("Background logbook load warning:", err?.message || "");
     } finally {
       if (showLoading) setLoading(false);
     }
