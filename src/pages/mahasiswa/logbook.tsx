@@ -1159,8 +1159,8 @@ export function MahasiswaLogbookPage() {
 
       {/* Dialog Form Tambah / Edit Kegiatan */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto rounded-2xl p-4 sm:p-6 shadow-2xl">
-          <DialogHeader className="space-y-1 text-left">
+        <DialogContent className="w-[92vw] sm:max-w-[500px] max-h-[85vh] flex flex-col rounded-2xl p-0 shadow-2xl border-border/80 overflow-hidden">
+          <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-border/60 shrink-0 bg-background space-y-1 text-left">
             <DialogTitle className="text-base sm:text-lg font-bold pr-6">
               {editingId ? "Edit Kegiatan Logbook" : "Tambah Kegiatan Logbook Baru"}
             </DialogTitle>
@@ -1169,7 +1169,7 @@ export function MahasiswaLogbookPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2 text-xs">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
               <div className="space-y-1">
                 <span className="font-semibold text-muted-foreground block">
@@ -1373,7 +1373,7 @@ export function MahasiswaLogbookPage() {
             </div>
           </div>
 
-          <DialogFooter className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-border/40">
+          <DialogFooter className="p-4 sm:p-5 pt-3 border-t border-border/60 shrink-0 bg-background flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2">
             <Button
               type="button"
               variant="outline"
@@ -1430,15 +1430,15 @@ export function MahasiswaLogbookPage() {
 
       {/* Dialog Opsi Ekspor Logbook Word (.docx) */}
       <Dialog open={exportModalOpen} onOpenChange={setExportModalOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[520px] max-h-[90vh] overflow-y-auto rounded-2xl p-4 sm:p-6 border-border/80 shadow-2xl">
-          <DialogHeader className="space-y-2 text-left">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-lg font-bold text-foreground">
+        <DialogContent className="w-[92vw] sm:max-w-[520px] max-h-[85vh] flex flex-col rounded-2xl p-0 shadow-2xl border-border/80 overflow-hidden">
+          <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-border/60 shrink-0 bg-background space-y-2 text-left">
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle className="text-base sm:text-lg font-bold text-foreground">
                 Unduh Logbook Word (.docx)
               </DialogTitle>
               <Badge
                 variant="outline"
-                className="text-xs font-semibold px-2.5 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30"
               >
                 Format Word (.docx)
               </Badge>
@@ -1448,7 +1448,7 @@ export function MahasiswaLogbookPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 my-2">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
             {/* Opsi 1: Minggu Saat Ini */}
             <div
               onClick={() => setExportScope("current")}
@@ -1789,14 +1789,14 @@ export function MahasiswaLogbookPage() {
             </div>
           </div>
 
-          <DialogFooter className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/40">
+          <DialogFooter className="p-4 sm:p-5 pt-3 border-t border-border/60 shrink-0 bg-background flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={isExporting}
               onClick={() => setExportModalOpen(false)}
-              className="h-9 px-4 text-xs font-semibold rounded-xl border-border/80"
+              className="h-9 px-4 text-xs font-semibold rounded-xl border-border/80 w-full sm:w-auto"
             >
               Batal
             </Button>
@@ -1805,7 +1805,7 @@ export function MahasiswaLogbookPage() {
               size="sm"
               disabled={isExporting}
               onClick={handleExecuteExport}
-              className="h-9 px-4 text-xs font-semibold rounded-xl text-white shadow-xs gap-1.5 bg-blue-600 hover:bg-blue-700"
+              className="h-9 px-4 text-xs font-semibold rounded-xl text-white shadow-xs gap-1.5 bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
             >
               <FileSpreadsheet className="size-4" />
               <span>{isExporting ? "Proses Mengunduh..." : "Unduh Word (.docx)"}</span>
@@ -1816,9 +1816,9 @@ export function MahasiswaLogbookPage() {
 
       {/* Modal Dialog Tanda Tangan Digital */}
       <Dialog open={sigModalOpen} onOpenChange={setSigModalOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-3xl p-4 sm:p-5 border-border/80 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+        <DialogContent className="w-[92vw] sm:max-w-md max-h-[85vh] flex flex-col rounded-2xl sm:rounded-3xl p-0 border-border/80 shadow-2xl overflow-hidden">
+          <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-border/60 shrink-0 bg-background space-y-1 text-left">
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground pr-6">
               <PenTool className="size-4 text-primary" />
               <span>Tambah / Edit Tanda Tangan Digital</span>
             </DialogTitle>
@@ -1827,99 +1827,101 @@ export function MahasiswaLogbookPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Sub Navigation Tabs */}
-          <div className="flex border-b border-border/60 gap-4 mt-1 text-xs font-semibold select-none">
-            <button
-              type="button"
-              onClick={() => setSigTab("draw")}
-              className={cn(
-                "pb-2 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer",
-                sigTab === "draw"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <PenTool className="size-3.5" />
-              <span>Gambar Langsung (Canvas)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setSigTab("upload")}
-              className={cn(
-                "pb-2 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer",
-                sigTab === "upload"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Upload className="size-3.5" />
-              <span>Unggah File Gambar</span>
-            </button>
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
+            {/* Sub Navigation Tabs */}
+            <div className="flex border-b border-border/60 gap-4 mt-1 text-xs font-semibold select-none">
+              <button
+                type="button"
+                onClick={() => setSigTab("draw")}
+                className={cn(
+                  "pb-2 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer",
+                  sigTab === "draw"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <PenTool className="size-3.5" />
+                <span>Gambar Langsung (Canvas)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSigTab("upload")}
+                className={cn(
+                  "pb-2 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer",
+                  sigTab === "upload"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Upload className="size-3.5" />
+                <span>Unggah File Gambar</span>
+              </button>
+            </div>
+
+            {/* Tab 1: Draw Canvas */}
+            {sigTab === "draw" && (
+              <div className="space-y-3 py-2">
+                <div className="relative border-2 border-dashed border-border/80 rounded-2xl bg-white overflow-hidden shadow-inner">
+                  <canvas
+                    ref={sigCanvasRef}
+                    width={380}
+                    height={160}
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
+                    className="w-full h-40 touch-none cursor-crosshair"
+                  />
+                  <span className="absolute bottom-2 right-2 text-[10px] text-slate-400 pointer-events-none select-none">
+                    Area Coret-Coret TTD
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={clearCanvas}
+                    className="h-8 text-xs rounded-xl gap-1 text-muted-foreground hover:bg-muted"
+                  >
+                    <Eraser className="size-3.5" />
+                    <span>Bersihkan</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      const canvas = sigCanvasRef.current;
+                      if (canvas) {
+                        const dataUrl = canvas.toDataURL("image/png");
+                        handleSaveSignature(dataUrl);
+                      }
+                    }}
+                    className="h-8 text-xs rounded-xl bg-primary text-primary-foreground font-semibold gap-1.5 shadow-xs"
+                  >
+                    <Check className="size-3.5" />
+                    <span>Gunakan Tanda Tangan</span>
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 2: Upload File */}
+            {sigTab === "upload" && (
+              <div className="space-y-3 py-3 text-center">
+                <label className="border-2 border-dashed border-primary/40 hover:border-primary/80 rounded-2xl p-6 bg-primary/5 hover:bg-primary/10 transition-all flex flex-col items-center justify-center gap-2 cursor-pointer">
+                  <Upload className="size-8 text-primary/70" />
+                  <span className="text-xs font-bold text-foreground">Klik untuk memilih file TTD (PNG/JPG)</span>
+                  <span className="text-[11px] text-muted-foreground">Disarankan gambar berlatar belakang transparan/putih</span>
+                  <input type="file" accept="image/*" onChange={handleFileUploadSig} className="hidden" />
+                </label>
+              </div>
+            )}
           </div>
-
-          {/* Tab 1: Draw Canvas */}
-          {sigTab === "draw" && (
-            <div className="space-y-3 py-2">
-              <div className="relative border-2 border-dashed border-border/80 rounded-2xl bg-white overflow-hidden shadow-inner">
-                <canvas
-                  ref={sigCanvasRef}
-                  width={380}
-                  height={160}
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
-                  onTouchStart={startDrawing}
-                  onTouchMove={draw}
-                  onTouchEnd={stopDrawing}
-                  className="w-full h-40 touch-none cursor-crosshair"
-                />
-                <span className="absolute bottom-2 right-2 text-[10px] text-slate-400 pointer-events-none select-none">
-                  Area Coret-Coret TTD
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={clearCanvas}
-                  className="h-8 text-xs rounded-xl gap-1 text-muted-foreground hover:bg-muted"
-                >
-                  <Eraser className="size-3.5" />
-                  <span>Bersihkan</span>
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => {
-                    const canvas = sigCanvasRef.current;
-                    if (canvas) {
-                      const dataUrl = canvas.toDataURL("image/png");
-                      handleSaveSignature(dataUrl);
-                    }
-                  }}
-                  className="h-8 text-xs rounded-xl bg-primary text-primary-foreground font-semibold gap-1.5 shadow-xs"
-                >
-                  <Check className="size-3.5" />
-                  <span>Gunakan Tanda Tangan</span>
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Tab 2: Upload File */}
-          {sigTab === "upload" && (
-            <div className="space-y-3 py-3 text-center">
-              <label className="border-2 border-dashed border-primary/40 hover:border-primary/80 rounded-2xl p-6 bg-primary/5 hover:bg-primary/10 transition-all flex flex-col items-center justify-center gap-2 cursor-pointer">
-                <Upload className="size-8 text-primary/70" />
-                <span className="text-xs font-bold text-foreground">Klik untuk memilih file TTD (PNG/JPG)</span>
-                <span className="text-[11px] text-muted-foreground">Disarankan gambar berlatar belakang transparan/putih</span>
-                <input type="file" accept="image/*" onChange={handleFileUploadSig} className="hidden" />
-              </label>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </div>
