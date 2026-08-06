@@ -369,6 +369,7 @@ export async function exportLogbookToDocx(
         if (
           tag === "documentation" ||
           tag === "student_signature" ||
+          tag === "lurah_head_signature" ||
           tag.startsWith("auth_sig_")
         ) {
           return {
@@ -394,7 +395,11 @@ export async function exportLogbookToDocx(
         return null;
       },
       getSize: function (_imgBuffer: any, tagValue: any, tagName: string) {
-        if (tagName === "student_signature" || tagName?.startsWith("auth_sig_")) {
+        if (
+          tagName === "student_signature" ||
+          tagName === "lurah_head_signature" ||
+          tagName?.startsWith("auth_sig_")
+        ) {
           return [105, 52];
         }
         if (typeof tagValue === "string" && imageSizeMap.has(tagValue)) {
@@ -441,7 +446,9 @@ export async function exportLogbookToDocx(
     });
 
     let lurahHeadTitle = "TANDA TANGAN LURAH / KEPALA DESA";
+    let lurahHeadSignature = "";
     let lurahHeadName = "( .................................... )";
+    const extraSigPayload: Record<string, any> = {};
 
     const renderPayload: Record<string, any> = {
       full_name: student.full_name || "",
@@ -465,12 +472,8 @@ export async function exportLogbookToDocx(
       const firstName = firstAuth.name ? firstAuth.name.trim() : "....................................";
 
       lurahHeadTitle = firstTitle.startsWith("TANDA TANGAN") ? firstTitle : `TANDA TANGAN ${firstTitle}`;
-      const firstSig = firstAuth.signature_url ? `{auth_sig_0}\n` : "";
-      lurahHeadName = `${firstSig}( ${firstName} )`;
-
-      if (firstAuth.signature_url) {
-        renderPayload["auth_sig_0"] = firstAuth.signature_url;
-      }
+      lurahHeadSignature = firstAuth.signature_url || "";
+      lurahHeadName = `( ${firstName} )`;
 
       if (student.authorities.length > 1) {
         const extraAuthoritiesText = student.authorities
@@ -482,7 +485,7 @@ export async function exportLogbookToDocx(
             const n = auth.name ? auth.name.trim() : "....................................";
             const sigTag = auth.signature_url ? `{auth_sig_${realIdx}}\n` : "";
             if (auth.signature_url) {
-              renderPayload[`auth_sig_${realIdx}`] = auth.signature_url;
+              extraSigPayload[`auth_sig_${realIdx}`] = auth.signature_url;
             }
             return `\n\n\n\n${fullT}\n\n\n\n${sigTag}( ${n} )`;
           })
@@ -495,11 +498,26 @@ export async function exportLogbookToDocx(
     }
 
     renderPayload.lurah_head_title = lurahHeadTitle;
+    renderPayload.lurah_head_signature = lurahHeadSignature;
     renderPayload.lurah_head_name = lurahHeadName;
 
     doc.render(renderPayload);
 
-    const renderedZip = doc.getZip();
+    let renderedZip = doc.getZip();
+
+    // Pass 2: Render extra authority signature tags ({auth_sig_1}, {auth_sig_2}, dll) jika ada multiple penandatangan
+    if (Object.keys(extraSigPayload).length > 0) {
+      const pass1ArrayBuffer = renderedZip.generate({ type: "arraybuffer" });
+      const zip2 = new PizZip(pass1ArrayBuffer);
+      const imageModule2 = new ImageModule(imageOpts);
+      const doc2 = new Docxtemplater(zip2, {
+        modules: [imageModule2],
+        paragraphLoop: true,
+        linebreaks: true,
+      });
+      doc2.render(extraSigPayload);
+      renderedZip = doc2.getZip();
+    }
     let documentXml = renderedZip.file("word/document.xml")?.asText() || "";
 
     // Embed Pas Foto 4x6 jika ada
