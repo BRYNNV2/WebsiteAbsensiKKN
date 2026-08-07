@@ -429,7 +429,7 @@ export async function exportLogbookToDocx(
             fullUrl = "https://" + fullUrl;
           }
           const escapedUrl = fullUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-          const hyperlinkXml = `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:fldSimple w:instr="HYPERLINK &quot;${escapedUrl}&quot;"><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:color w:val="0563C1"/><w:u w:val="single"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:b/></w:rPr><w:t>Buka Link Dokumentasi ↗</w:t></w:r></w:fldSimple></w:r></w:p>`;
+          const hyperlinkXml = `<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:color w:val="0563C1"/><w:u w:val="single"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:b/></w:rPr><w:t xml:space="preserve">🔗 Link Dokumentasi:&#10;${escapedUrl}</w:t></w:r>`;
           return { value: hyperlinkXml };
         }
 
